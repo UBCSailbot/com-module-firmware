@@ -1,6 +1,8 @@
 # STM32F407 Demo / Prototype
 This is a quick demonstration of I2C on the STM32F407 dev board. It uses a veml3328 optical sensor and an LED with an on-board PWM generator to adjust the light in correspondence to the change in light level.
 
+https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-42cf-9b6a-2ea88e23f80a
+
 # Directory
 - **/Core/Src**: Contains the source code files.
   - `/main.c`: Read the ambient light level upon initialization and dim the LED if the sensor sees less light (by changing the PWM signal).
