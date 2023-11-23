@@ -70,6 +70,4 @@ void veml3328_rd_rgb(void){
     b = veml3328_rd(B_, &b_data);
 }
 
-// function that determines resolution 
-
 
