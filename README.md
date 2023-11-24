@@ -1,5 +1,7 @@
 # STM32F407 Demo / Prototype
-This is a quick demonstration of I2C on the STM32F407 dev board. It uses a veml3328 optical sensor and an LED with an on-board PWM generator to adjust the light in correspondence to the change in light level.
+This is a brief STM32F407 dev board demonstration of I2C using a VEML3328 optical sensor and an LED to showcase sensor operation.
+
+Demo video illustrates LED dimming in response to changes in ambient light. The VEML3328 sensor computes ambient light at the start of every power cycle, ensuring that the basic ambient light level aligns with the current environmental conditions.
 
 https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-42cf-9b6a-2ea88e23f80a
 
@@ -13,20 +15,17 @@ https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-
 
 # How It Works
 ## VEML 3328
-The VEML3328 is a colour sensor that detects R, G, B, C, and IR using the I2C communication protocol. The datasheet can be found [here](https://www.vishay.com/docs/84968/veml3328.pdf).
+The VEML3328 is an optical sensor that detects R, G, B, C, and IR. It uses I2C communication protocol and the datasheet can be found [here](https://www.vishay.com/docs/84968/veml3328.pdf).
 
-Note that this demo uses a dev board; information is available [here](https://www.mikroe.com/color-10-click).
+Note that this demo uses a dev board of the sensor which includes all the necessary circuits such as pull-up registers for I2C. More information is available [here](https://www.mikroe.com/color-10-click).
 
 ## STM32f407
-### Peripherals 
-STM32 offers software known as CubeMX, which allows the configuration of pins to streamline development processes. This tool ensures that only the necessary pins/functions are activated, and it provides pre-written function templates.
+### Configuration
+CubeMX is a software tool that allows low-level configuration (pin and clock) of the board.
 
-#### Pinout
-Refer to the board pinout diagram [here](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png) for a comprehensive overview of available pins.
+Refer to the board pinout diagram [here](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png)
 
-#### Demo Configuration
-For the purposes of this demo, the following pins should be activated:
-
+For the purposes of this demo, the following pins were used:
     PE9: PWM
     PB8: SCL
     PB9: SDA
@@ -34,15 +33,15 @@ For the purposes of this demo, the following pins should be activated:
 Alternatively, developers can directly use the provided .ioc file in this repo.
 
 ## Firmware
-This is a simple demo. The codes are built around two main functions: I2C read/write and PWM signal generator.
+The codes are built around two main functions: I2C read/write and PWM signal generator.
 
 ### I2C
-I2C is a serial communication protocol that uses 2 wires to transmit data, SDA (Serial Data) & SCL (Serial Clock). The SDA line, as the name suggests, transmits data bits, and the SCL line transmits the clock signal. And because it has a common clock signal shared between the [master and slave](https://www.circuitbasics.com/wp-content/uploads/2016/01/Introduction-to-I2C-Single-Master-Single-Slave.png), the protocol is synchronous (real-time communication). 
+I2C is a serial communication protocol that uses 2 wires to transmit data, SDA (Serial Data) & SCL (Serial Clock). The SDA line, as the name suggests, transmits data bits, and the SCL line transmits the clock signal. Because it has a common clock signal shared between the [master and slave](https://www.circuitbasics.com/wp-content/uploads/2016/01/Introduction-to-I2C-Single-Master-Single-Slave.png), the protocol is synchronous (does real-time communication). 
 
-The [message structure](https://www.circuitbasics.com/wp-content/uploads/2016/01/Introduction-to-I2C-Message-Frame-and-Bit-2.png) of I2C is simple. There are:
+The [message structure](https://www.circuitbasics.com/wp-content/uploads/2016/01/Introduction-to-I2C-Message-Frame-and-Bit-2.png) of I2C has:
 - **Start Condition:** Occurs when the SDA line transitions from a high (typically 3.3V or 5V) to low voltage before the SCL line transitions from high to low.
 
-- **Address Frame:** A 7 to 10-bit sequence used to identify slave devices. Addressing is how I2C allows multiple device communication without a separate line like SPI.
+- **Address Frame:** A 7 to 10-bit sequence used to identify slave devices. Addressing is how I2C handless multiple device communication without a separate line like SPI.
 
 - **Read/Write:** A single bit signalling the slave whether the master intends to write data into it or receive data from it.
 
