@@ -1,5 +1,5 @@
 # STM32F407 Demo / Prototype
-This is a brief STM32F407 dev board demonstration of I2C using a VEML3328 optical sensor and an LED. The demo video below illustrates LED dimming in response to changes in ambient light. Intead of having a set threshold, the VEML3328 sensor computes ambient light at the start of every power cycle, ensuring that the ambient light level aligns with the environmental condition that is current at.
+This is a brief STM32F407 dev board demonstration of I2C using a [VEML3328](https://www.vishay.com/docs/84968/veml3328.pdf) optical sensor and an LED. The demo video below illustrates LED dimming in response to changes in ambient light. Intead of having a set threshold, the VEML3328 sensor computes ambient light at the start of every power cycle, ensuring that the ambient light level aligns with the environmental condition that is current at.
 
 https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-42cf-9b6a-2ea88e23f80a
 
@@ -9,26 +9,20 @@ https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-
   - `/veml3328_hardware.h`: Function prototype, variable declaration, and define command registers 
   - `/veml3328_hardware.c`: HAL I2C read/write, functions for - sensor initialization, sensor configuration, read R G B
   - `/veml3328_software.h`: Function prototype
-  - `/veml3328_software.c`: Function for converting R G B to lux. As per pg 4 of [this](https://www.vishay.com/docs/80010/designingveml3328.pdf) sensor application documentation, we can configure the sensitivity by adjusting the gain and integration time. Also, as suggested on page 5, the G channel can be used as an ambient light sensor due to the spectral characteristics of the channel being similar to that of a human eye. Using the equation ALS (Ambient Light Sensor) lux = G x Sensitivity, we can get an estimated ambient light level. The sensitivity for this demo is set at 0.384 which comes from GAINx1/2, IT @ 50ms and DGx2. 
+  - `/veml3328_software.c`: Function for converting R G B to lux. As per pg 4 of [sensor application documentation](https://www.vishay.com/docs/80010/designingveml3328.pdf), we can configure the sensitivity by adjusting the gain and integration time. Also, as suggested on page 5, the G channel can be used as an ambient light sensor due to the spectral characteristics of the channel being similar to that of a human eye. Using the equation ALS (Ambient Light Sensor) lux = G x Sensitivity, we can get an estimated ambient light level. The sensitivity for this demo is set at 0.384 which comes from GAINx1/2, IT @ 50ms and DGx2. 
 
 # How It Works
 ## VEML 3328
-The VEML3328 is an optical sensor that detects R, G, B, C, and IR. It uses I2C communication protocol and the datasheet can be found [here](https://www.vishay.com/docs/84968/veml3328.pdf).
-
-Note that this demo uses a dev board of the sensor which includes all the necessary circuits such as pull-up registers for I2C. More information is available [here](https://www.mikroe.com/color-10-click).
+Note that this demo uses a [break out board](https://www.mikroe.com/color-10-click) of the sensor which includes all the necessary circuits such as pull-up registers for I2C.
 
 ## STM32f407
 ### Configuration
-CubeMX is a software tool that allows low-level configuration (pin and clock) of the board.
-
-Refer to the board pinout diagram [here](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png)
+CubeMX is a software tool that allows low-level configuration ([pins](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png) and clock) of the board.
 
 For the purposes of this demo, the following pins were used:
 - PE9: PWM
 - PB8: SCL
 - PB9: SDA
-
-Alternatively, developers can directly use the provided .ioc file in this repo.
 
 ## Firmware
 The codes are built around two main functions: I2C read/write and PWM signal generator.
