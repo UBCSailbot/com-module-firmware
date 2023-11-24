@@ -1,7 +1,5 @@
 # STM32F407 Demo / Prototype
-This is a brief STM32F407 dev board demonstration of I2C using a VEML3328 optical sensor and an LED to showcase sensor operation.
-
-Demo video illustrates LED dimming in response to changes in ambient light. The VEML3328 sensor computes ambient light at the start of every power cycle, ensuring that the basic ambient light level aligns with the current environmental conditions.
+This is a brief STM32F407 dev board demonstration of I2C using a VEML3328 optical sensor and an LED. The demo video below illustrates LED dimming in response to changes in ambient light. Intead of having a set threshold, the VEML3328 sensor computes ambient light at the start of every power cycle, ensuring that the ambient light level aligns with the environmental condition that is current at.
 
 https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-42cf-9b6a-2ea88e23f80a
 
@@ -26,9 +24,9 @@ CubeMX is a software tool that allows low-level configuration (pin and clock) of
 Refer to the board pinout diagram [here](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png)
 
 For the purposes of this demo, the following pins were used:
-    PE9: PWM
-    PB8: SCL
-    PB9: SDA
+- PE9: PWM
+- PB8: SCL
+- PB9: SDA
 
 Alternatively, developers can directly use the provided .ioc file in this repo.
 
