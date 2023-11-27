@@ -13,19 +13,21 @@ https://github.com/UBCSailbot/com-module-firmware/assets/63937643/d8c5c91c-183c-
 
 # How It Works
 ## VEML 3328
-Note that this demo uses a [break out board](https://www.mikroe.com/color-10-click) of the sensor which includes all the necessary circuits such as pull-up registers for I2C.
+Note that this demo uses a [break out board](https://www.mikroe.com/color-10-click).
 
 ## STM32f407
 ### Configuration
-CubeMX is a software tool that allows low-level configuration ([pins](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png) and clock) of the board.
+CubeMX is a software tool that allows low-level configuration ([pins](https://microcontrollerslab.com/wp-content/uploads/2019/12/stm32f4-discovery-pinout.png) and clock).
 
 For the purposes of this demo, the following pins were used:
 - PE9: PWM
 - PB8: SCL
 - PB9: SDA
 
+And the 
+
 ## Firmware
-The codes are built around two main functions: I2C read/write and PWM signal generator.
+The code is built around I2C read/write and PWM.
 
 ### I2C
 I2C is a serial communication protocol that uses 2 wires to transmit data, SDA (Serial Data) & SCL (Serial Clock). The SDA line, as the name suggests, transmits data bits, and the SCL line transmits the clock signal. Because it has a common clock signal shared between the [master and slave](https://www.circuitbasics.com/wp-content/uploads/2016/01/Introduction-to-I2C-Single-Master-Single-Slave.png), the protocol is synchronous (does real-time communication). 
@@ -44,6 +46,20 @@ The [message structure](https://www.circuitbasics.com/wp-content/uploads/2016/01
 - **Stop Condition:** Occurs when the SDA line transitions from low to high voltage after the SCL line transitions from low to high.
 
 ### Pulse Width Modulation
+Pulse Width Modulation (PWM) is a technique for generating continuous HIGH/LOW (ON/OFF) signals. By controlling both the width and frequency of the pulses, the power delivered to a load can be easily adjusted. This method is commonly used to control the speed of motors or regulate the brightness of LEDs.
+
+- Frequency: Measured in Hertz (Hz), frequency represents the speed of alternation between the HIGH and LOW states in a signal. A higher frequency indicates a faster alternation. 
+https://cdn-0.deepbluembedded.com/wp-content/uploads/2023/05/Arduino-PWM-Signal-DutyCycle-Frequency-Equation.jpg?ezimgfmt=ng:webp/ngcb6
+
+- Duty Cycle: Measured in percentage (%), duty cycle is the duration of the HIGH (ON) state relative to the signal's period. For example, a 15% duty cycle implies that the PWM signal's voltage is high for 15% of the signal period and low for the remaining 85%.
+https://cdn-0.deepbluembedded.com/wp-content/uploads/2023/05/Arduino-PWM-Duty-Cycle-Equation.jpg?ezimgfmt=ng:webp/ngcb6
+
+The resolution of the signal is a crucial factor, defining the maximum number of steps in one PWM period. Higher resolution allows for finer adjustments in duty cycles. In practical terms, a resolution of 3 bits means 8 discrete levels (2^3), while 8 bits mean 256 discrete levels. 
+https://www.eeweb.com/wp-content/uploads/articles-articles-pwm-1374007966.png 
+
+It's important to consider the relationship between frequency and resolution. In some cases, higher PWM resolution might require more frequent updates of the PWM signal to achieve finer adjustments in the duty cycle. If you try to increase the resolution without adjusting the frequency, you might end up with a PWM signal that changes too slowly to represent the desired duty cycle accurately. Conversely, if a higher PWM frequency is required, one might have to compromise resolution to maintain real-time performance due to hardware limitations. This trade-off often arises from constraints in processing power or the capabilities of PWM modules. Here is an example that studies various frequency and resolution options for [PIC17C42](http://www.t-es-t.hu/download/microchip/an539c.pdf)
+
+#### CUBE MX Configuration
 
 ### Hardware Abstraction Layer (HAL) Driver
 ```C
@@ -53,3 +69,6 @@ HAL_StatusTypeDef veml3328_rd(uint8_t registerAddress, uint16_t* value)
 
 HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 ```
+
+# Resources
+- [STM32 PWM](https://deepbluembedded.com/stm32-pwm-example-timer-pwm-mode-tutorial/)
