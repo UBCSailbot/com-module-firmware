@@ -49,12 +49,15 @@ The [message structure](https://www.circuitbasics.com/wp-content/uploads/2016/01
 Pulse Width Modulation (PWM) is a technique for generating continuous HIGH/LOW (ON/OFF) signals. By controlling both the width and frequency of the pulses, the power delivered to a load can be easily adjusted. This method is commonly used to control the speed of motors or regulate the brightness of LEDs.
 
 - Frequency: Measured in Hertz (Hz), frequency represents the speed of alternation between the HIGH and LOW states in a signal. A higher frequency indicates a faster alternation. 
+
 ![alt text](https://cdn-0.deepbluembedded.com/wp-content/uploads/2023/05/Arduino-PWM-Signal-DutyCycle-Frequency-Equation.jpg?ezimgfmt=ng:webp/ngcb6)
 
 - Duty Cycle: Measured in percentage (%), duty cycle is the duration of the HIGH (ON) state relative to the signal's period. For example, a 15% duty cycle implies that the PWM signal's voltage is high for 15% of the signal period and low for the remaining 85%.
+
 ![alt text](https://cdn-0.deepbluembedded.com/wp-content/uploads/2023/05/Arduino-PWM-Duty-Cycle-Equation.jpg?ezimgfmt=ng:webp/ngcb6)
 
 The resolution of the signal is a crucial factor, defining the maximum number of steps in one PWM period. Higher resolution allows for finer adjustments in duty cycles. In practical terms, a resolution of 3 bits means 8 discrete levels (2^3), while 8 bits mean 256 discrete levels. 
+
 ![alt text](https://www.eeweb.com/wp-content/uploads/articles-articles-pwm-1374007966.png)
 
 It's important to consider the relationship between frequency and resolution. In some cases, higher PWM resolution might require more frequent updates of the PWM signal to achieve finer adjustments in the duty cycle. If you try to increase the resolution without adjusting the frequency, you might end up with a PWM signal that changes too slowly to represent the desired duty cycle accurately. Conversely, if a higher PWM frequency is required, one might have to compromise resolution to maintain real-time performance due to hardware limitations. This trade-off often arises from constraints in processing power or the capabilities of PWM modules. Here is an example that studies various frequency and resolution options for [PIC17C42](http://www.t-es-t.hu/download/microchip/an539c.pdf)
