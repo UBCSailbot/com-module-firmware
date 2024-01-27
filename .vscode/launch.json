@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/Peter/Desktop/Project/ubc_sb/comm_module/STM32F407_demo/Core/Src",
-      "program": "c:/Users/Peter/Desktop/Project/ubc_sb/comm_module/STM32F407_demo/Core/Src/build/Debug/outDebug",
+      "cwd": ".",
+      "program": "build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
