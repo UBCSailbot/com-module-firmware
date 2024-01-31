@@ -20,6 +20,7 @@
 #include "main.h"
 #include "3328.h"
 #include "stdio.h"
+#include "bord.c"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -86,9 +87,12 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int _write(int file, char *ptr, int len)
+{
+	HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+	return len;
+}
 /* USER CODE END 0 */
-
 /**
   * @brief  The application entry point.
   * @retval int
@@ -131,28 +135,20 @@ int main(void)
   MX_USART1_UART_Init();
 
   /* This is a demo code */
-  uint8_t tx_buffer0[30] = "---start---\n";
-  uint8_t cl_buffer0[30] = "\x1B[2J";
-  char ref[8];
-  char data[8];
+  uint8_t tx_buffer0[30] = "\r\n-------start------\r\n";
+  char ref[20];
+  char data[10];
   uint16_t dutyCycle = 50;
   int i;
   int one = 0;
   int two = 0;
 
-
-  /* UART:
-   * HAL_UART_Transmit (UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
-   * HAL_UART_Receive (UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
-   */
-
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
-    /*Sensor Init*/
   while (veml3328_init() == 0) return 0;
   veml3328_config(0000);
 
-  for (i = 0; i < 10; i++) {
+  for (i = 0; i < 50; i++) {
 	  veml3328_rd_rgb();
 	  one = g_data;
 	  HAL_Delay(1);
@@ -161,11 +157,12 @@ int main(void)
 	  amb = (one + two)/2;
 	}
 
+
   HAL_UART_Transmit(&huart1, tx_buffer0, sizeof(tx_buffer0), 10);
   HAL_Delay(10);
 
-  sprintf(ref, "%hu\r", amb);
-  HAL_UART_Transmit(&huart1, (uint8_t*)msg, sizeof(msg), 1);
+  sprintf(ref, "Reference: %hu\r\n", amb);
+  HAL_UART_Transmit(&huart1, (uint8_t*)ref, sizeof(ref), 1);
 
   while (1)
   {
@@ -176,14 +173,16 @@ int main(void)
 	  if (g_data > amb-5) dutyCycle = 90;
 	  if (g_data < amb-10) dutyCycle = 10;
 
-	  sprintf(data, "%hu\r", g_data);
-	  HAL_UART_Transmit(&huart1, (uint8_t*)msg, sizeof(msg), 1);
+	  sprintf(data, "Data: %hu\r", g_data);
+	  printf("test\n");
+	  HAL_UART_Transmit(&huart1, (uint8_t*)data, sizeof(data), 1);
 
 	  if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2)) HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
 	  else HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
 	  if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4)) HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET);
 	  else HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);
   }
+
 }
 /**
   * @brief System Clock Configuration
