@@ -1,15 +1,36 @@
-# Communication Module
-## STM32U5 
-Put the jumper on the top-right coner to 5V_USB_C if you are using a USB-C cable. 
-https://www.st.com/en/product/nucleo-u575zi-q?ecmp=tt9470_gl_link_feb2019&rt=db&id=DB3171
+# Communication Module Firmware
 
-https://www.st.com/resource/en/user_manual/dm00789949.pdf
+This repository consists of multiple firmware projects from the electrical team working on the project Polaris at UBC Sailbot. All of the firmware is written for the STM32U5 Nucleo-144 boards.
 
-## Updates
-2024-01-30 -> Fully functioning demo code with printf. 
-	 
-	 
+Current projects include:
 
+1. Base communication module library
+2. Rudder controller firmware
+3. Wingsail controller firmware
 
+## Repository Structure
 
+```
+root/
+|    README.md
+|    .gitignore
+|    LICENSE
+|    tutorial/                              - Setup instructions and tutorials
+|    docs/                                  - Common/shared documents between projects
+|    scripts/                               - Automated testing and deployment scripts
+|    project1/
+||        project/                          - Main CubeIDE Project
+||        tests/                            - Component level unit tests
+|||            COMPONENT1/
+|||            COMPONENT2/
+||        docs/                             - Project technical documentation
+|||            architecture.md
+|||            testing_instructions.md
+|||            datasheets/
+||||               component1.pdf
+|    project2/
+```
 
+## Prerequisites
+
+## Resources
