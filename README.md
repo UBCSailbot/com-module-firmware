@@ -54,4 +54,6 @@ List of tools required to get started:
 - [Putty](https://putty.org/) - Used for serial communication between host and STM32U5 board.
 - [Git](https://git-scm.com/downloads) - Version control.
 
+If you have not setup your working environment yet, follow the [setup instructions](tutorials/setup.md).
+
 ## Resources
