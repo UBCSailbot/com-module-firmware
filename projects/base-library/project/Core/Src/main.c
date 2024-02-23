@@ -18,9 +18,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "3328.h"
 #include "stdio.h"
-#include "bord.c"
+#include "bord.h"
+#include "comp.h"
+#include "numb.h"
+#include "oprt.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -42,27 +44,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-
-FDCAN_HandleTypeDef hfdcan1;
-
-DMA_NodeTypeDef Node_GPDMA1_Channel4;
-DMA_QListTypeDef List_GPDMA1_Channel4;
-DMA_HandleTypeDef handle_GPDMA1_Channel4;
-DMA_QListTypeDef pQueueLinkList;
-DMA_NodeTypeDef Node_GPDMA1_Channel1;
-DMA_QListTypeDef List_GPDMA1_Channel1;
-DMA_HandleTypeDef handle_GPDMA1_Channel1;
-
-extern I2C_HandleTypeDef hi2c1;
-extern I2C_HandleTypeDef hi2c2;
-
-TIM_HandleTypeDef htim1;
-TIM_HandleTypeDef htim3;
-
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart2;
-int amb;
 
 /* USER CODE BEGIN PV */
 
@@ -81,18 +62,17 @@ static void MX_TIM3_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C3_Init(void);
+static void MX_I2C4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int _write(int file, char *ptr, int len)
-{
-	HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, HAL_MAX_DELAY);
-	return len;
-}
+
 /* USER CODE END 0 */
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -133,57 +113,13 @@ int main(void)
   MX_FDCAN1_Init();
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
+  MX_I2C3_Init();
+  MX_I2C4_Init();
 
-  /* This is a demo code */
-  uint8_t tx_buffer0[30] = "\r\n-------start------\r\n";
-  char ref[20];
-  char data[10];
-  uint16_t dutyCycle = 50;
-  int i;
-  int one = 0;
-  int two = 0;
-
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-
-  while (veml3328_init() == 0) return 0;
-  veml3328_config(0000);
-
-  for (i = 0; i < 50; i++) {
-	  veml3328_rd_rgb();
-	  one = g_data;
-	  HAL_Delay(1);
-	  veml3328_rd_rgb();
-	  two = g_data;
-	  amb = (one + two)/2;
-	}
-
-
-  HAL_UART_Transmit(&huart1, tx_buffer0, sizeof(tx_buffer0), 10);
-  HAL_Delay(10);
-
-  sprintf(ref, "Reference: %hu\r\n", amb);
-  HAL_UART_Transmit(&huart1, (uint8_t*)ref, sizeof(ref), 1);
-
-  while (1)
-  {
-	  htim1.Instance -> CCR1 = dutyCycle;
-	  veml3328_rd_rgb();
-	  dutyCycle = 50;
-
-	  if (g_data > amb-5) dutyCycle = 90;
-	  if (g_data < amb-10) dutyCycle = 10;
-
-	  sprintf(data, "Data: %hu\r", g_data);
-	  printf("test\n");
-	  HAL_UART_Transmit(&huart1, (uint8_t*)data, sizeof(data), 1);
-
-	  if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2)) HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
-	  else HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
-	  if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4)) HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET);
-	  else HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);
-  }
-
+  demo();
+  /* USER CODE END 3 */
 }
+
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -591,6 +527,102 @@ static void MX_I2C2_Init(void)
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C3_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.Timing = 0x10707DBC;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c3, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c3, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
+
+}
+
+/**
+  * @brief I2C4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C4_Init(void)
+{
+
+  /* USER CODE BEGIN I2C4_Init 0 */
+
+  /* USER CODE END I2C4_Init 0 */
+
+  /* USER CODE BEGIN I2C4_Init 1 */
+
+  /* USER CODE END I2C4_Init 1 */
+  hi2c4.Instance = I2C4;
+  hi2c4.Init.Timing = 0x10707DBC;
+  hi2c4.Init.OwnAddress1 = 0;
+  hi2c4.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c4.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c4.Init.OwnAddress2 = 0;
+  hi2c4.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c4.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c4.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c4, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c4, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C4_Init 2 */
+
+  /* USER CODE END I2C4_Init 2 */
 
 }
 
