@@ -1,1 +1,0 @@
-int convert(int value);

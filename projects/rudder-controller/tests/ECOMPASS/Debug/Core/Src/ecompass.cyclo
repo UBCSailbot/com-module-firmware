@@ -1,0 +1,10 @@
+../Core/Src/ecompass.c:24:19:ecompass_wr	1
+../Core/Src/ecompass.c:41:19:ecompass_rd	1
+../Core/Src/ecompass.c:59:19:ecompass_wr_16b	1
+../Core/Src/ecompass.c:85:19:ecompass_rd_16b	1
+../Core/Src/ecompass.c:110:18:ecompass_init	1
+../Core/Src/ecompass.c:127:18:ecompass_isCalibrated	3
+../Core/Src/ecompass.c:144:18:ecompass_getBearing	2
+../Core/Src/ecompass.c:153:18:ecompass_getPitch	2
+../Core/Src/ecompass.c:162:18:ecompass_getRoll	2
+../Core/Src/ecompass.c:171:18:ecompass_getTemp	2
