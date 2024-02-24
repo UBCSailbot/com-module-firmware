@@ -8,3 +8,5 @@
 *.o
 *.su
 *.metadata
+*.settings
+*language.settings.xml
