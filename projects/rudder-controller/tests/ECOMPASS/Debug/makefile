@@ -60,8 +60,8 @@ all: main-build
 main-build: ECOMPASS.elf secondary-outputs
 
 # Tool invocations
-ECOMPASS.elf ECOMPASS.map: $(OBJS) $(USER_OBJS) C:\Users\mlokh\STM32CubeIDE\sailbot\com-module-firmware\drv-rudder\tests\ECOMPASS\STM32U575ZITXQ_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ECOMPASS.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m33 -T"C:\Users\mlokh\STM32CubeIDE\sailbot\com-module-firmware\drv-rudder\tests\ECOMPASS\STM32U575ZITXQ_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECOMPASS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+ECOMPASS.elf ECOMPASS.map: $(OBJS) $(USER_OBJS) C:\Users\Sailbot\STM32CubeIDE\com-module-firmware\projects\rudder-controller\tests\ECOMPASS\STM32U575ZITXQ_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "ECOMPASS.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m33 -T"C:\Users\Sailbot\STM32CubeIDE\com-module-firmware\projects\rudder-controller\tests\ECOMPASS\STM32U575ZITXQ_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECOMPASS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
