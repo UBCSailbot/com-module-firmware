@@ -9,3 +9,9 @@
 *.su
 *.metadata
 *.settings
+
+#Debug
+*Debug/
+*debug/
+*Release/
+*release

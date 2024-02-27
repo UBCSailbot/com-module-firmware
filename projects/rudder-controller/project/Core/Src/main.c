@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "ecompass.h"
+#include "unit_tests.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,13 +34,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define TEST_MODE
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define DEBUG_ECOMPASS 1
-///#define DEBUG_ADC 1
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -78,11 +78,6 @@ int _write(int file, char *ptr, int len)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint16_t raw;
-	char msg[10];
-
-	uint8_t softversion;
-	uint16_t bearing;
 
   /* USER CODE END 1 */
 
@@ -108,51 +103,21 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  printf("main\r\n");
 
+#ifdef TEST_MODE
+	  test_main();
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  printf("main\r\n");
-
-  ecompass_rd(EC_REG_SOFTVERSION, &softversion);
-  printf("Soft version: %x \r\n", softversion);
-
-
   while (1)
   {
+	  // _main();
 
-#ifdef DEBUG_ADC
-	  // Test: Set GPIO pin high
-	     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_SET);
-
-	     // Get ADC value
-	     HAL_ADC_Start(&hadc1);
-	     HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	     raw = HAL_ADC_GetValue(&hadc1);
-	     // Test: Set GPIO pin low
-	     //HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
-
-	     // Convert to string and print
-	     printf("%hu\r\n", raw);
-#endif
-
-	     //Test e-compass
-#ifdef DEBUG_ECOMPASS
-
-	     ecompass_getBearing(&bearing);
-
-	     if (ecompass_isCalibrated(EC_CAL_MAGNETO) == EC_CALIBRATED) {
-	    	 printf("Cal ok \r\n");
-	     }
-	     else printf("Cal not ok \r\n");
-
-		 printf("Bearing: %d \r\n", bearing);
-
-#endif
-
-	     // Pretend we have to do something else for a while
-	     HAL_Delay(1000);
+	// Pretend we have to do something else for a while
+	HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

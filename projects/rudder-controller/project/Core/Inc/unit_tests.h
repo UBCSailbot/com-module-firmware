@@ -8,10 +8,6 @@
 #ifndef SRC_UNIT_TESTS_H_
 #define SRC_UNIT_TESTS_H_
 
-//typedef enum {
-//	TEMP_TEST1
-//} testname;
-
 typedef enum {
 	COMPONENT_INVALIDREAD = 0x01
 } errorcode;
@@ -24,10 +20,15 @@ typedef enum {
 typedef struct {
 	teststatus stat;
 	union Error {
-		unsigned char raw;
-		errorcode code;
+		unsigned int raw;
+		unsigned short seg[2];
 	} error;
 } testresult;
+
+typedef enum {
+	ALL,
+	ECOMPASS
+} testgroup;
 
 typedef struct {
 	char * testname;
@@ -35,12 +36,7 @@ typedef struct {
 	testgroup group;
 }t_test;
 
-typedef enum {
-	ALL,
-	ECOMPASS
-} testgroup;
 
 void test_main(void);
-
 
 #endif /* SRC_UNIT_TESTS_H_ */
