@@ -32,15 +32,15 @@ typedef struct {
 typedef struct {
 	char * testname;
 	testresult (*func)(void);
+	testgroup group;
 }t_test;
+
+typedef enum {
+	ALL,
+	ECOMPASS
+} testgroup;
 
 void test_main(void);
 
-// Test functions
-testresult temp_test1(void);
-
-t_test test_runner[] = {
-		{.testname="Temporary test 1", .func=temp_test1}
-};
 
 #endif /* SRC_UNIT_TESTS_H_ */
