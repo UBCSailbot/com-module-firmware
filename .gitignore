@@ -15,3 +15,5 @@
 *debug/
 *Release/
 *release
+
+*.vscode
