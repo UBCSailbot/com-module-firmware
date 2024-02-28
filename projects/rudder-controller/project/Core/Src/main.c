@@ -23,8 +23,8 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
+#include <utest.h>
 #include "ecompass.h"
-#include "unit_tests.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -106,7 +106,7 @@ int main(void)
   printf("main\r\n");
 
 #ifdef TEST_MODE
-	  test_main();
+	  run_tests();
 #endif
   /* USER CODE END 2 */
 

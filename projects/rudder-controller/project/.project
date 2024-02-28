@@ -31,4 +31,11 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>test_framework</name>
+			<type>2</type>
+			<location>C:/Users/mlokh/STM32CubeIDE/sailbot/com-module-firmware/projects/shared/test_framework</location>
+		</link>
+	</linkedResources>
 </projectDescription>

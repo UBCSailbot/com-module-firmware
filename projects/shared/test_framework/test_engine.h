@@ -5,8 +5,10 @@
  *      Author: Sailbot
  */
 
-#ifndef SRC_UNIT_TESTS_H_
-#define SRC_UNIT_TESTS_H_
+#ifndef TEST_ENGINE_H_
+#define TEST_ENGINE_H_
+
+#include "uconfig.h"
 
 typedef enum {
 	COMPONENT_INVALIDREAD = 0x01
@@ -25,11 +27,6 @@ typedef struct {
 	} error;
 } testresult;
 
-typedef enum {
-	ALL,
-	ECOMPASS
-} testgroup;
-
 typedef struct {
 	char * testname;
 	testresult (*func)(void);
@@ -37,6 +34,6 @@ typedef struct {
 }t_test;
 
 
-void test_main(void);
+void test_main(const t_test * test_runner, unsigned int size);
 
 #endif /* SRC_UNIT_TESTS_H_ */

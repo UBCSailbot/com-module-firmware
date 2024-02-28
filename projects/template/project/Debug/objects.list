@@ -23,4 +23,5 @@
 "./Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.o"
 "./Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_tim.o"
 "./Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_tim_ex.o"
-"./Tests/unit_tests.o"
+"./Tests/utest.o"
+"./test_framework/test_engine.o"
