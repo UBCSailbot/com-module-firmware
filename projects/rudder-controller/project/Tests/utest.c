@@ -39,6 +39,7 @@ testresult read_bearing_test(void) {
 	return res;
 }
 
+
 void run_tests(void) {
 	test_main(test_runner, sizeof(test_runner) / sizeof(t_test));
 }
