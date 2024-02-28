@@ -5,10 +5,10 @@
  *      Author: mlokh
  */
 #include "utest.h"
+#include "uconfig.h"
 
+//-- Add tests to runner and custom test macros/definitions
 #define NUM_ITERS 10
-
-const testgroup TEST_GROUP_SEL = ALL;
 
 // -- Add to test runner here --
 const t_test test_runner[] = {

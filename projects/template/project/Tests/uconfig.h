@@ -13,6 +13,6 @@ typedef enum {
 	TEMP
 } testgroup;
 
-extern const testgroup TEST_GROUP_SEL;
+#define TEST_GROUP_SEL ALL
 
 #endif /* UCONFIG_H_ */

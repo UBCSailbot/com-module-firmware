@@ -6,6 +6,7 @@
  */
 #include <stdio.h>
 #include "utest.h"
+#include "uconfig.h"
 #include "ecompass.h"
 
 // -- Test specific definitions

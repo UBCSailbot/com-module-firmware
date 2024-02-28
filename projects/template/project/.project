@@ -33,9 +33,9 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>test_framework</name>
+			<name>TestEngine</name>
 			<type>2</type>
-			<location>C:/Users/mlokh/STM32CubeIDE/sailbot/com-module-firmware/projects/shared/test_framework</location>
+			<locationURI>$%7BWORKSPACE_LOC%7D/com-module-firmware/projects/shared/test_framework</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
