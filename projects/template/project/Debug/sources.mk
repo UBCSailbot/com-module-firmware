@@ -25,4 +25,6 @@ SUBDIRS := \
 Core/Src \
 Core/Startup \
 Drivers/STM32U5xx_HAL_Driver/Src \
+TestEngine \
+Tests \
 

@@ -9,4 +9,11 @@
 *.su
 *.metadata
 *.settings
-*language.settings.xml
+
+#Debug
+*Debug/
+*debug/
+*Release/
+*release
+
+*.vscode
