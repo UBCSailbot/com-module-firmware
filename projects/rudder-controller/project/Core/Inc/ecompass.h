@@ -38,15 +38,6 @@ typedef enum
 
 typedef enum
 {
-	EC_BEARING_8B,
-	EC_BEARING_16B,
-	EC_PTCH,
-	EC_REG_TEMP,
-	EC_CALIBRATION
-} EC_RegName;
-
-typedef enum
-{
 	EC_CAL_MAGNETO = 0x00,
 	EC_CAL_ACCEL = 0x02,
 	EC_CAL_GYRO = 0x04,
