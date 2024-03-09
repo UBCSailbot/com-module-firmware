@@ -15,5 +15,7 @@ void run_tests(void);
 
 // Test functions
 testresult read_bearing_test(void);
+testresult pitch_test(void);
+
 
 #endif /* SRC_UNIT_TESTS_H_ */
