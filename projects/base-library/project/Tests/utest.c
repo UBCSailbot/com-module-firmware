@@ -6,6 +6,7 @@
  */
 #include "utest.h"
 #include "uconfig.h"
+#include "bord.h"
 
 //-- Add tests to runner and custom test macros/definitions
 #define NUM_ITERS 10
@@ -13,27 +14,22 @@
 // -- Add to test runner here --
 const t_test test_runner[] = {
 //		{"Name of test", "function definition", "testgroup id"
-		{.testname="Temporary test 1", .func=temp_test1, .group=TEMP},
-		{.testname="Iteration test", .func=iteration_test}
+		{.testname="UART print test", .func=UART_print_test, .group=UART}
 };
 
 
 // -- Unit tests --
-testresult temp_test1(void) {
+
+testresult UART_print_test(void) {
 	testresult res = {TSUCCESS, {0}};
+	printf("hello world\n\r");
+
 	return res;
 }
 
-testresult iteration_test(void) {
-	testresult res = {TSUCCESS, {0}};
-
-	for (int i = 0; i < NUM_ITERS; ++i) {
-		// res.error.raw = someFunction(..);
-		HAL_Delay(1000);
-	}
-	return res;
-}
 
 void run_tests(void) {
 	test_main(test_runner, sizeof(test_runner) / sizeof(t_test));
 }
+
+

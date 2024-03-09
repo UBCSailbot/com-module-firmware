@@ -10,7 +10,9 @@
 
 typedef enum {
 	ALL,
-	TEMP
+	TEMP,
+	UART,
+	I2C
 } testgroup;
 
 #define TEST_GROUP_SEL ALL
