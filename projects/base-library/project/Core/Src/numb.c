@@ -25,3 +25,8 @@ uint16_t avg_amb(void) {
 	return avg/50;
 }
 
+void handle_CAN_errors(void) {
+
+
+
+}
