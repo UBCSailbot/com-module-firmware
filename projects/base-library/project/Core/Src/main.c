@@ -23,6 +23,8 @@
 #include "comp.h"
 #include "numb.h"
 #include "oprt.h"
+#include "utest.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
