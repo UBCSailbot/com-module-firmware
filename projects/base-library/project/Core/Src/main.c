@@ -23,7 +23,7 @@
 #include "comp.h"
 #include "numb.h"
 #include "oprt.h"
-#include "utest.h"
+#include <utest.h>
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -33,6 +33,8 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
+#define TEST_MODE
 
 /* USER CODE END PTD */
 
@@ -117,6 +119,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_I2C3_Init();
   MX_I2C4_Init();
+
+#ifdef TEST_MODE
+  run_tests();
+#endif
 
   demo();
   /* USER CODE END 3 */
