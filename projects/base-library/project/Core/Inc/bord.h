@@ -36,6 +36,7 @@ extern DMA_QListTypeDef pQueueLinkList;
 extern DMA_NodeTypeDef Node_GPDMA1_Channel1;
 extern DMA_QListTypeDef List_GPDMA1_Channel1;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel1;
+extern uint8_t UART1_rxBuffer[1];
 
 /* Function prototypes ------------------------------------------------------------------*/
 void delay(uint16_t time);
@@ -45,12 +46,11 @@ void gpio_rs_e3();
 GPIO_PinState gpio_rd_e4();
 void gpio_wr_e5();
 void gpio_rs_e5();
-void pwm_init_ch1(uint16_t dutycycle);
-void pwm_set_ch1(uint16_t dutycycle);
-void pwm_init_ch3(uint16_t dutycycle);
-void pwm_set_ch3(uint16_t dutycycle);
+void pwm1_init_ch1(uint16_t dutycycle);
+void pwm1_set_ch1(uint16_t dutycycle);
+void pwm3_init_ch1(uint16_t dutycycle);
+void pwm3_set_ch1(uint16_t dutycycle);
 extern HAL_StatusTypeDef i2c_wr(I2C_HandleTypeDef handle, uint8_t device_address, uint8_t register_address, uint16_t value);
 extern HAL_StatusTypeDef i2c_rd(I2C_HandleTypeDef handle, uint8_t device_address, uint8_t register_address, uint16_t* value);
-HAL_StatusTypeDef uart_rd(UART_HandleTypeDef handle, uint8_t msg);
-HAL_StatusTypeDef uart_wr(UART_HandleTypeDef handle, uint8_t msg);
+void uart_rd(UART_HandleTypeDef handle, uint8_t* buffer, int size);
 #endif /* INC_BORD_H_ */

@@ -33,7 +33,7 @@ HAL_StatusTypeDef status;
 /* Print */
 int _write(int file, char *ptr, int len)
 {
-	HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+	HAL_UART_Transmit_IT(&huart1, (uint8_t*)ptr, len);
 	return len;
 }
 
@@ -45,22 +45,22 @@ void delay(uint16_t time) {
 /* ADC */
 
 /* Pulse Width Modulation */
-void pwm_init_ch1(uint16_t dutycycle) {
+void pwm1_init_ch1(uint16_t dutycycle) {
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	htim1.Instance -> CCR1 = dutycycle;
 }
 
-void pwm_set_ch1(uint16_t dutycycle) {
+void pwm1_set_ch1(uint16_t dutycycle) {
 	htim1.Instance -> CCR1 = dutycycle;
 }
 
-void pwm_init_ch3(uint16_t dutycycle) {
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-	htim1.Instance -> CCR3 = dutycycle;
+void pwm3_init_ch1(uint16_t dutycycle) {
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	htim3.Instance -> CCR1 = dutycycle;
 }
 
-void pwm_set_ch3(uint16_t dutycycle) {
-	htim1.Instance -> CCR3 = dutycycle;
+void pwm3_set_ch1(uint16_t dutycycle) {
+	htim3.Instance -> CCR1 = dutycycle;
 }
 
 /* General-purpose input/output */
@@ -91,17 +91,11 @@ HAL_StatusTypeDef i2c_wr(I2C_HandleTypeDef handle, uint8_t device_address, uint8
 }
 
 /* USART */
-
-/*
-HAL_StatusTypeDef uart_wr(UART_HandleTypeDef handle, uint8_t msg) {
-	status = HAL_UART_Transmit(&handle, msg, sizeof(msg), HAL_MAX_DELAY);
-	if (status) {
-		return status;
-	}
-
-	return status;
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	printf("%hu\r\n", *UART1_rxBuffer);
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, 1);
 }
-*/
 
 /* CAN */
 

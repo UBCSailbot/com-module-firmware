@@ -118,7 +118,21 @@ int main(void)
   MX_I2C3_Init();
   MX_I2C4_Init();
 
-  demo();
+  veml3328_start();
+
+
+  while(1){
+	  int key = 0;
+
+	  veml3328_oprt();
+	  gpio();
+	  key = debug_key();
+
+	  if (key == 97) pwm3_set_ch1(90); // If keyboard input is a
+	  if (key == 98) pwm3_set_ch1(10); // If keyboard input is b
+  }
+
+
   /* USER CODE END 3 */
 }
 
