@@ -13,9 +13,13 @@
 
 /* Variables ------------------------------------------------------------------*/
 extern uint16_t ambient;
+extern uint8_t UART1_rxBuffer[1];
 
 /* Function prototypes ------------------------------------------------------------------*/
-int demo(void);
+int veml3328_start(void);
+void veml3328_oprt(void);
+void gpio(void);
+int debug_key(void);
 
 #endif /* INC_OPRT_H_ */
 
