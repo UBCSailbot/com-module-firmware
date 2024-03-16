@@ -10,7 +10,7 @@ Current projects include:
 2. Rudder controller firmware
 3. Wingsail controller firmware
 
-![High-level diagram of communication system](shared_docs/HL_COM_Diagram.png)
+![High-level diagram of communication system](shared_docs/images/HL_COM_Diagram.png)
 
 ## COM Module High-level Design
 
