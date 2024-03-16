@@ -38,6 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TEST_MODE
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -117,6 +118,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_I2C3_Init();
   MX_I2C4_Init();
+
+#ifdef TEST_MODE
+  run_tests();
+#endif
 
   veml3328_start();
 

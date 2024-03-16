@@ -10,15 +10,15 @@ Current projects include:
 2. Rudder controller firmware
 3. Wingsail controller firmware
 
-![High-level diagram of communication system](shared_docs/HL_COM_Diagram.png)
+![High-level diagram of communication system](shared_docs/images/HL_COM_Diagram.png)
 
 ## COM Module High-level Design
 
 The COM Module is split into two part. The Nucleo board and the BOB (breakout board). Each hardware device on the boat has it's own custom BOB designed suited for it's needs. The Nucleo board hardware is the same in all COM Modules
 
-![COM module high-level](shared_docs/COM_Internals_Diagram.png)
+<!-- ![COM module high-level](shared_docs/images/COM_Internals_Diagram.png) -->
 
-![alt text](shared_docs/COM_Internals_Diagram2.png)
+![alt text](shared_docs/images/COM_Internals_Diagram2.png)
 
 ## Repository Structure
 
