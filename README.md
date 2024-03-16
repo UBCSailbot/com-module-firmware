@@ -14,7 +14,7 @@ Current projects include:
 
 ## COM Module High-level Design
 
-The COM Module is split into two part. The Nucleo board and the BOB (breakout board). Each hardware device on the boat has it's own custom BOB designed suited for it's needs. Note that the Nucleo board hardware is the same in all COM Modules.
+The COM Module is split into two parts: The Nucleo board and the breakout board (BOB). Each hardware device on the boat has it's own custom BOB designed specifically for it's needs, while the Nucleo board hardware is the same in all COM Modules.
 
 <!-- ![COM module high-level](shared_docs/images/COM_Internals_Diagram.png) -->
 
@@ -28,8 +28,11 @@ The base library is made up of files corresponding to the boxes in the image abo
 
 ## User Manual
 Before continuing, please read the "What is the Base Library" paragraph above if you haven't already.
+
 The three boxes at the top of the firmware design diagram illustrate the tasks of the individual teams. To reach the desired functionality for a specific COM module, such as reading data from a sensor, teams have to determine which functions are required, and what the proper inputs to those functions would be. Most important for this would be the ```Board.h``` file.
+
 There are also features that you can request from the firmware team. If there is any specific functionality you would like for handling errors, such as turning off a sensor if we can no longer receive data from it, then leave your request on the [Confluence feature request page](https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1994457093/Feature+Request). Additionally, any other requests for code that needs new functions/functionality that isn't included in the base library can also be left in the same place. 
+
 You can find tutorials on using STM32CubeIDE, GitHub, and more in the tutorials folder.
 
 ## Repository Structure
