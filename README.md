@@ -33,6 +33,8 @@ The three boxes at the top of the firmware design diagram illustrate the tasks o
 
 There are also features that you can request from the firmware team. If there is any specific functionality you would like for handling errors, such as turning off a sensor if we can no longer receive data from it, then leave your request on the [Confluence feature request page](https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1994457093/Feature+Request). Additionally, any other requests for code that needs new functions/functionality that isn't included in the base library can also be left in the same place. 
 
+Lastly, you can change values in the configurations file based on what you need and don't need from the base library. This is an important consideration as it will improve the performance of your COM Module!
+
 You can find tutorials on using STM32CubeIDE, GitHub, and more in the tutorials folder.
 
 ## Repository Structure
