@@ -20,6 +20,10 @@ The COM Module is split into two part. The Nucleo board and the BOB (breakout bo
 
 ![alt text](shared_docs/images/COM_Internals_Diagram2.png)
 
+## System Diagram
+<img width="693" alt="image" src="https://github.com/UBCSailbot/com-module-firmware/assets/144284916/f6985165-35a1-43e2-b885-3d951ad07747">
+
+
 ## Repository Structure
 
 ```
