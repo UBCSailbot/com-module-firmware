@@ -19,8 +19,8 @@ typedef enum
 
 } MR_StatusTypeDef;
 
-MR_StatusTypeDef motor_configure(void);
-MR_StatusTypeDef motor_init(void);
+
+MR_StatusTypeDef motor_init(void); //does configurations
 MR_StatusTypeDef motor_set_duty_cycle(uint8_t duty_cycle);
 MR_StatusTypeDef motor_move_port(void);
 MR_StatusTypeDef motor_move_stbd(void); //sign of voltage reversed
