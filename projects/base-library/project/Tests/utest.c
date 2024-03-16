@@ -7,7 +7,7 @@
 #include "utest.h"
 #include "uconfig.h"
 
-/*
+
 //-- Add tests to runner and custom test macros/definitions
 #define NUM_ITERS 10
 
@@ -38,4 +38,4 @@ testresult iteration_test(void) {
 void run_tests(void) {
 	test_main(test_runner, sizeof(test_runner) / sizeof(t_test));
 }
-*/
+
