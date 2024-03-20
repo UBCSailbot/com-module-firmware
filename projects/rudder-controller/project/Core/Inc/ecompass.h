@@ -2,7 +2,7 @@
  * ecompass.h
  *
  *  Created on: Feb 10, 2024
- *      Author: Jasia
+ *      Author: Moiz
  */
 
 #ifndef SRC_ECOMPASS_H_
