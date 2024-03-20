@@ -2,7 +2,7 @@
  * motor.h
  *
  *  Created on: Mar 6, 2024
- *      Author: Jasia
+ *      Author: Jasia, Moiz
  */
 
 #ifndef INC_MOTOR_H_

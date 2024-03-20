@@ -2,7 +2,7 @@
  * encoder.h
  *
  *  Created on: Mar 6, 2024
- *      Author: Jasia
+ *      Author: Jasia, Moiz
  */
 
 #ifndef INC_ENCODER_H_
