@@ -2,7 +2,11 @@
  * motor.h
  *
  *  Created on: Mar 6, 2024
+<<<<<<< HEAD
  *      Author: Jasia, Moiz
+=======
+ *      Author: Jasia
+>>>>>>> 8029668c5ac9c20eb3fc6bd5163d6f5660488ff5
  */
 
 #ifndef INC_MOTOR_H_
@@ -19,8 +23,8 @@ typedef enum
 
 } MR_StatusTypeDef;
 
-
-MR_StatusTypeDef motor_init(void); //does configurations
+MR_StatusTypeDef motor_configure(void);
+MR_StatusTypeDef motor_init(void);
 MR_StatusTypeDef motor_set_duty_cycle(uint8_t duty_cycle);
 MR_StatusTypeDef motor_move_port(void);
 MR_StatusTypeDef motor_move_stbd(void); //sign of voltage reversed

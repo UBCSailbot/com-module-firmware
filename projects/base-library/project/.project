@@ -31,4 +31,11 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>TestEngine</name>
+			<type>2</type>
+			<locationURI>$%7BWORKSPACE_LOC%7D/com-module-firmware/projects/shared/test_framework</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>
