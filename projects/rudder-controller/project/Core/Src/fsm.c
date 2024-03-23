@@ -21,6 +21,7 @@ void run_fsm(void) {
 
 		fsm_state.current = next_state;
 
+		// TODO: Avoid HAL delays and run state machine using timer interrupts
 		HAL_Delay(FSM_PERIOD);
 	}
 }
@@ -29,13 +30,16 @@ void run_fsm(void) {
 //-- State machine functions
 
 stateId_t idle(void) {
+	// TODO: Implement and get next state based on fsm diagram
 	return STATE_IDLE;
 }
 
 stateId_t running(void) {
+	// TODO: Implement and get next state based on fsm diagram
 	return STATE_IDLE;
 }
 
 stateId_t error(void) {
+	// TODO: Implement and get next state based on fsm diagram
 	return STATE_IDLE;
 }
