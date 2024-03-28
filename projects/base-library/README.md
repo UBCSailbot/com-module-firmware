@@ -1,6 +1,6 @@
 # Firmware Base Library
 
-This page is for the communication modules base library, and includes explanations and instructions for its users. 
+This page is for the communication modules base library, and includes explanations and instructions for its users. Don't forget to also read the main README.
 
 ## High-level Design
 
@@ -33,30 +33,6 @@ The three boxes at the top of the firmware design diagram illustrate the tasks o
 There are also features that you can request from the firmware team. If there is any specific functionality you would like for handling errors, such as turning off a sensor if we can no longer receive data from it, then leave your request on the [Confluence feature request page](https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1994457093/Feature+Request). Additionally, any other requests for code that needs new functions/functionality that isn't included in the base library can also be left in the same place. 
 
 Lastly, you can change values in the configurations file based on what you need and don't need from the base library. This is an important consideration as it will improve the performance of your COM Module!
-
-## Repository Structure
-
-```
-projects/
-    base-library/
-        project/
-            Core/
-                Inc                        - Contains base library header files
-                Src                        - Contains base library source files
-        tests
-        README.md                          - Base library user instructions (you're here right now)
-    rudder-controller
-    template                               - Template to be copied for teams writing their own code
-shared-docs
-tutorials/
-    STM32F407_demo/                        - Comprehensive demo project
-        README.md                          - Start here for the demo
-    setup.md                               - Tutorial for STM32CubeIDE setup
-    testing.md                             - Tutorial for how to create tests
-.gitignore
-LICENSE
-README.md                                  - Relevant background info on COM Modules
-```
 
 ## Notes
 You can find tutorials on using STM32CubeIDE, GitHub, and more in the tutorials folder.
