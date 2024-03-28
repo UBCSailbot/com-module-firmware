@@ -2,7 +2,11 @@
  * motor.h
  *
  *  Created on: Mar 6, 2024
+<<<<<<< HEAD
+ *      Author: Jasia, Moiz
+=======
  *      Author: Jasia
+>>>>>>> 8029668c5ac9c20eb3fc6bd5163d6f5660488ff5
  */
 
 #ifndef INC_MOTOR_H_
