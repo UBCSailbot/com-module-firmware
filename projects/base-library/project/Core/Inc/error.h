@@ -29,9 +29,11 @@ typedef enum
 	ERROR
 } errcode;
 
-
+// TODO: Move both of these definitions to source code later otherwise the compiler will complain (multiple definitions)
 errcode errlog[ERROR_LOG_SIZE];
 uint8_t index;
+
+
 
 //-- Internal functions
 static void reportError(errcode err_code, errlevel err_level); // Sending all accumulated error codes through UART and/or through CAN
