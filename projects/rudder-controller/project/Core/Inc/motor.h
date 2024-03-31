@@ -30,6 +30,8 @@ MR_StatusTypeDef motor_move_port(void);
 MR_StatusTypeDef motor_move_stbd(void); //sign of voltage reversed
 MR_StatusTypeDef motor_stop(void);//set duty cycle to 0
 MR_StatusTypeDef motor_turn_off(void);//shut off power completely
+MR_StatusTypeDef motor_turn_on(void);
+
 
 
 #endif /* INC_MOTOR_H_ */

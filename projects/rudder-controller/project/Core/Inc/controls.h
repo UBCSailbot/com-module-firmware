@@ -20,6 +20,8 @@ typedef enum
 
 void run_pid(void);
 void main_ctrl_loop(void);
+double compute_pwm(double p, double i, double d, double PWM_temp);
+void heading_received(void); //ensures so errors when receiving heading from SOFT
 
 //watchdog timer- for future reference
 

@@ -37,3 +37,8 @@ MR_StatusTypeDef motor_turn_off(void) {
 	printf("motor turn off\n\r");
 	return MR_OK;
 }
+
+MR_StatusTypeDef motor_turn_on(void) {
+	printf("motor turn on\n\r");
+	return MR_OK;
+}

@@ -34,6 +34,13 @@ double get_desired_heading(void){
 	return 0.0;
 }
 
+//gotta figure out how COMs/SOFT is dealing with errors
+void heading_received(void){
+	//basically, if proper value received, return OK. If not, return CTRL_ERROR
+	printf("Proper heading values received\n\r");
+	return CTRL_OK;
+}
+
 double compute_pwm(double p, double i, double d, double PWM_temp){
     //calculate PWM output value based on previous PWM value
 	double PWM_value = PWM_temp - (p + i + d);
