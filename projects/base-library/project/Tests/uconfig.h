@@ -5,6 +5,8 @@
  *      Author: mlokh
  */
 
+/*
+
 #ifndef UCONFIG_H_
 #define UCONFIG_H_
 
@@ -16,3 +18,5 @@ typedef enum {
 #define TEST_GROUP_SEL ALL
 
 #endif /* UCONFIG_H_ */
+
+*/

@@ -4,6 +4,7 @@
  *  Created on: Feb 27, 2024
  *      Author: mlokh
  */
+/*
 #include "utest.h"
 #include "uconfig.h"
 
@@ -38,4 +39,6 @@ testresult iteration_test(void) {
 void run_tests(void) {
 	test_main(test_runner, sizeof(test_runner) / sizeof(t_test));
 }
+
+*/
 

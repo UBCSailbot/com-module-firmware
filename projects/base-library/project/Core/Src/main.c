@@ -17,13 +17,10 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
-#include "stdio.h"
-#include "bord.h"
-#include "comp.h"
-#include "numb.h"
-#include "oprt.h"
-#include "utest.h"
+#include "board.h"
+#include "veml3328.h"
+#include "debug.h"
+// #include "utest.h"
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -119,24 +116,32 @@ int main(void)
   MX_I2C3_Init();
   MX_I2C4_Init();
 
-#ifdef TEST_MODE
+
+/*#ifdef TEST_MODE
   run_tests();
 #endif
+*/
+  uint16_t ambient;
+  veml3328_init();
+  veml3328_rd_rgb();
+  ambient = veml3328_avg_amb();
 
-  veml3328_start();
-
+  pwm1_init_ch1(50);
 
   while(1){
 	  int key = 0;
 
-	  veml3328_oprt();
-	  gpio();
+	  //veml3328_rd_rgb();
+	  //if (g_data > ambient+5) pwm1_set_ch1(90);
+	  //if (g_data < ambient-5) pwm1_set_ch1(10);
+
 	  key = debug_key();
+	  if (gpio_rd_e2() == GPIO_PIN_SET) gpio_wr_e3(); else gpio_rs_e3();
+	  if (gpio_rd_e4() == GPIO_PIN_SET) gpio_wr_e5(); else gpio_rs_e5();
 
-	  if (key == 97) pwm3_set_ch1(90); // If keyboard input is a
-	  if (key == 98) pwm3_set_ch1(10); // If keyboard input is b
+	  if (key == 97) pwm3_set_ch1(100); // If keyboard input is a
+	  if (key == 98) pwm3_set_ch1(5); // If keyboard input is b
   }
-
 
   /* USER CODE END 3 */
 }

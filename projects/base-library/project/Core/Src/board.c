@@ -1,13 +1,12 @@
-/**
- * Description: For things that are directly related to the pins on the board.
+/*
+ * 	board.c
  *
- * Author: Jordan, Matthew, Peter
- *
- * Note: None
- * */
+ *  Created on: Mar 29, 2024
+ *	Author: Peter, Jordan, Katherine
+ */
 
 /* Includes ------------------------------------------------------------------*/
-#include "bord.h"
+#include "board.h"
 
 /* Variables ------------------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
@@ -49,7 +48,6 @@ void pwm1_init_ch1(uint16_t dutycycle) {
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	htim1.Instance -> CCR1 = dutycycle;
 }
-
 void pwm1_set_ch1(uint16_t dutycycle) {
 	htim1.Instance -> CCR1 = dutycycle;
 }
@@ -58,18 +56,32 @@ void pwm3_init_ch1(uint16_t dutycycle) {
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 	htim3.Instance -> CCR1 = dutycycle;
 }
-
 void pwm3_set_ch1(uint16_t dutycycle) {
 	htim3.Instance -> CCR1 = dutycycle;
 }
 
 /* General-purpose input/output */
-GPIO_PinState gpio_rd_e2() {return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2);}
-void gpio_wr_e3() {HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);}
-void gpio_rs_e3() {HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);}
-GPIO_PinState gpio_rd_e4() {return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4);}
-void gpio_wr_e5() {HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET);}
-void gpio_rs_e5() {HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);}
+GPIO_PinState gpio_rd_e2() {
+	return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2);
+}
+
+void gpio_wr_e3() {
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
+}
+void gpio_rs_e3() {
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
+}
+
+GPIO_PinState gpio_rd_e4() {
+	return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4);
+}
+
+void gpio_wr_e5() {
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET);
+}
+void gpio_rs_e5() {
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);
+}
 
 /* I2C */
 HAL_StatusTypeDef i2c_rd(I2C_HandleTypeDef handle, uint8_t device_address, uint8_t register_address, uint16_t* value) {
