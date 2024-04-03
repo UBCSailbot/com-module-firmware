@@ -1,6 +1,8 @@
 /*
  * 	debug.c
  *
+ * 	Description: Provides debugging functions such as printing/storing logs, key mapping, etc.
+ *
  *  Created on: Mar 29, 2024
  *	Author: Peter, Jordan, Katherine
  */

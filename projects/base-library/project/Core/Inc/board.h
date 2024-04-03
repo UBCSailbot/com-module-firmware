@@ -1,6 +1,8 @@
 /*
  * 	board.h
  *
+ * 	Description: Provides declarations for variables and function prototypes related to CAN, I2C, ADC, PWM, UART communication, and other hardware peripherals.
+ *
  *  Created on: Mar 29, 2024
  *	Author: Peter, Jordan, Katherine
  */
