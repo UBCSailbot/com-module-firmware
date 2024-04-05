@@ -9,7 +9,6 @@
 #define INC_VEML3328_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
 #include "board.h"
 
 /* Variables ------------------------------------------------------------------*/
@@ -93,6 +92,7 @@ typedef enum {
 HAL_StatusTypeDef veml3328_init(void);
 void veml3328_rd_rgb(void);
 uint16_t veml3328_avg_amb(void);
+int veml3328_run(uint16_t amb);
 
 #endif /* INC_VEML3328_H_ */
 

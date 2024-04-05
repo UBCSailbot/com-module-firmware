@@ -13,7 +13,7 @@
 /* Variables ------------------------------------------------------------------*/
 uint8_t UART1_rxBuffer[1] = {0};
 
-/* Debugging ------------------------------------------------------------------*/
+/* Functions ------------------------------------------------------------------*/
 
 /* Keyboard Mapping:
  * Takes in input from the serial monitor and returns ASCII int value.
@@ -21,8 +21,8 @@ uint8_t UART1_rxBuffer[1] = {0};
  */
 int debug_key(void){
 	pwm3_init_ch1(50);
-
 	HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, 1);
+	delay(5);
 
 	return *UART1_rxBuffer;
 }

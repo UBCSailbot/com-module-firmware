@@ -11,9 +11,7 @@
 /* Variables ------------------------------------------------------------------*/
 HAL_StatusTypeDef r,g,b;
 uint16_t conf, r_data, g_data, b_data;
-int n = 0;
-int avg = 0;
-int i = 0;
+
 
 /* Functions ------------------------------------------------------------------*/
 /* veml3328 initialization*/
@@ -41,7 +39,10 @@ void veml3328_rd_rgb(void){
     b = i2c_rd(hi2c1, veml3328_addr, B_, &b_data);
 }
 
-uint16_t veml3328_avg_amb(void) {
+uint16_t veml3328_avg_amb(void){
+	int n = 0;
+	int avg = 0;
+
 	for (n = 0; n < 50; n++){
 		veml3328_rd_rgb();
 		avg += g_data;
@@ -49,6 +50,19 @@ uint16_t veml3328_avg_amb(void) {
 
 	return avg/50;
 }
+
+int veml3328_run(uint16_t amb){
+	veml3328_rd_rgb();
+	printf("ambient is: %u  data is: %u\r\n", amb, g_data);
+
+	if (g_data > amb+5) return 90;
+	if (g_data < amb-5) return 10;
+
+	return 5;
+}
+
+
+
 
 
 

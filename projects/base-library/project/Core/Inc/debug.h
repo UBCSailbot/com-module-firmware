@@ -1,7 +1,7 @@
 /*
  * 	debug.h
  *
- * 	Description: Provides declarations for variables and function prototypes related to debugging features
+ * 	Description: Provides declarations for variables and function prototypes related to debugging features.
  *
  *  Created on: Mar 29, 2024
  *	Author: Peter, Jordan, Katherine

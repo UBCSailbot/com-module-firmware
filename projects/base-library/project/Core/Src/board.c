@@ -1,7 +1,7 @@
 /*
  * 	board.c
  *
- * 	Description: Provides basic functions for CAN, I2C, ADC, PWM, and UART communication
+ * 	Description: Provides basic functions for CAN, I2C, ADC, PWM, and UART communication.
  *
  *  Created on: Mar 29, 2024
  *	Author: Peter, Jordan, Katherine
@@ -28,7 +28,6 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-uint8_t UART1_rxBuffer[1] = {0};
 HAL_StatusTypeDef status;
 
 /* Functions ------------------------------------------------------------------*/
