@@ -37,5 +37,10 @@
 			<type>2</type>
 			<locationURI>$%7BWORKSPACE_LOC%7D/com-module-firmware/projects/shared/test_framework</locationURI>
 		</link>
+		<link>
+			<name>test_framework</name>
+			<type>2</type>
+			<location>D:/PROJECTS/COMM_MODULE/projects/shared/test_framework</location>
+		</link>
 	</linkedResources>
 </projectDescription>

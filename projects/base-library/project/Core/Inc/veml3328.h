@@ -1,16 +1,15 @@
-/**
- * Description: For things that are directly connected to the pins on the board.
+/*
+ * 	veml3328.h
  *
- * Author: Jordan, Matthew, Peter
- *
- * Note: None
- * */
+ *  Created on: Mar 29, 2024
+ *	Author: Peter
+ */
 
-#ifndef INC_COMP_H_
-#define INC_COMP_H_
+#ifndef INC_VEML3328_H_
+#define INC_VEML3328_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "board.h"
 
 /* Variables ------------------------------------------------------------------*/
 /*Data variables*/
@@ -91,10 +90,11 @@ typedef enum {
 
 /* Function prototypes ------------------------------------------------------------------*/
 HAL_StatusTypeDef veml3328_init(void);
-void veml3328_config(uint16_t mode);
 void veml3328_rd_rgb(void);
+uint16_t veml3328_avg_amb(void);
+int veml3328_run(uint16_t amb);
 
-#endif /* INC_COMP_H_ */
+#endif /* INC_VEML3328_H_ */
 
 
 
