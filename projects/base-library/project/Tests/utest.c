@@ -4,7 +4,7 @@
  *  Created on: Feb 27, 2024
  *      Author: mlokh
  */
-/*
+
 #include "utest.h"
 #include "uconfig.h"
 
@@ -31,7 +31,6 @@ testresult iteration_test(void) {
 
 	for (int i = 0; i < NUM_ITERS; ++i) {
 		// res.error.raw = someFunction(..);
-		HAL_Delay(1000);
 	}
 	return res;
 }
@@ -40,5 +39,5 @@ void run_tests(void) {
 	test_main(test_runner, sizeof(test_runner) / sizeof(t_test));
 }
 
-*/
+
 

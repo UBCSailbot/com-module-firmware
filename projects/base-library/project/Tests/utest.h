@@ -5,7 +5,6 @@
  *      Author: mlokh
  */
 
-/*
 #ifndef UTEST_H_
 #define UTEST_H_
 
@@ -19,4 +18,4 @@ testresult iteration_test(void);
 
 
 #endif /* UTEST_H_ */
-*/
+

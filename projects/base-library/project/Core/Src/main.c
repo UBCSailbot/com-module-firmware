@@ -20,7 +20,7 @@
 #include "board.h"
 #include "veml3328.h"
 #include "debug.h"
-// #include "utest.h"
+#include "utest.h"
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -116,11 +116,10 @@ int main(void)
   MX_I2C3_Init();
   MX_I2C4_Init();
 
+  #ifdef TEST_MODE
+  	  run_tests();
+  #endif
 
-/*#ifdef TEST_MODE
-  run_tests();
-#endif
-*/
   int key = 0;
   uint16_t amb;
 
