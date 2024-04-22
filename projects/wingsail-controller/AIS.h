@@ -1,5 +1,6 @@
 /*
  * This library takes in raw AIS and provides methods for the user to get relevant data from it.
+ * Currently the library only provides methods to parse message 1, 2, 3, 5, 18, 19, 24A and 24B. 
  *
  * For further information on AIS sentences see:
  *	1. https://www.navcen.uscg.gov/ais-messages
@@ -21,11 +22,11 @@
 //--------------------------------------------------------------------------- STRUCTURES ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-//Defines the max number of bytes the library will parse. This can be increased up to 254 if needed.
+//Defines the max number of bytes the library will parse. This can be increased up to 254 without issue if needed.
 #define MAX_LENGTH 80
 
 typedef struct {
-	uint8_t sixBitData[MAX_LENGTH];
+	uint8_t* sixBitData;
 } AIS;
 
 typedef enum {
@@ -55,6 +56,14 @@ void AIS__destroy(AIS* self);
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- HELPER FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*
+ * Check if number of bytes passed is equal to the number expected by the message ID.
+ * 
+ * @param self Is an initialized AIS object.
+ * @return Is true if the the length is correct or if the message ID is not supported by this library, false otherwise.
+ */
+bool AIS__checkLength(AIS* self);
 
 /*
  * Returns the numeric ID of the received message.
