@@ -47,20 +47,16 @@ stateId_t idle(void) {
 	desired_heading = get_desired_heading(); //from base library//do error check
 
 	ec_status = ecompass_getBearing(&bearing);
-	if (ec_status == EC_OK){
-		error = desired_heading - bearing;;
-	}
+	if (ec_status != EC_OK) return ERROR;
 
-	else{
-		next_state = ERROR;
-	};
+	error = desired_heading - bearing;
 
 	if (heading_received() && (error >= SMALL_ANGLE)){ //make heading_received() a function in controls.c/h
 		motor_turn_on();
 		next_state = STATE_RUNNING;
 	}
 
-	if (!heading_received() || (error < SMALL_ANGLE)){ //make heading_received() a function in controls.c/h
+	else { //make heading_received() a function in controls.c/h
 			motor_turn_on();
 			next_state = STATE_IDLE;
 	}
@@ -79,32 +75,27 @@ stateId_t running(void) {
 
 	ctrl_status = heading_received();
 
-	if (ctrl_status == CTRL_OK){
-		desired_heading = get_desired_heading(); //from base library//do error check
 
-		ec_status = ecompass_getBearing(&bearing);
-		if (ec_status == EC_OK){
-			error = desired_heading - bearing;;
+	if (ctrl_status != CTRL_OK) return ERROR;
 
-			if (error >= SMALL_ANGLE){ //make heading_received() a function in controls.c/h
-					main_ctrl_loop();
-					next_state = STATE_RUNNING;
-			}
+	desired_heading = get_desired_heading(); //from base library//do error check
 
-			else {  //error > small_angle
-					motor_turn_off();
-					next_state = STATE_IDLE;
-			}
-		}
+	ec_status = ecompass_getBearing(&bearing);
+	
+	if (ec_status != EC_OK) return ERROR;
+	
+	error = desired_heading - bearing;;
 
-		else {
-			next_state = STATE_ERROR;
-		}
+	if (error >= SMALL_ANGLE){ //make heading_received() a function in controls.c/h
+			main_ctrl_loop();
+			next_state = STATE_RUNNING;
 	}
 
-	else{
-		next_state = STATE_ERROR;
-	};
+	else {  //error > small_angle
+			motor_turn_off();
+			next_state = STATE_IDLE;
+	}
+		
 
 	return next_state;
 }
@@ -139,7 +130,6 @@ stateId_t error(void) {
 				motor_turn_on();
 				next_state = STATE_RUNNING;
 
-				wait_time = 0; //reset wait time
 				reset_timer(); //implement
 
 				return next_state;
