@@ -1,5 +1,5 @@
 /*
- * ais.c
+ * AIS.c
  *
  *  Created on: Apr 21, 2024
  *      Author: Michael Greenough
@@ -7,7 +7,6 @@
 
 #include "AIS.h"
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,13 +54,17 @@ uint8_t convertSixBit(uint8_t input);
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 void AIS__init(AIS* self, uint8_t inputData[]) {
-    self->sixBitData = inputData;
+    self->sixBitData = malloc(MAX_LENGTH);
+    strcpy(self->sixBitData, inputData);
 }
 
-AIS* AIS__create(uint8_t inputData[]) {
+AIS* AIS__create(NMEA0183 * data) {
     AIS* result = (AIS*)malloc(sizeof(AIS));
-    AIS__init(result, inputData);
-    return result;
+    if(NMEA0183__getScentenceDataType(data) == VDM && NMEA0183__getField(data, 5) != NULL){
+    	AIS__init(result, NMEA0183__getField(data, 5));
+    	return result;
+    }
+    return NULL;
 }
 
 void AIS__reset(AIS* self) {
@@ -120,11 +123,11 @@ void getAsciiString(uint8_t input[], uint8_t output[], uint16_t startBit, uint16
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//--------------------------------------------------------------------------- Data Parsing Functions ---------------------------------------------------------------------------
+//--------------------------------------------------------------------------- DATA PARSING FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 bool AIS__checkLength(AIS* self) {
-    uint8_t length = strlen(self->sixBitData);
+    uint8_t length = strlen((const char*)self->sixBitData);
     uint8_t messageID = AIS__getMessageID(self);
     if (messageID <= 3 && messageID != 0) {
         return length == 28;
