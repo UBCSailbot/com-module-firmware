@@ -1,26 +1,22 @@
-/**
- * Description: For anything that operates the board physcially.
+/*
+ * 	debug.h
  *
- * Author: Jordan, Matthew, Peter
+ * 	Description: Provides declarations for variables and function prototypes related to debugging features.
  *
- * Note: None
- * */
+ *  Created on: Mar 29, 2024
+ *	Author: Peter, Jordan, Katherine
+ */
 
 #ifndef INC_OPRT_H_
 #define INC_OPRT_H_
 
 /* Includes ------------------------------------------------------------------*/
+#include "board.h"
 
 /* Variables ------------------------------------------------------------------*/
-extern uint16_t ambient;
 extern uint8_t UART1_rxBuffer[1];
 
 /* Function prototypes ------------------------------------------------------------------*/
-int veml3328_start(void);
-void veml3328_oprt(void);
-void gpio(void);
 int debug_key(void);
 
 #endif /* INC_OPRT_H_ */
-
-
