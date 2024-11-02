@@ -25,6 +25,40 @@ As you probably notice, the location of each feature is quite intuitive, especia
 
 To find these files, navigate through the repository as follows: ```projects -> base-library -> project -> Core -> Inc -> xxxxx.h```
 
+## Functions
+
+```board.c```
+
+<br/>
+
+```write()``` - function needed to print with UART
+
+<br/>
+
+```pwm1_init_ch1()``` - sets the duty cycle of PWM1
+
+```pwm1_init_ch1()``` - sets the duty cycle of PWM3
+
+```pwm1_set_ch1()``` - sets the duty of PWM1
+
+```pwm3_set_ch1()``` - sets the duty of PWM3
+
+<br/>
+
+```gpio_rd_e2()``` - reads pin 2
+
+```gpio_rd_e4()``` - reads pin 4
+
+```gpio_wr_e3()``` - writes to pin 3
+
+```gpio_rs_e3()``` - resets pin 3
+
+```gpio_wr_e5()``` - writes to pin 5 
+
+```gpio_rs_e5()``` - resets pin 5
+
+
+
 ## User Manual
 Before continuing, please read the "What is the Base Library" paragraph above if you haven't already.
 
