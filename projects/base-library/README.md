@@ -55,7 +55,7 @@ To find these files, navigate through the repository as follows: ```projects -> 
 
 ```gpio_wr_e5()``` - writes to pin 5 
 
-```gpio_rs_e5()``` - resets pin 5
+```gpio_rs_e5()``` - resets pin 5 
 
 
 
