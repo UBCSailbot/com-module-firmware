@@ -26,6 +26,10 @@ void * huartNMEALookup[MAX_NMEA_CHANNELS][2] = {{NULL, NULL},{NULL, NULL},{NULL,
  */
 uint8_t decimalToHexAscii(uint8_t decimal);
 
+void checkSpecialChars(NMEA0183* self, uint8_t inputChar);
+
+void checkData(NMEA0183* self, uint8_t length);
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -43,8 +47,6 @@ void NMEA0183__init(NMEA0183* self, IRQn_Type IRQn, USART_TypeDef * huartChannel
 	}
 
 	self->dataHandler = (void *) dataHandler;
-	self->goodData = 0;
-	self->checkSum = 0;
 	self->dataReady = 0;
 
 	__HAL_RCC_GPDMA1_CLK_ENABLE();
@@ -66,7 +68,7 @@ void NMEA0183__init(NMEA0183* self, IRQn_Type IRQn, USART_TypeDef * huartChannel
 
 	if (HAL_UART_Init(&self->huart) != HAL_OK)
 	{
-	  //error handling
+		//error handling
 	}
 	if (HAL_UARTEx_SetTxFifoThreshold(&self->huart, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
 	{
@@ -81,7 +83,7 @@ void NMEA0183__init(NMEA0183* self, IRQn_Type IRQn, USART_TypeDef * huartChannel
 		//error handling
 	}
 
-	HAL_UART_Receive_DMA(&(self->huart), self->rxBuff, BUFFER_SIZE);
+	HAL_UART_Receive_DMA(&(self->huart), self->receiveBuffer, 8);
 }
 
 NMEA0183* NMEA0183__create(IRQn_Type IRQn, USART_TypeDef * huartChannel, void (*dataHandler)(NMEA0183 *), uint8_t DMAPriority, uint32_t baudRate){
@@ -97,7 +99,7 @@ void NMEA0183__reset(NMEA0183* self) {
 void NMEA0183__destroy(NMEA0183* self){
 	if (self) {
 		NMEA0183__reset(self);
-	    free(self);
+		free(self);
 	}
 }
 
@@ -124,90 +126,97 @@ void NMEA0183__handleDMA(UART_HandleTypeDef *huart)
 
 
 			NMEA0183* self = huartNMEALookup[i][1];
-
-
-			//make sure we are not parsing from the same channel at the same time. Better to miss a sentence then unknown behavior due to time sharing
-			if(self->dataReady == 0){
-				//go through each byte in buffer
-				for(int i = 0; i < BUFFER_SIZE; i++){
-
-					if(self->rxBuff[i] == '$' || self->rxBuff[i] == '!'){ //check for sentence start, reset pointer and indicate good data
-						self->sentencePosition = 1;
-						self->goodData = 1;
-						self->sentence[0] = self->rxBuff[i];
-						self->checkSum = 0;
-
-					} else if(self->goodData){
-						uint8_t position = self->sentencePosition;
-						uint8_t * sentencePointer = self->sentence;
-						if((self->rxBuff[i] > 32 && self->rxBuff[i] < 126) || self->rxBuff[i] == 10 || self->rxBuff[i] == 13){//check that byte in range
-							if(self->rxBuff[i] == 10){ // end of sentence
-								if(position < MAX_SENTENCE_LENGTH){//if there is enough room add end of sentence
-									sentencePointer[self->sentencePosition++] = 10;
-									sentencePointer[self->sentencePosition++] = '\0';
-
-									//remove the two extra characters from the check sum calculation "*\x0D" then check the check sum
-									self->checkSum ^= 13 ^ 42 ^ sentencePointer[position-3] ^ sentencePointer[position-2];
-									if(decimalToHexAscii(self->checkSum / 16) == sentencePointer[position-3] &&
-											decimalToHexAscii(self->checkSum % 16) == sentencePointer[position-2]){
-
-										//check proper ending sequence
-										if(sentencePointer[position-1] == 13 &&
-												sentencePointer[position-4] == '*'){
-
-
-											if(strlen((const char *) &sentencePointer[1]) == 5){
-												//Call data handler
-												self->dataReady = 1;
-												(*(self->dataHandler))(self);
-												self->dataReady = 0;
-											}
-										}
-
-									}
-								}
-								self->goodData = 0;
-							} else {
-								//if regular char update check sum and add it.
-								self->checkSum ^= self->rxBuff[i];
-								if(position < MAX_SENTENCE_LENGTH){
-									if(self->rxBuff[i] != ',')
-										sentencePointer[self->sentencePosition++] = self->rxBuff[i];
-									else
-										sentencePointer[self->sentencePosition++] = '\0';
-								} else {
-									self->goodData = 0;
-								}
-							}
-						} else {
-							self->goodData = 0;
-						}
+			int16_t startCharPosition = -1;
+			if(self->receivePosition > 20){//163
+				for(int i = self->receivePosition; i < self->receivePosition + 8; i++){
+					if(self->receiveBuffer[i] == '!' || self->receiveBuffer[i] == '$'){
+						startCharPosition = i;
+						self->receivePosition += 8 - startCharPosition;
+						break;
 					}
 				}
 			}
-			HAL_UART_Receive_DMA(huart, self->rxBuff, BUFFER_SIZE);
+
+			if(startCharPosition == -1){
+				self->receivePosition += 8;
+				self->receivePosition %= 256;
+			}
+
+			HAL_UART_Receive_DMA(&self->huart, self->receiveBuffer + self->receivePosition, 8);
+
+			if(startCharPosition != -1){
+				for(int i = 0; i < self->receivePosition; i++){
+					self->receiveBuffer[i] = self->receiveBuffer[startCharPosition + i];
+				}
+
+				for(int i = self->receivePosition - 8 + startCharPosition; i < startCharPosition; i++){
+					checkSpecialChars(self,i);
+				}
+
+				for(int i = 0; i < self->receivePosition; i++){
+					checkSpecialChars(self,i);
+				}
+			} else {
+				for(int i = self->receivePosition - 8; i < self->receivePosition; i++){
+					checkSpecialChars(self,i);
+				}
+			}
 		}
+	}
+}
+
+void checkData(NMEA0183* self, uint8_t length){
+
+	uint8_t startCharacter = self->receiveBuffer[self->scentenceStartPosition];
+	if(startCharacter != '!' && startCharacter != '$')
+		return;
+
+	if(self->receiveBuffer[self->scentenceStartPosition + length] != '\x0A'
+			|| self->receiveBuffer[self->scentenceStartPosition + length - 1] != '\x0D'
+					|| self->receiveBuffer[self->scentenceStartPosition + length - 4] != '*')
+		return;
+
+	uint8_t checkSum = 0;
+	for(int i = self->scentenceStartPosition + 1; i < self->scentenceStartPosition + length - 4; i++){
+		checkSum ^= self->receiveBuffer[i];
+		if(self->receiveBuffer[i] == ',')
+			self->receiveBuffer[i] = '\0';
+	}
+	if(decimalToHexAscii(checkSum / 16) != self->receiveBuffer[self->scentenceStartPosition + length - 3]
+																|| decimalToHexAscii(checkSum % 16) != self->receiveBuffer[self->scentenceStartPosition + length - 2])
+		return;
+
+	self->dataReady = 1;
+	(*(self->dataHandler))(self);
+	self->dataReady = 0;
+}
+
+void checkSpecialChars(NMEA0183* self, uint8_t index){
+	if(self->receiveBuffer[index] == '\x0A'){
+		checkData(self, index - self->scentenceStartPosition);
+	} else if(self->receiveBuffer[index] == '!' || self->receiveBuffer[index] == '$'){
+		self->scentenceStartPosition = index;
 	}
 }
 
 uint8_t* NMEA0183__getField(NMEA0183* self, uint8_t targetField) {
 	if(self->dataReady){
-		uint8_t i = 1;
+		uint8_t i = self->scentenceStartPosition;
 		for (uint8_t field = 0; field < targetField; i++) {
-			if (self->sentence[i] == '\0')
+			if (self->receiveBuffer[i] == '\0')
 				field++;
 
-			if (i >= MAX_SENTENCE_LENGTH)
+			if (i >= MAX_SENTENCE_LENGTH || i == 255)
 				return NULL;
 		}
-		return &self->sentence[i];
+		return &self->receiveBuffer[i];
 	}
 	return NULL;
 }
 
 uint32_t NMEA0183__getScentenceDataType(NMEA0183 * self) {
 	if(self->dataReady){
-		return (self->sentence[3] << 16) | (self->sentence[4] << 8) | self->sentence[5];
+		return (self->receiveBuffer[self->scentenceStartPosition + 3] << 16) | (self->receiveBuffer[self->scentenceStartPosition + 4] << 8) | self->receiveBuffer[self->scentenceStartPosition + 5];
 	}
 	return UINT32_MAX;
 }

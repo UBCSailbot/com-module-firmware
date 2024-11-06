@@ -45,11 +45,9 @@
 typedef struct {
 	UART_HandleTypeDef huart;
 	void (*dataHandler)(void * NMEA0183Pointer);
-	uint8_t rxBuff[BUFFER_SIZE];
-	uint8_t sentence[MAX_SENTENCE_LENGTH + 1];
-	uint8_t sentencePosition;
-	uint8_t checkSum;
-	uint8_t goodData;
+	uint8_t receiveBuffer[256];
+	uint8_t receivePosition;
+	uint8_t scentenceStartPosition;
 	uint8_t dataReady;
 } NMEA0183;
 

@@ -54,7 +54,7 @@ uint8_t convertSixBit(uint8_t input);
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 void AIS__init(AIS* self, uint8_t inputData[]) {
-    self->sixBitData = malloc(MAX_LENGTH);
+    self->sixBitData = inputData;//malloc(MAX_LENGTH);
     strcpy(self->sixBitData, inputData);
 }
 
