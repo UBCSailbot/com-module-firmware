@@ -26,3 +26,15 @@ void I2C_ErrorResetCycle (I2C_HandleTypeDef handle, uint16_t device_address, uin
     }
     HAL_Delay(250);
 }
+
+void UART_Error_Handler(UART_HandleTypeDef *huart, uint8_t *pData){
+	HAL_StatusTypeDef ret;
+	ret = HAL_UART_Receive(&huart1, pData, 1, 3000);
+	if (ret!= HAL_OK)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, 1);
+		HAL_Delay(1000);  // Wait 500ms
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, 0);
+	}
+	pData[0] = 0x0; //empty the buffer, maybe empty whole thing w for-loop
+}
