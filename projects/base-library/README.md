@@ -25,6 +25,45 @@ As you probably notice, the location of each feature is quite intuitive, especia
 
 To find these files, navigate through the repository as follows: ```projects -> base-library -> project -> Core -> Inc -> xxxxx.h```
 
+## Functions
+
+### ```board.h```:
+
+<br/>
+
+```write()``` - Function needed to print with UART
+
+```pwm1_init_ch1()``` - Sets the duty cycle of PWM1
+
+```pwm1_init_ch1()``` - Sets the duty cycle of PWM3
+
+```pwm1_set_ch1()``` - Sets the duty of PWM1
+
+```pwm3_set_ch1()``` - Sets the duty of PWM3
+
+```gpio_rd_e2()``` - Reads pin 2
+
+```gpio_rd_e4()``` - Reads pin 4
+
+```gpio_wr_e3()``` - Writes to pin 3
+
+```gpio_rs_e3()``` - Resets pin 3
+
+```gpio_wr_e5()``` - Writes to pin 5 
+
+```gpio_rs_e5()``` - Resets pin 5 
+
+```HAL_StatusTypeDef i2c_rd(I2C_HandleTypeDef handle, uint8_t device_address, uint8_t register_address, uint16_t* value)``` - Reads data from a specific memory location in an I2C device from the specificed I2C instance, returns HAL_StatusTypeDef.
+
+```HAL_StatusTypeDef i2c_wr(I2C_HandleTypeDef handle, uint8_t device_address, uint8_t register_address, uint16_t value)``` - Writes data to a specific memory location in an I2C device for the specificed I2C instance, returns HAL_StatusTypeDef.
+
+<br/> 
+
+### ```debug.h```:
+
+```int debug_key(void);``` - Takes in input from the serial monitor and returns ASCII int value.
+
+
 ## User Manual
 Before continuing, please read the "What is the Base Library" paragraph above if you haven't already.
 
@@ -38,4 +77,3 @@ Lastly, you can change values in the configurations file based on what you need 
 You can find tutorials on using STM32CubeIDE, GitHub, and more in the tutorials folder.
 
 Don't forget to consult the main README to learn more.
-
