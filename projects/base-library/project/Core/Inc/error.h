@@ -36,7 +36,6 @@ typedef enum
 errcode errlog[ERROR_LOG_SIZE];
 extern uint8_t index;
 
-
 //-- Internal functions
 void reportError(errcode err_code, errlevel err_level); // Sending all accumulated error codes through UART and/or through CAN
 void logError(errcode err_code); // Add error to error logs. Can be stored in memory
