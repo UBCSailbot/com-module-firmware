@@ -108,7 +108,7 @@ BRITER* BRITER__create(IRQn_Type IRQn, USART_TypeDef * huartChannel, void (*data
 //--------------------------------------------------------------------------- DATA FUNCTIONS -----------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart){
+void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart){//THIS WHOLE SECTION IS SHIT, NEEDS TO BE REPLACED
     uint8_t * bufPoint  = self->inputBuffer;
 	uint16_t singleTurnValue;
 	if(bufPoint[0] == 0x01 && bufPoint[1] == 0x03 && bufPoint[2] = 0x02){
