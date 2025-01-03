@@ -37,9 +37,6 @@ static void MX_TIM7_Init(void);
 
 void TIM6_IRQHandler(void);
 
-/**
-  * @brief This function handles TIM7 global interrupt.
-  */
 void TIM7_IRQHandler(void);
 
 int is_TIM6_Running(void);
