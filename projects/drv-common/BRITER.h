@@ -1,8 +1,9 @@
 /*
- * This library prrovides an interface to communicate between the microcontroller and Briter Encoders.
+ * This library provides an interface to communicate between the microcontroller and BRITER Encoders.
  * It currently has the following functionality:
  *		-A method to setup the encoder and define the data rate
- *		-Call a user defined function with position data as a parameter
+ *		-Automatically update a position register
+ *		-Zero the encoder
  *
  * For this library to work as intended "BRITER__handleDMA()" must be called when "HAL_UARTEx_RxEventCallback()" is called.
  *
@@ -26,9 +27,9 @@
 
 //The BRITER data type
 typedef struct {
-	UART_HandleTypeDef huart;
-	void (*dataHandler)(uint16_t rotationalPosition);
-    uint8_t inputBuffer[16];
+	UART_HandleTypeDef * huart;
+	volatile uint16_t * encoderAngle;
+    uint8_t * inputBuffer;
 } BRITER;
 
 //The address used for the encoder (0x01 is default)
@@ -41,31 +42,32 @@ typedef struct {
 /*
  * Creates a new BRITER object.
  *
- * @param IRQn Is an interrupt associated with the specified USART channel. The object must not be muted after calling this function.
  * @param huartChannel Is the USART channel associated with this BRITER object. The object must not be muted after calling this function.
- * @param dataHandler Is called when new position data is received and the position is sent as a parameter
- * @param DMAPiority Is the priority of the DMA channel. The priority is DMAPriority / 16. The sub priority is DMAPriority % 16.
- * @param baudRate Is the baud rate of the connected device. For by default Briter encoders are set to 9,600.
+ * @param encoderAngle Is automatically kept up to date with the current encoder position. It may be modified at any time.
+ * @param samplePeriod Is the time between the encoder position being updated in ms. 20ms is the minimum.
  * @return An initialized BRITER object.
  */
-BRITER* BRITER__create(IRQn_Type IRQn, USART_TypeDef * huartChannel, void (*dataHandler)(uint16_t), uint8_t DMAPriority, uint32_t baudRate);
-
-/*
- * Deletes the BRITER object.
- *
- * @param self Must be an initialized BRITER object
- */
-void BRITER__destroy(BRITER* self);
+BRITER* BRITER__create(UART_HandleTypeDef * huartChannel, volatile uint16_t * encoderAngle, uint16_t samplePeriod);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------- BRITER METHODS ----------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /*
- * This function should be called when there is a UART DMA receive request associated with a NMEA channel.
- * This function may call the "dataHandler" function as passed in "BRITER__create"
+ * This function should be called when there is a UART RX callback.
  *
  * @param self The BRITER object being read.
- * @param huart Is the UART data received from the DMA callback.
+ * @param huart Is the huart handle passed by the callback function
+ * @param size Is the number of bytes received through UART
  */
-void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart);
+void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart, uint16_t size);
+
+/*
+ * Zeroes the encoder position. This funciton takes a non-negliglbe amount of time to execute.
+ * It should be apparent but this should not be called in regular sailing, only for tunning.
+ * 
+ * @param self Is a properly initialized BRITER object.
+ */
+void BRITER__zeroPosition(BRITER* self);
+
+#endif /* INC_BRITER_H_ */
