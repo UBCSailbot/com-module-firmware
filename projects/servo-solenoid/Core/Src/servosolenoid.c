@@ -220,9 +220,9 @@ void moveServo(double angle)
 	* PRE-SCALOR = 160-1 -> NEW CLOCK SPEED = 1 MHz																					   *
 	* COUNTER-PERIOD = 5000-1 -> PWM FREQUENCY = 50 HZ = 20ms Time Period (CHECK WITH MICHAEL ON FREQUENCY/TIME PERIOD OF SERVO MOTOR) *
 	* 																																   *
-	* -90 Degrees =  2.5% Duty Cycle (DutyCycleInput == 500) -> absoluteAngle == 0;							   						   *
-	* 0 Degrees = 7.5% Duty Cycle (DutyCycleInput == 1500)	-> absoluetAngle == 90				   			   						   *
-	* 90 Degrees = 12.5% Duty Cycle (DutyCycleInput == 2500) -> absoluteAngle == 180						   						   *
+	* 0 Degrees =  2.5% Duty Cycle (DutyCycleInput == 500) -> absoluteAngle == 0;							   						   *
+	* 90 Degrees = 7.5% Duty Cycle (DutyCycleInput == 1500)	-> absoluetAngle == 90				   			   						   *
+	* 180 Degrees = 12.5% Duty Cycle (DutyCycleInput == 2500) -> absoluteAngle == 180						   						   *
 	* 																																   *
 	* GPIOE PIN 0 == SOLENOID PIN																									   *
 	* 																																   *
