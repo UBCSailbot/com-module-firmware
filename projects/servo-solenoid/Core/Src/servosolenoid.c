@@ -224,7 +224,7 @@ void moveServo(double angle)
 	* 0 Degrees = 7.5% Duty Cycle (DutyCycleInput == 1500)	-> absoluetAngle == 90				   			   						   *
 	* 90 Degrees = 12.5% Duty Cycle (DutyCycleInput == 2500) -> absoluteAngle == 180						   						   *
 	* 																																   *
-	* GPIOE PIN 1 == SOLENOID PIN																									   *
+	* GPIOE PIN 0 == SOLENOID PIN																									   *
 	* 																																   *
 	* (TIM6->CR1 && TIM_CR1_CEN) == 0 (Timer 6 is not running)																	       *
 	* (TIM6->CR1 && TIM_CR1_CEN) != 0 (Timer 6 is running)																			   *
