@@ -214,7 +214,7 @@ void moveServo(double angle)
 	/***********************************************************************************************************************************
 	* IMPORTANT NOTE:																												   *
 	*																																   *
-	* "angle" Parameter -> -90 =< angle <= 90																						   *
+	* "angle" Parameter -> 0 =< angle <= 180																						   *
 	* FREQUENCY = 50 HZ (DOUBLE CHECK THIS!!)																						   *					   				   *
 	* CLOCK SPEED ON TIM 2 = 160 MHZ																							       *
 	* PRE-SCALOR = 160-1 -> NEW CLOCK SPEED = 1 MHz																					   *
