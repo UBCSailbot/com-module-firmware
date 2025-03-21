@@ -8,17 +8,17 @@
  */
 
 #include "wind_sensor.h"
-#include <stdio.h>
 
 //Variables for processing wind sentence data
-uint8_t rx_buffer[1] = {0};
-uint8_t wind_sentence[WIND_BUFFER_SIZE]; //max sentence identifier length is 10 "PLCJEA870" + \0
+uint16_t rx_buffer[1] = {0};
+uint16_t wind_sentence[WIND_BUFFER_SIZE]; //max sentence identifier length is 10 "PLCJEA870" + \0
 int wind_sentence_index = 0;
-uint8_t wind_speed[5]; //in knots
-uint8_t wind_direction[5]; //in degrees
-uint8_t wind_temperature[5]; //in Degrees Celsius
+uint16_t wind_speed[5]; //in knots
+uint16_t wind_direction[4]; //in degrees
+uint16_t wind_temperature[5]; //in Degrees Celsius
+uint16_t wind_data_can_output[32]; //OUTPUT TO CANBUS
 
-void processWindSensorData(uint8_t *input_data)
+void processWindSensorData(uint16_t *input_data)
 {
 	if(input_data[0] == '$')
 	{
@@ -30,7 +30,7 @@ void processWindSensorData(uint8_t *input_data)
 			{
 				//Process <<Wind Sentence>>
 
-				//Wind Direction (Degrees)
+				//Wind Direction (Degrees) - Resolution: 1 degree
 				int k = 0;
 				for(int i = 7; wind_sentence[i] != ','; i++)
 				{
@@ -42,9 +42,13 @@ void processWindSensorData(uint8_t *input_data)
 						return;
 					}
 				}
+				for(int i = 0; i < 3; i++)
+				{
+					//We can ignore the decimal place since resolution = 1 degree
+					wind_data_can_output[i] = ASCIItoINT(wind_direction[i]);
+				}
 
-
-				//Wind Speed (Knots)
+				//Wind Speed (Knots) - Resolution 0.1 knots (Therefore, multiply by 10 in order to send as int and then SOFTWARE will divide by 10 on their side)
 				k = 0;
 				for(int i = 15; wind_sentence[i] != ','; i++)
 				{
@@ -54,6 +58,18 @@ void processWindSensorData(uint8_t *input_data)
 					{
 						//Wind Speed is always 5 indexes long
 						return;
+					}
+				}
+				for(int i = 0; i < 4; i++)
+				{
+					if(wind_speed[i] == '.')
+					{
+						//Skip the decimal point and the next bit is the decimal
+						wind_data_can_output[i] = ASCIItoINT(wind_speed[i+1]);
+					}
+					else
+					{
+						wind_data_can_output[i] = ASCIItoINT(wind_speed[i]);
 					}
 				}
 			}
@@ -72,11 +88,18 @@ void processWindSensorData(uint8_t *input_data)
 						return;
 					}
 				}
+				//NO NEED TO ADD Wind Temperature TO CANBUS as of now.
+				//If adding, it can be negative and the ASCIItoInt function must be changed.
 
 				//UNCOMMENT THESE TO PRINT WIND DIRECTION, WIND SPEED, AND WIND TEMPERATURE TO PUTTY THROUGH USART1
 //				printf("Wind Direction:%s\x0D\x0A", wind_direction);
 //				printf("Wind Speed:%s\x0D\x0A", wind_speed);
 //				printf("Wind Temperature:%s\x0D\x0A", wind_temperature);
+			}
+			else
+			{
+				//Either we received an invalid message or the 2 technical messages that are not required
+				return;
 			}
 			wind_sentence_index = 0; //reset index for new message
 			wind_sentence[wind_sentence_index] = input_data[0];
@@ -107,5 +130,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     	processWindSensorData(rx_buffer);
     }
     HAL_UART_Receive_DMA(&huart2, rx_buffer, 1);
+}
+
+int ASCIItoINT(uint16_t *input)
+{
+	//Assumes all inputs must be positive
+	//Since all wind direction, speed and temperature are 5 bytes long (3 numbers, then a decimal and then a number, ex: 125.2). We know it will be
+	if(input[0] >= '0' && input[0] <= '9')
+	{
+		return (input[0] - '0');
+	}
 }
 
