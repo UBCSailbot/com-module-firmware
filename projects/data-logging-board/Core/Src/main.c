@@ -28,8 +28,9 @@
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include "stm32u5xx_hal.h" // Ensure HAL is included
+//#include "stm32u5xx_hal.h" // Ensure HAL is included
 #include <stdbool.h> // for the averaging function
+#include "datalogging.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,13 +97,13 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
 
-	uint32_t interval_ms = 250; // Change this number for different interval for timestamp
-
-	unsigned long millis() {
-	    return HAL_GetTick();  // Returns milliseconds since boot
-	}
-
-	unsigned long startTime = millis();
+//	uint32_t interval_ms = 1000; // Change this number for different interval for timestamp
+//
+//	unsigned long millis() {
+//	    return HAL_GetTick();  // Returns milliseconds since boot
+//	}
+//
+//	unsigned long startTime = millis();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -130,7 +131,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-
+  datalogging_init(&hadc1);  // 🔹 Setup datalogging with your ADC
+  set_interval(500); // ⏱ Set interval to __ms
   /* USER CODE END 2 */
 
   /* Initialize leds */
@@ -156,114 +158,132 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (interval_elapsed()) {
+		  float v = read_voltage();
+		  float c = read_current();
+		  float t = read_temperature();
 
-	unsigned long currentTime = millis();
-	float currentSeconds = currentTime / 1000.0;
+		  float avgV = get_avg_voltage();
+		  float avgC = get_avg_current();
+		  float avgT = get_avg_temperature();
 
-    /* USER CODE END WHILE */
+          uint32_t currentTime = get_millis();
+          float currentSeconds = get_seconds();
 
-    /* USER CODE BEGIN 3 */
-	  // Voltage
-	  ADC_ChannelConfTypeDef sConfig = {0};
-
-	  uint32_t Read_ADC_Channel(uint32_t channel) {
-	      sConfig.Channel = channel;
-	      sConfig.Rank = ADC_REGULAR_RANK_1; // Always Rank 1 for single-channel conversion
-	      sConfig.SamplingTime = ADC_SAMPLETIME_5CYCLE;
-
-	      // Stop ADC before configuring a new channel
-	      HAL_ADC_Stop(&hadc1);
-
-	      // Configure ADC channel
-	      if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
-	          printf("ADC Config Failed!\r\n");
-	          return 0;
-	      }
-
-	      // Start ADC conversion
-	      HAL_ADC_Start(&hadc1);
-	      HAL_ADC_PollForConversion(&hadc1, 100);
-	      uint32_t adc_result = HAL_ADC_GetValue(&hadc1);
-	      HAL_ADC_Stop(&hadc1);  // Stop ADC after reading
-
-	      return adc_result;
+          printf("Time Elapsed: %lu ms | %.3f s\r\n", currentTime, currentSeconds);
+		  printf("Voltage: %7.3lf V Avg: %6.3lf V\r\n", v, avgV);
+		  printf("Current: %7.3lf A Avg: %6.3lf A\r\n", c, avgC);
+		  printf("Temp: %10.3lf°C Avg: %6.3lf°C \r\n\r\n", t, avgT);
 	  }
 
-	  // 🔹 Read Voltage (Channel 1)
-
-      if ((currentTime - startTime) >= interval_ms) {  // If interval has passed
-          startTime = currentTime;  // Reset the timer
-
-          // Read ADC values
-          uint32_t adc_voltage = Read_ADC_Channel(ADC_CHANNEL_1);
-          uint32_t adc_current = Read_ADC_Channel(ADC_CHANNEL_2);
-          uint32_t adc_temperature = Read_ADC_Channel(ADC_CHANNEL_15);
-
-          // Convert ADC values to actual voltage and current
-//          float voltage = -164 + 0.0518 * adc_voltage - 0.00000553 * pow(adc_voltage, 2) + 0.000000000205 * pow(adc_voltage, 3);
-          float voltage;
-
-          if (adc_voltage < 10600) {
-        	  voltage = -17.6
-        			  +0.00237 * adc_voltage;
-          }
-
-          else if (adc_voltage >= 10600) {
-        	  voltage = 249
-        			  -0.0475 * adc_voltage
-					  +0.00000234 * pow(adc_voltage, 2);
-          }
-
-          float current = -551
-        		  + 0.167 * adc_current
-        		  - 0.0000171 * pow(adc_current, 2)
-          	  	  + 0.000000000595 * pow(adc_current, 3);
-
-          float temperature;
-          float VRT, VR, RT, ln, TX;
-
-          // Assuming a 14-bit ADC (0–16384)
-          VRT = voltage * (adc_temperature / 16384.0);  // Voltage across thermistor
-          VR = voltage - VRT;                            // Voltage across known resistor
-
-          if (VR == 0) return -273.15; // Avoid division by zero
-
-          RT = VRT / (VR / 10000);          // Calculate thermistor resistance
-
-          ln = log(RT / 10000.0);
-          TX = 1.0 / ((ln / 3977) + (1.0 / 298.15));  // Temperature in Kelvin
-          TX = TX - 273.15;                     // Convert to Celsius
-          temperature = TX;
-
-          // Store values in buffers
-          voltageBuffer[bufferIndex] = voltage;
-          currentBuffer[bufferIndex] = current;
-          temperatureBuffer[bufferIndex] = temperature;
-
-          bufferIndex = (bufferIndex + 1) % NUM_READINGS;
-          if (bufferIndex == 0) bufferFilled = true;
-
-          // Calculate averages
-          int readingsCount = bufferFilled ? NUM_READINGS : bufferIndex;
-          float voltageSum = 0, currentSum = 0, temperatureSum = 0;
-
-          for (int i = 0; i < readingsCount; ++i) {
-              voltageSum += voltageBuffer[i];
-              currentSum += currentBuffer[i];
-              temperatureSum += temperatureBuffer[i];
-          }
-
-          float avgVoltage = voltageSum / readingsCount;
-          float avgCurrent = currentSum / readingsCount;
-          float avgTemperature = temperatureSum / readingsCount;
-
-
-          // Print timestamp, voltage, and current
-          printf("Time Elapsed: %lu ms | %.3lf s\r\n", currentTime, currentSeconds);
-          printf("V_ADC: %5lu, Voltage: %7.3lf V Avg: %6.3lf V\r\n", adc_voltage, voltage, avgVoltage);
-          printf("C_ADC: %5lu, Current: %7.3lf A Avg: %6.3lf A\r\n", adc_current, current, avgCurrent);
-          printf("T_ADC: %5lu, Temp: %10.3lf°C Avg: %6.3lf°C \r\n\r\n", adc_temperature, temperature, avgTemperature);
-      }
+//	unsigned long currentTime = millis();
+//	float currentSeconds = currentTime / 1000.0;
+//
+//    /* USER CODE END WHILE */
+//
+//    /* USER CODE BEGIN 3 */
+//	  // Voltage
+//	  ADC_ChannelConfTypeDef sConfig = {0};
+//
+//	  uint32_t Read_ADC_Channel(uint32_t channel) {
+//	      sConfig.Channel = channel;
+//	      sConfig.Rank = ADC_REGULAR_RANK_1; // Always Rank 1 for single-channel conversion
+//	      sConfig.SamplingTime = ADC_SAMPLETIME_5CYCLE;
+//
+//	      // Stop ADC before configuring a new channel
+//	      HAL_ADC_Stop(&hadc1);
+//
+//	      // Configure ADC channel
+//	      if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+//	          printf("ADC Config Failed!\r\n");
+//	          return 0;
+//	      }
+//
+//	      // Start ADC conversion
+//	      HAL_ADC_Start(&hadc1);
+//	      HAL_ADC_PollForConversion(&hadc1, 100);
+//	      uint32_t adc_result = HAL_ADC_GetValue(&hadc1);
+//	      HAL_ADC_Stop(&hadc1);  // Stop ADC after reading
+//
+//	      return adc_result;
+//	  }
+//
+//	  // 🔹 Read Voltage (Channel 1)
+//
+//      if ((currentTime - startTime) >= interval_ms) {  // If interval has passed
+//          startTime = currentTime;  // Reset the timer
+//
+//          // Read ADC values
+//          uint32_t adc_voltage = Read_ADC_Channel(ADC_CHANNEL_1);
+//          uint32_t adc_current = Read_ADC_Channel(ADC_CHANNEL_2);
+//          uint32_t adc_temperature = Read_ADC_Channel(ADC_CHANNEL_15);
+//
+//          // Convert ADC value to actual voltage
+////          float voltage = -164 + 0.0518 * adc_voltage - 0.00000553 * pow(adc_voltage, 2) + 0.000000000205 * pow(adc_voltage, 3);
+//          float voltage;
+//          if (adc_voltage < 10600) {
+//        	  voltage = -17.6
+//        			  +0.00237 * adc_voltage;
+//          }
+//
+//          else if (adc_voltage >= 10600) {
+//        	  voltage = 249
+//        			  -0.0475 * adc_voltage
+//					  +0.00000234 * pow(adc_voltage, 2);
+//          }
+//
+//          // Convert ADC value to actual current
+//          float current = -551
+//        		  + 0.167 * adc_current
+//        		  - 0.0000171 * pow(adc_current, 2)
+//          	  	  + 0.000000000595 * pow(adc_current, 3);
+//
+//          // Convert ADC value to actual temperature
+//          float temperature;
+//          float VRT, VR, RT, ln, TX;
+//
+//          // Assuming a 14-bit ADC (0–16384)
+//          VRT = voltage * (adc_temperature / 16384.0);  // Voltage across thermistor
+//          VR = voltage - VRT;                            // Voltage across known resistor
+//
+//          if (VR == 0) return -273.15; // Avoid division by zero
+//
+//          RT = VRT / (VR / 10000);          // Calculate thermistor resistance
+//
+//          ln = log(RT / 10000.0);
+//          TX = 1.0 / ((ln / 3977) + (1.0 / 298.15));  // Temperature in Kelvin
+//          TX = TX - 273.15;                     // Convert to Celsius
+//          temperature = TX;
+//
+//          // Store values in buffers
+//          voltageBuffer[bufferIndex] = voltage;
+//          currentBuffer[bufferIndex] = current;
+//          temperatureBuffer[bufferIndex] = temperature;
+//
+//          bufferIndex = (bufferIndex + 1) % NUM_READINGS;
+//          if (bufferIndex == 0) bufferFilled = true;
+//
+//          // Calculate averages
+//          int readingsCount = bufferFilled ? NUM_READINGS : bufferIndex;
+//          float voltageSum = 0, currentSum = 0, temperatureSum = 0;
+//
+//          for (int i = 0; i < readingsCount; ++i) {
+//              voltageSum += voltageBuffer[i];
+//              currentSum += currentBuffer[i];
+//              temperatureSum += temperatureBuffer[i];
+//          }
+//
+//          float avgVoltage = voltageSum / readingsCount;
+//          float avgCurrent = currentSum / readingsCount;
+//          float avgTemperature = temperatureSum / readingsCount;
+//
+//
+//          // Print timestamp, voltage, and current
+//          printf("Time Elapsed: %lu ms | %.3lf s\r\n", currentTime, currentSeconds);
+//          printf("V_ADC: %5lu, Voltage: %7.3lf V Avg: %6.3lf V\r\n", adc_voltage, voltage, avgVoltage);
+//          printf("C_ADC: %5lu, Current: %7.3lf A Avg: %6.3lf A\r\n", adc_current, current, avgCurrent);
+//          printf("T_ADC: %5lu, Temp: %10.3lf°C Avg: %6.3lf°C \r\n\r\n", adc_temperature, temperature, avgTemperature);
+//      }
   }
   /* USER CODE END 3 */
 }
