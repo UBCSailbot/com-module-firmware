@@ -3,20 +3,33 @@
  *
  *  Created on: Mar 8, 2025
  *      Author: Alisha
- *      (No documentation) FDCAN Library
+ *
+ *  @brief This file implements the function prototypes in can.h to initialize and handle FDCAN on an STM32.
+ *
+ *  @details The implementation includes buffer management, initialization, transmission, and
+ *           reception handling with callback functions for handling received messages.
  */
+
+/* Includes ------------------------------------------------------------------*/
 #include "can.h"
 #include "main.h"
+#include <stdio.h>
 
-FDCAN_HandleTypeDef hfdcan1;
-HAL_StatusTypeDef CanStartStatus;
-uint8_t* RxData1 = NULL;
-uint8_t* RxData2 = NULL;
-uint16_t RxData1_BufferLength = 0;
-uint16_t RxData2_BufferLength = 0;
+/* Variables ------------------------------------------------------------------*/
+FDCAN_HandleTypeDef hfdcan1;  		/* Handle for FDCAN1 */
+HAL_StatusTypeDef CanStartStatus; 	/* Status of FDCAN start operation */
+uint8_t* RxData1 = NULL; 			/* Pointer to receive buffer for FIFO0 (Standard ID)*/
+uint8_t* RxData2 = NULL; 			/* Pointer to receive buffer for FIFO1 (Extended ID)*/
+uint16_t RxData1_BufferLength = 0; 	/* Length of data received in FIFO0 */
+uint16_t RxData2_BufferLength = 0; 	/* Length of data received in FIFO1 */
 
-/* Setting the buffer size for FDCAN,
- * Allocating the size of length passed in and freeing when not null*/
+/* Functions ------------------------------------------------------------------*/
+
+/**
+ * @brief Allocates memory for FDCAN receive buffers.
+ * @param RxData1_Length: Length of buffer for FIFO0.
+ * @param RxData2_Length: Length of buffer for FIFO1.
+ */
 void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length) {
     if (RxData1 != NULL) {
         free(RxData1);
@@ -35,13 +48,18 @@ void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length) {
     }
 }
 
-/* Initialize FDCAN
- * Blackboxed: standard and extended filters, global filter and starting the can controller
- * Starting the controller could be another function?
- * void
- * */
+/**
+ * @brief 	Initializes the FDCAN module.
+ * @details In order:
+ * 			Configures standard ID reception filter to Rx buffer
+ * 			Configures extended ID reception filter to Rx FIFO 1
+ * 			Configures global filter: Filter all remote frames with STD and EXT ID
+ * 									  Reject non matching frames with STD ID and EXT ID
+ * 			Starts the FDCAN controller (continuous listening CAN bus)
+ * 			Activates Notifications
+ */
 void CAN_Init(void) {
-	/* Configure standard ID reception filter to Rx buffer 0*/
+	/*##-1 Configures FDCAN meta data and controllers*/
 	FDCAN_FilterTypeDef sFilterConfig;
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
 	sFilterConfig.FilterIndex = 0;
@@ -54,7 +72,6 @@ void CAN_Init(void) {
 	Error_Handler();
 	}
 
-	/* Configure extended ID reception filter to Rx FIFO 1 */
 	sFilterConfig.IdType = FDCAN_EXTENDED_ID;
 	sFilterConfig.FilterIndex = 0;
 	sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
@@ -66,9 +83,6 @@ void CAN_Init(void) {
 	Error_Handler();
 	}
 
-	/* Configure global filter:
-	 Filter all remote frames with STD and EXT ID
-	 Reject non matching frames with STD ID and EXT ID */
 	if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
 	{
 	  Error_Handler();
@@ -92,10 +106,21 @@ void CAN_Init(void) {
 	}
 }
 
-/* Transmits CAN
- * Takes in metadata as parameters w the Tx buffer
- * Returns: HAL_FDCAN_AddMessageToTxFifoQ
- * */
+/**
+ * @brief 	Transmits a FDCAN message.
+ * @param 	Identifier: Message identifier (In-line with Filter used).
+ * @param 	IdType: Identifier type (FDCAN_STANDARD_ID or FDCAN_EXTENDED_ID).
+ * @param 	DataLength: Length of the TxData buffer in the form of FDCAN_data_length_code
+ * 						FDCAN_data_length_code (X bytes data field):
+ * 						FDCAN_DLC_BYTES_0, FDCAN_DLC_BYTES_1, FDCAN_DLC_BYTES_2,
+ * 						FDCAN_DLC_BYTES_3, FDCAN_DLC_BYTES_4, FDCAN_DLC_BYTES_5,
+ * 						FDCAN_DLC_BYTES_6, FDCAN_DLC_BYTES_7, FDCAN_DLC_BYTES_8,
+ * 						FDCAN_DLC_BYTES_12, FDCAN_DLC_BYTES_16, FDCAN_DLC_BYTES_20,
+ * 						FDCAN_DLC_BYTES_24, FDCAN_DLC_BYTES_32, FDCAN_DLC_BYTES_48,
+ * 						FDCAN_DLC_BYTES_64
+ * @param 	DataBuffer: Pointer to the TxData buffer.
+ * @return 	HAL_StatusTypeDef HAL_OK if successful, !HAL_OK otherwise.
+ */
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer) {
     FDCAN_TxHeaderTypeDef TxHeader;
 
@@ -111,7 +136,11 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
     return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, DataBuffer);
 }
 
-/* Callback */
+/**
+ * @brief Callback function for handling messages received in FIFO0.
+ * @param hfdcan: Pointer to FDCAN handle.
+ * @param RxFifo0ITs: FIFO0 interrupt flags.
+ */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
         FDCAN_RxHeaderTypeDef RxHeader;
@@ -125,9 +154,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
         RxData1_BufferLength = RxHeader.DataLength;
     }
     /* added for debug */
-//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+    //HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 }
 
+/**
+ * @brief Callback function for handling messages received in FIFO1.
+ * @param hfdcan: Pointer to FDCAN handle.
+ * @param RxFifo1ITs: FIFO1 interrupt flags.
+ */
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
     if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
         FDCAN_RxHeaderTypeDef RxHeader;
@@ -138,5 +172,39 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
             Error_Handler();
         }
         RxData2_BufferLength = RxHeader.DataLength;
+    }
+}
+
+/**
+ * @brief  	Prints the received RxDataX recived from FIFO0 and FIFO1.
+ *
+ * @details This function checks if there is received data in the Rx buffers
+ * 			If data is available, it prints it in hexadecimal format;
+ * 			otherwise, it indicates that no data has been received.
+ *
+ * @note This function assumes that RxData1 and RxData2 have been allocated and
+ *       populated by the Rx FIFO callbacks.
+ *
+ * @retval None
+ */
+void CAN_PrintRxData(void) {
+    if (RxData1 != NULL && RxData1_BufferLength > 0) {
+        printf("FIFO0 Received: ");
+        for (uint16_t i = 0; i < RxData1_BufferLength; i++) {
+            printf("%02X ", RxData1[i]);
+        }
+        printf("\n");
+    } else {
+        printf("FIFO0: No data received.\n");
+    }
+
+    if (RxData2 != NULL && RxData2_BufferLength > 0) {
+        printf("FIFO1 Received: ");
+        for (uint16_t i = 0; i < RxData2_BufferLength; i++) {
+            printf("%02X ", RxData2[i]);
+        }
+        printf("\n");
+    } else {
+        printf("FIFO1: No data received.\n");
     }
 }
