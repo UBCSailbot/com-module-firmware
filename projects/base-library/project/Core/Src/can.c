@@ -4,7 +4,7 @@
  *  Created on: Mar 8, 2025
  *      Author: Alisha
  *
- *  @brief This file implements the function prototypes in can.h to initialize and handle FDCAN on an STM32.
+ *  @brief 	 This file implements the function prototypes in can.h to initialize and handle FDCAN on an STM32.
  *
  *  @details The implementation includes buffer management, initialization, transmission, and
  *           reception handling with callback functions for handling received messages.
@@ -137,6 +137,26 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
 }
 
 /**
+ * @brief 	FDCAN has multiple Callbacks. This section highlights the order of the callbacks
+ * 			which you are able to overwrite for specific purposes (like flashing an LED
+ * 			for debugging or changing the Tx data in any way).
+ * 			These can be overwritten from stm32u5xx_hal_fdcan.h
+ * @details When CAN_Transmit is called:
+ * 			1. HAL_FDCAN_TxEventFifoCallback(): Triggered when a new entry is added to the Tx Event FIFO after a successful transmission.
+ *               - Log transmission status, toggle an LED, or trigger another action upon successful transmission.
+ * 			2. HAL_FDCAN_TxBufferCompleteCallback(): Triggered when a dedicated Tx buffer completes transmission.
+ *               - This can be used to add functionality after the TxData has been fired.
+ * 			3. HAL_FDCAN_RxFifo0Callback(): Triggered when a new message is received in Rx FIFO 0.
+ * 			4. HAL_FDCAN_RxFifo1Callback(): Triggered when a new message is received in Rx FIFO 1.
+ *               - Process received data, used for debugging (toggle an LED) or trigger other operations based on received messages.
+ * 			5. HAL_FDCAN_AbortTxRequest(): Called if transmission is aborted before completion (can be triggered by user).
+ *               - Handle retransmission, alert on transmission failure or manually abort for testing.
+ * 			6. HAL_FDCAN_HighPriorityMessageCallback(): Triggered when a high-priority message or remote frame is received.
+ *               - When processing of urgent messages
+ */
+
+
+/**
  * @brief Callback function for handling messages received in FIFO0.
  * @param hfdcan: Pointer to FDCAN handle.
  * @param RxFifo0ITs: FIFO0 interrupt flags.
@@ -182,10 +202,10 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
  * 			If data is available, it prints it in hexadecimal format;
  * 			otherwise, it indicates that no data has been received.
  *
- * @note This function assumes that RxData1 and RxData2 have been allocated and
- *       populated by the Rx FIFO callbacks.
+ * @note 	This function assumes that RxData1 and RxData2 have been allocated and
+ *       	populated by the Rx FIFO callbacks.
  *
- * @retval None
+ * @retval 	None
  */
 void CAN_PrintRxData(void) {
     if (RxData1 != NULL && RxData1_BufferLength > 0) {
