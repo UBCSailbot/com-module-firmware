@@ -19,13 +19,13 @@
 
 
 
-#ifndef MOTOR_PID_H
-#define MOTOR_PID_H
+#ifndef RUDDERPID_H
+#define RUDDERPID_H
 
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
-#include "stm32u5xx_hal.h  
+#include "stm32u5xx_hal.h"
 
 // Constants
 #define PROPORTIONAL_GAIN 0.0017f
@@ -42,4 +42,4 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
               float* integral_error, uint32_t* last_time_stamp,
               int32_t* past_encoder_heading, int8_t* past_motor_direction);
 
-#endif // MOTOR_PID_H
+#endif // RUDDERPID_H

@@ -31,4 +31,21 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>BNO055-imu</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/BNO055-imu</locationURI>
+		</link>
+		<link>
+			<name>briter-encoders</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
+		</link>
+		<link>
+			<name>motor-base-PID</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/motor-base-PID</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>

@@ -31,4 +31,21 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>CV7-windsensor</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/CV7-windsensor</locationURI>
+		</link>
+		<link>
+			<name>briter-encoders</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
+		</link>
+		<link>
+			<name>servo-solenoid</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/servo-solenoid</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>

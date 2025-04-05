@@ -5,7 +5,7 @@
  *      Author: Chukwudalu Joshua Obi
  */
 
- #include "Motor_PID.h"
+ #include "RUDDERPID.h"
  #include <stdint.h>
  #include <math.h>
  #include <stdio.h>
@@ -21,12 +21,12 @@ void DAC_STEP(int step) {
 		 *
 		 */
 
-    uint32_t Motor_DAC = (uint32_t)(i * 4095.0f / 50); // Keep DAC value as 12-bit resolution
-    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, Motor_DAC); // Set DAC output
-    float voltage = (i * 3.3f) /100; // Convert DAC value to voltage
+    //uint32_t Motor_DAC = (uint32_t)(i * 4095.0f / 50); // Keep DAC value as 12-bit resolution
+    //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, Motor_DAC); // Set DAC output
+    //float voltage = (i * 3.3f) /100; // Convert DAC value to voltage
 
-    printf("%u\r\n", Motor_DAC);
-    printf("V: %d.%03d V\r\n", (int)voltage, (int)(fabsf(voltage * 1000)) % 1000);
+    //printf("%u\r\n", Motor_DAC);
+    //printf("V: %d.%03d V\r\n", (int)voltage, (int)(fabsf(voltage * 1000)) % 1000);
 }
 
 
@@ -43,9 +43,9 @@ void Set_Motor(float_t Motor_Control)
 	 */
 
 
-    uint32_t Motor_DAC = (uint32_t)(fabsf(Motor_Control) * 4095.0f);
+    //uint32_t Motor_DAC = (uint32_t)(fabsf(Motor_Control) * 4095.0f);
 
-    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, Motor_DAC); // Manually sets the output of the DAC
+    //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, Motor_DAC); // Manually sets the output of the DAC
 
 
     // Sets PA7 high if Motor_Control is positive, otherwise low
