@@ -21,6 +21,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "BRITER.h"
+#include "WINDSENSOR.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
