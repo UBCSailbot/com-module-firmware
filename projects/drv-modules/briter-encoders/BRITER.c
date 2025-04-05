@@ -19,26 +19,20 @@
 //--------------------------------------------------------------------------- PRIVATE MACROS ----------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-//Timeout duration on transmissions
+// UART communication and encoder polling timing configurations
 #define TRANSMISSION_MAX_TIME 5000
-
-//Delay between transmissions
 #define DELAY_BETWEEN_TRANSMISSIONS 100
-
-//Maximum length of sentence that can be received or sent
 #define MAX_SCENTENCE_LENGTH 16
-
-//Minimum period between sample request from the encoder. 20ms is the minimum recommended by the manufacturer.
 #define MINIMUM_SAMPLE_PERIOD 20
-
-//grace period for recovery
-#define RECOVERY_GRACE_PERIOD_MS 5000
-
+#define RECOVERY_GRACE_PERIOD_MS 2000
 #define RECOVERY_WAIT_MS 3000
 #define DATA_TIMEOUT_MS 100
+#define ENCODER_NOT_READY_SENTINEL -800 //this value is returned during intermittent periods of no data
+#define STARTUP_DELAY_MS 3000
 
-
-static uint8_t inRecovery = 0;  // Global static flag
+//Encoder Raw data and Recovery Flag
+static uint8_t inRecovery = 0;
+static volatile uint16_t encoderRaw = 0;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- GLOBAL VARIABLES --------------------------------------------------------------
@@ -46,15 +40,10 @@ static uint8_t inRecovery = 0;  // Global static flag
 
 //Set the encoder to automatically return position data
 const uint8_t autoPositionCMD[] = {0x00, 0x06, 0x00, 0x01};
-
 //Set the encoder's zero position
 const uint8_t zeroPositionCMD[] = {0x00, 0x08, 0x00, 0x01};
-
 //Set the encoder return rate (this is default 20, but will be modified in the initialization)
 uint8_t encoderDataRateCMD[] = {0x00, 0x07, 0x00, 0x14};
-
-// Raw values of Encoder
-static volatile uint16_t encoderRaw = 0;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- PFP ---------------------------------------------------------------------------
@@ -153,14 +142,15 @@ void BRITER__init(BRITER* self, UART_HandleTypeDef * huartChannel, volatile uint
 BRITER* BRITER__create(UART_HandleTypeDef * huartChannel, uint16_t samplePeriod) {
     BRITER* result = (BRITER*)malloc(sizeof(BRITER));
     if (result == NULL) {
-    printf("BRITER ERROR: Failed to allocate memory for encoder object.\r\n");
-    return NULL; // Prevent null pointer issues
-    HAL_Delay(500); //necessary to run encoder. Puttin this in briter init kills it.
-    printf("BRITER INITIALIZATION COMPLETE\r\n");
+		printf("BRITER ERROR: Failed to allocate memory for encoder object.\r\n");
+		return NULL; // Prevent null pointer issues
+		HAL_Delay(500); //necessary to run encoder. Puttin this in briter init kills it.
 }
     memset(result, 0, sizeof(BRITER));
     // Save the sample period in the structure for later use.
     result->samplePeriod = samplePeriod;
+    result->startupTime = HAL_GetTick();
+
 
     // Initialize using the internally managed encoderRaw
     BRITER__init(result, huartChannel, &encoderRaw, samplePeriod);
@@ -236,38 +226,35 @@ void BRITER__powerCycle(BRITER* self) {
 
 
 
-//checks if there is an error with the encoder. If an error is found, it will power cycle the encoder and reinitialize it
 void BRITER__checkErrors(BRITER* self) {
     if (self == NULL) return;
+
     uint32_t currentTime = HAL_GetTick();
 
-//    // //should handle power outage issues
-    if (!self->encoderReady) {
-        if (HAL_GetTick() - self->lastValidDataTime > RECOVERY_GRACE_PERIOD_MS) {
-            printf("BRITER ERROR: No encoder response after boot.\r\n");
+    // If no valid data received shortly after boot
+    if (!self->encoderReady && (currentTime - self->lastValidDataTime > RECOVERY_GRACE_PERIOD_MS)) {
+        printf("BRITER ERROR: No encoder response after boot.\r\n");
 
-            // Soft reset the UART if we've waited too long
-            HAL_UART_AbortReceive(self->huart);
-            HAL_UARTEx_ReceiveToIdle_DMA(self->huart, self->inputBuffer, 16);
+        // Soft reset the UART to try again
+        HAL_UART_AbortReceive(self->huart);
+        HAL_UARTEx_ReceiveToIdle_DMA(self->huart, self->inputBuffer, 16);
 
-            // You could optionally force a re-engagement
-            // BRITER__reEngage(self);
-
-            self->lastValidDataTime = HAL_GetTick(); // Reset timer
-        }
+        self->lastValidDataTime = currentTime;
+        *(self->encoderRaw) = ENCODER_NOT_READY_SENTINEL;
+        return;
+    }
+    // If encoder hasn't had time to boot, return sentinel
+    if (!self->encoderReady || (currentTime - self->startupTime < STARTUP_DELAY_MS)) {
+        *(self->encoderRaw) = ENCODER_NOT_READY_SENTINEL;
+        return;
+    }
+    // Still within a recovery grace period
+    if (inRecovery && (currentTime - self->lastValidDataTime < RECOVERY_GRACE_PERIOD_MS)) {
         return;
     }
 
-
-    // Give time to recover before evaluating again
-    //checks time since last valid data
-    if (inRecovery && (currentTime - self->lastValidDataTime < RECOVERY_GRACE_PERIOD_MS)) {
-        return;  // still recovering
-    }
-
-    //non recovery mode checks, checks flags and timeout
+    // Check for UART timeout or error
     if (!inRecovery && (currentTime - self->lastValidDataTime > DATA_TIMEOUT_MS)) {
-        // Check if any UART error flags are set.
         bool uartError = false;
         if ((__HAL_UART_GET_FLAG(self->huart, UART_FLAG_ORE) == SET) ||
             (__HAL_UART_GET_FLAG(self->huart, UART_FLAG_FE) == SET) ||
@@ -275,18 +262,17 @@ void BRITER__checkErrors(BRITER* self) {
             uartError = true;
         }
 
-        // Now check for both stagnant data and UART error.
         if (uartError && (*(self->encoderRaw) == self->lastRawValue)) {
             printf("BRITER ERROR: Encoder data stagnant and UART error flag detected. Triggering recovery...\r\n");
             inRecovery = 1;
             BRITER__powerCycle(self);
         } else {
-            // New data or transient error: update the last recorded value.
-            self->lastRawValue = *(self->encoderRaw);
+            self->lastRawValue = *(self->encoderRaw);  // Update only if new data
         }
     }
 
 }
+
 
 
 
