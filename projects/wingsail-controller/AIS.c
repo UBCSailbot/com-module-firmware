@@ -55,12 +55,12 @@ uint8_t convertSixBit(uint8_t input);
 
 void AIS__init(AIS* self, uint8_t inputData[]) {
     self->sixBitData = inputData;//malloc(MAX_LENGTH);
-    strcpy(self->sixBitData, inputData);
+    //strcpy((char *) self->sixBitData, (char *) inputData);
 }
 
-AIS* AIS__create(NMEA0183 * data) {
+AIS* AIS__create(NMEA0183Raw * data) {
     AIS* result = (AIS*)malloc(sizeof(AIS));
-    if(NMEA0183__getScentenceDataType(data) == VDM && NMEA0183__getField(data, 5) != NULL){
+    if(NMEA0183__getScentenceType(data) == MESSAGE_VDM && NMEA0183__getField(data, 5) != NULL){
     	AIS__init(result, NMEA0183__getField(data, 5));
     	return result;
     }

@@ -45,7 +45,7 @@ typedef enum {
  * @param data Must be a NMEA0183 object which has received a NMEA0183 AIS message
  * @return an initialized AIS object. Will return NULL pointer for invalid NMEA0183 sentence inputs.
  */
-AIS* AIS__create(NMEA0183 * data);
+AIS* AIS__create(NMEA0183Raw * data);
 
 /*
  * Deletes the AIS object.
