@@ -26,13 +26,15 @@
 //--------------------------------------------------------------------------- STRUCTURES ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-//Defines the max number of bytes the library will parse. This can be increased up to 254 without issue if needed.
-#define MAX_LENGTH 80
+//Defines the max number of bytes the library will parse.
+#define MAX_LENGTH 425
 
-#define MULTI_SENTENCE_TIME_WINDOW 60000
+#define MULTI_SENTENCE_TIME_WINDOW 10000
+
+
 
 typedef struct {
-	uint8_t sixBitData[424];
+	uint8_t sixBitData[MAX_LENGTH];
 	uint16_t dataLength;
 } AIS_DATA;
 

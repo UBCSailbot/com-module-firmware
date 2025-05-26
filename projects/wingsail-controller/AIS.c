@@ -53,10 +53,14 @@ uint8_t convertSixBit(uint8_t input);
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+void resetTimeStamp(AIS_MULTI_SENTENCE * aisData){
+	aisData->timeStamp = 0xFFFF0000 - MULTI_SENTENCE_TIME_WINDOW;
+}
+
 void AIS__init(AIS* self) {
 	memset(self, 0, sizeof(AIS));
 	for(uint8_t i = 0; i < 10; i++){
-		self->multiSentenceHeap[i].timeStamp = 0xFFFF0000 - MULTI_SENTENCE_TIME_WINDOW;
+		resetTimeStamp(&self->multiSentenceHeap[i]);
 	}
 }
 
@@ -81,13 +85,63 @@ void AIS__destroy(AIS * data) {
 //--------------------------------------------------------------------------- HELPER FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+
 AIS_DATA * AIS__addNMEAMessage(AIS * self, NMEA0183Raw * data){
-	if(NMEA0183__getScentenceType(data) == MESSAGE_VDM && NMEA0183__getField(data, 5) != NULL){
-		//if(NMEA0183__getField(data, 1)[0] == '1'){
-		self->singleSentenceData.dataLength = strlen((char *)NMEA0183__getField(data, 5));
-		memcpy(self->singleSentenceData.sixBitData, NMEA0183__getField(data, 5), self->singleSentenceData.dataLength);
-		return &self->singleSentenceData;
-		//}
+	uint8_t * aisBinary = NMEA0183__getField(data, 5);
+
+	if(NMEA0183__getScentenceType(data) == MESSAGE_VDM && aisBinary != NULL){
+		uint8_t totalSentenceSegments = NMEA0183__getField(data, 1)[0] - '0';
+		uint8_t aisBinaryLength = strlen((char *)aisBinary);
+
+		if(totalSentenceSegments == 1){
+			self->singleSentenceData.dataLength = aisBinaryLength;
+			memcpy(self->singleSentenceData.sixBitData, aisBinary, self->singleSentenceData.dataLength);
+			self->singleSentenceData.sixBitData[aisBinaryLength] = '\0'; //temp
+			return &self->singleSentenceData;
+		} else {
+			uint8_t sentenceNumber = NMEA0183__getField(data, 2)[0] - '0';
+
+			uint8_t sequentialMessageIdentifier = NMEA0183__getField(data, 3)[0] - '0';
+
+			if(sequentialMessageIdentifier > 9)
+				Error_Handler();
+
+			AIS_MULTI_SENTENCE * dictData = &self->multiSentenceHeap[sequentialMessageIdentifier];
+
+			uint8_t vhfChannel = NMEA0183__getField(data, 4)[0];
+
+			if(sentenceNumber == 1){
+				dictData->timeStamp = HAL_GetTick();
+				dictData->totalSentenceParts = totalSentenceSegments;
+				dictData->lastSentenceIndex = 0;
+				dictData->aisData.dataLength = 0;
+				dictData->vhfChannel = vhfChannel;
+			}
+
+			if(sentenceNumber > totalSentenceSegments){
+				return NULL;
+			}
+
+
+			if(dictData->vhfChannel != vhfChannel
+					|| ++dictData->lastSentenceIndex != sentenceNumber
+					|| dictData->totalSentenceParts != totalSentenceSegments
+					|| HAL_GetTick() - dictData->timeStamp > MULTI_SENTENCE_TIME_WINDOW
+					|| dictData->aisData.dataLength + aisBinaryLength > MAX_LENGTH){
+				resetTimeStamp(dictData);
+				return NULL;
+			}
+
+			memcpy(&dictData->aisData.sixBitData[dictData->aisData.dataLength], aisBinary, aisBinaryLength);
+
+			dictData->aisData.dataLength += aisBinaryLength;
+
+			if(sentenceNumber == totalSentenceSegments){
+				dictData->aisData.sixBitData[dictData->aisData.dataLength] = '\0';
+				return &dictData->aisData;
+			}
+		}
 	}
 	return NULL;
 }
