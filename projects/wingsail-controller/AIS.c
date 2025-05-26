@@ -54,8 +54,7 @@ uint8_t convertSixBit(uint8_t input);
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 void AIS__init(AIS* self, uint8_t inputData[]) {
-    self->sixBitData = inputData;//malloc(MAX_LENGTH);
-    //strcpy((char *) self->sixBitData, (char *) inputData);
+    self->sixBitData = inputData;
 }
 
 AIS* AIS__create(NMEA0183Raw * data) {
@@ -68,6 +67,7 @@ AIS* AIS__create(NMEA0183Raw * data) {
 }
 
 void AIS__reset(AIS* self) {
+	self->sixBitData = NULL;
 }
 
 void AIS__destroy(AIS* data) {
@@ -125,6 +125,24 @@ void getAsciiString(uint8_t input[], uint8_t output[], uint16_t startBit, uint16
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- DATA PARSING FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+bool AIS__isSizeMessage(AIS * self){
+	if(AIS__getMessageID(self) == 5 || AIS__getMessageID(self) == 19 || (AIS__getMessageID(self) == 24 && AIS__getMessageAOrB(self) == 1))
+		return true;
+	return false;
+}
+
+bool AIS__isDynamicMessage(AIS * self){
+	if(AIS__getMessageID(self) == 1 || AIS__getMessageID(self) == 2 || AIS__getMessageID(self) == 3 || AIS__getMessageID(self) == 18)
+		return true;
+	return false;
+}
+
+bool AIS__isSupportedMessage(AIS * self){
+	if(AIS__isSizeMessage(self) == true || AIS__isDynamicMessage(self) == true)
+		return true;
+	return false;
+}
 
 bool AIS__checkLength(AIS* self) {
     uint8_t length = strlen((const char*)self->sixBitData);

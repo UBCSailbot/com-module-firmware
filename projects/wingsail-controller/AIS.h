@@ -9,6 +9,9 @@
  *      Author: Michael Greenough
  */
 
+//TODO: Add message 19 support
+
+
 #ifndef INC_AIS_H_
 #define INC_AIS_H_
 
@@ -26,10 +29,12 @@
 //Defines the max number of bytes the library will parse. This can be increased up to 254 without issue if needed.
 #define MAX_LENGTH 80
 
+//The AIS structure. sixBitData is the raw AIS binary message.
 typedef struct {
 	uint8_t* sixBitData;
 } AIS;
 
+//Custom enum for true or false returns.
 typedef enum {
     false = 0,
     true = 1
@@ -57,6 +62,30 @@ void AIS__destroy(AIS* self);
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- AIS METHODS ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/*
+ * Check if the message type include the dimensions of the vessel
+ *
+ * @param self Is an initialized AIS object
+ * @return Is true is the message includes the dimension of the vessel. false otherwise.
+ */
+bool AIS__isSizeMessage(AIS * self);
+
+/*
+ * Check if the message is a dynamic message type (where it would include things like latitude and longitude)
+ *
+ * @param self Is an initialized AIS object
+ * @return Is true is the message is a dynamic message type. false otherwise.
+ */
+bool AIS__isDynamicMessage(AIS * self);
+
+/*
+ * Check if the message type is supported by this module.
+ *
+ * @param self Is an initialized AIS object
+ * @return Is true is the message type is supported. false otherwise.
+ */
+bool AIS__isSupportedMessage(AIS * self);
 
 /*
  * Check if number of bytes passed is equal to the number expected by the message ID.
