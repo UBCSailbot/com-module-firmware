@@ -49,32 +49,36 @@ void getAsciiString(uint8_t input[], uint8_t output[], uint16_t startBit, uint16
  */
 uint8_t convertSixBit(uint8_t input);
 
+/*
+ * Resets the time stamp of the AIS dictionary used for multi-part sentences.
+ * Resetting just refers to making the time stamp 49 days in the future.
+ *
+ * @param aisMultiData is AIS_MULTI_SENTENCE to reset the time stamp of.
+ */
+void resetTimeStamp(AIS_MULTI_SENTENCE * aisMultiData);
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void resetTimeStamp(AIS_MULTI_SENTENCE * aisData){
-	aisData->timeStamp = 0xFFFF0000 - MULTI_SENTENCE_TIME_WINDOW;
-}
-
-void AIS__init(AIS* self) {
-	memset(self, 0, sizeof(AIS));
+void AIS__init(AIS_PARSER* self) {
+	memset(self, 0, sizeof(AIS_PARSER));
 	for(uint8_t i = 0; i < 10; i++){
 		resetTimeStamp(&self->multiSentenceHeap[i]);
 	}
 }
 
-AIS* AIS__create() {
-    AIS* result = (AIS*)malloc(sizeof(AIS));
+AIS_PARSER* AIS__create() {
+    AIS_PARSER* result = (AIS_PARSER*)malloc(sizeof(AIS_PARSER));
     AIS__init(result);
     return result;
 }
 
-void AIS__reset(AIS* self) {
+void AIS__reset(AIS_PARSER* self) {
 	AIS__init(self);
 }
 
-void AIS__destroy(AIS * data) {
+void AIS__destroy(AIS_PARSER * data) {
     if (data) {
         AIS__reset(data);
         free(data);
@@ -85,65 +89,8 @@ void AIS__destroy(AIS * data) {
 //--------------------------------------------------------------------------- HELPER FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
-AIS_DATA * AIS__addNMEAMessage(AIS * self, NMEA0183Raw * data){
-	uint8_t * aisBinary = NMEA0183__getField(data, 5);
-
-	if(NMEA0183__getScentenceType(data) == MESSAGE_VDM && aisBinary != NULL){
-		uint8_t totalSentenceSegments = NMEA0183__getField(data, 1)[0] - '0';
-		uint8_t aisBinaryLength = strlen((char *)aisBinary);
-
-		if(totalSentenceSegments == 1){
-			self->singleSentenceData.dataLength = aisBinaryLength;
-			memcpy(self->singleSentenceData.sixBitData, aisBinary, self->singleSentenceData.dataLength);
-			self->singleSentenceData.sixBitData[aisBinaryLength] = '\0'; //temp
-			return &self->singleSentenceData;
-		} else {
-			uint8_t sentenceNumber = NMEA0183__getField(data, 2)[0] - '0';
-
-			uint8_t sequentialMessageIdentifier = NMEA0183__getField(data, 3)[0] - '0';
-
-			if(sequentialMessageIdentifier > 9)
-				Error_Handler();
-
-			AIS_MULTI_SENTENCE * dictData = &self->multiSentenceHeap[sequentialMessageIdentifier];
-
-			uint8_t vhfChannel = NMEA0183__getField(data, 4)[0];
-
-			if(sentenceNumber == 1){
-				dictData->timeStamp = HAL_GetTick();
-				dictData->totalSentenceParts = totalSentenceSegments;
-				dictData->lastSentenceIndex = 0;
-				dictData->aisData.dataLength = 0;
-				dictData->vhfChannel = vhfChannel;
-			}
-
-			if(sentenceNumber > totalSentenceSegments){
-				return NULL;
-			}
-
-
-			if(dictData->vhfChannel != vhfChannel
-					|| ++dictData->lastSentenceIndex != sentenceNumber
-					|| dictData->totalSentenceParts != totalSentenceSegments
-					|| HAL_GetTick() - dictData->timeStamp > MULTI_SENTENCE_TIME_WINDOW
-					|| dictData->aisData.dataLength + aisBinaryLength > MAX_LENGTH){
-				resetTimeStamp(dictData);
-				return NULL;
-			}
-
-			memcpy(&dictData->aisData.sixBitData[dictData->aisData.dataLength], aisBinary, aisBinaryLength);
-
-			dictData->aisData.dataLength += aisBinaryLength;
-
-			if(sentenceNumber == totalSentenceSegments){
-				dictData->aisData.sixBitData[dictData->aisData.dataLength] = '\0';
-				return &dictData->aisData;
-			}
-		}
-	}
-	return NULL;
+void resetTimeStamp(AIS_MULTI_SENTENCE * aisMultiData){
+	aisMultiData->timeStamp = 0xFFFF0000 - MULTI_SENTENCE_TIME_WINDOW;
 }
 
 uint8_t convertSixBit(uint8_t input) {
@@ -191,6 +138,62 @@ void getAsciiString(uint8_t input[], uint8_t output[], uint16_t startBit, uint16
 //--------------------------------------------------------------------------- DATA PARSING FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+AIS_DATA * AIS__parseNMEAMessage(AIS_PARSER * self, NMEA0183Raw * data){
+	uint8_t * aisBinary = NMEA0183__getField(data, 5);
+
+	if(NMEA0183__getScentenceType(data) == MESSAGE_VDM && aisBinary != NULL){
+		uint8_t totalSentenceSegments = NMEA0183__getField(data, 1)[0] - '0';
+		uint8_t aisBinaryLength = strlen((char *)aisBinary);
+
+
+		if(totalSentenceSegments == 1){
+			//If this is a single sentence message then just copy it and return it.
+			self->singleSentenceData.dataLength = aisBinaryLength;
+			memcpy(self->singleSentenceData.sixBitData, aisBinary, self->singleSentenceData.dataLength);
+			return &self->singleSentenceData;
+		} else {
+			uint8_t sequentialMessageIdentifier = NMEA0183__getField(data, 3)[0] - '0';
+
+			//Check that the sequential identifier is in range, or else we will access unallocated memory
+			if(sequentialMessageIdentifier > 9)
+				return NULL;
+
+
+			AIS_MULTI_SENTENCE * dictData = &self->multiSentenceHeap[sequentialMessageIdentifier];
+			uint8_t vhfChannel = NMEA0183__getField(data, 4)[0];
+			uint8_t sentenceNumber = NMEA0183__getField(data, 2)[0] - '0';
+
+			//If this is the first part of the message then update the dictionary with it
+			if(sentenceNumber == 1){
+				dictData->timeStamp = HAL_GetTick();
+				dictData->totalSentenceParts = totalSentenceSegments;
+				dictData->lastSentenceIndex = 0;
+				dictData->aisData.dataLength = 0;
+				dictData->vhfChannel = vhfChannel;
+			}
+
+			//Make sure the dictionary element matches the incoming message
+			if(dictData->vhfChannel != vhfChannel
+					|| ++dictData->lastSentenceIndex != sentenceNumber
+					|| dictData->totalSentenceParts != totalSentenceSegments
+					|| HAL_GetTick() - dictData->timeStamp > MULTI_SENTENCE_TIME_WINDOW
+					|| dictData->aisData.dataLength + aisBinaryLength > MAX_LENGTH
+					|| sentenceNumber > totalSentenceSegments){
+				resetTimeStamp(dictData);
+				return NULL;
+			}
+
+			//Copy the data and return if it is complete data
+			memcpy(&dictData->aisData.sixBitData[dictData->aisData.dataLength], aisBinary, aisBinaryLength);
+			dictData->aisData.dataLength += aisBinaryLength;
+			if(sentenceNumber == totalSentenceSegments){
+				return &dictData->aisData;
+			}
+		}
+	}
+	return NULL;
+}
+
 bool AIS__isSizeMessage(AIS_DATA * self){
 	if(AIS__getMessageID(self) == 5 || AIS__getMessageID(self) == 19 || AIS__getMessageID(self) == 24)
 		return true;
@@ -211,13 +214,11 @@ bool AIS__isSupportedMessage(AIS_DATA * self){
 
 bool AIS__checkLength(AIS_DATA* self) {
     uint8_t messageID = AIS__getMessageID(self);
-    if (messageID <= 3 && messageID != 0) {
+    if ((messageID <= 3 && messageID != 0) || messageID == 18) {
         return self->dataLength == 28;
     }
-    else if (messageID == 5 || messageID == 18) {
-        if(self->dataLength >= 45) //TODO: ADD SUPPORT FOR MULTI PART MESSAGES
-        	return true;
-        Error_Handler();
+    else if (messageID == 5 ) {
+        return self->dataLength == 71;
     }
     else if (messageID == 19) {
         return self->dataLength == 52;
@@ -466,7 +467,7 @@ uint16_t AIS__getDimensionA(AIS_DATA* self) {
     }
     return UINT16_MAX;
 }
-//TODO: ADD multi message support so this can be added back in.
+
 uint8_t AIS__getPositionFixingDevice(AIS_DATA* self) {
     if (convertSixBit(self->sixBitData[0]) == 5) {
         return (convertSixBit(self->sixBitData[45]) >> 2) & 15;
@@ -510,18 +511,6 @@ uint8_t AIS__getDTE(AIS_DATA* self) {
     }
     return UINT8_MAX;
 }
-
-//uint8_t AIS__getMessageAOrB(AIS* self) {
-//    if (convertSixBit(self->sixBitData[0]) == 24) {
-//        if ((convertSixBit(self->sixBitData[6]) & 12) == 0) {
-//            return 0;
-//        }
-//        else if ((convertSixBit(self->sixBitData[6]) & 12) == 4) {
-//            return 1;
-//        }
-//    }
-//    return UINT8_MAX;
-//}
 
 bool AIS__getVendorID(AIS_DATA* self, uint8_t output[8]) {
     if (convertSixBit(self->sixBitData[0]) == 24 && (convertSixBit(self->sixBitData[6]) & 12) == 4) {

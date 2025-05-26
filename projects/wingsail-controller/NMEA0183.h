@@ -4,14 +4,13 @@
  * can be found in IEC 61162-1:
  * 		1. https://www.chenyupeng.com/upload/2020/3/IEC%2061162-1-2010-728ad3778103426ab0a9a64b6cc5e474.pdf
  *
- * For this library to work as intended "NMEA0183__handleDMA()" must be called when "HAL_UART_RxCpltCallback()" is called.
+ * TODO: Add info about the high level function and where to put the IRQ handler.
  *
  * The data checks on incoming data do not fully comply to IEC 61162-1 Edition 4.0. Currently the following data checks
  * are implemented:
  * 		-Checksum
  * 		-Out of range characters
  * 		-Incorrect length of address field
- * 		-Too long of sentence
  * 		-Improper termination character sequence
  *
  *  Created on: Apr 22, 2024
@@ -31,9 +30,9 @@
 //--------------------------------------------------------------------------- STRUCTURES ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#define MAX_NMEA_CHANNELS 3 		//The maximum number of NMEA0183 channels. This is hardware limited based on there only being 3 UART channels.
+#define MAX_NMEA_CHANNELS 3 		//The maximum number of NMEA0183 channels. This is hardware limited based on there only being 3 UART channels. Don't change this value
 #define BUFFER_SIZE 8 				//The number of bytes to buffer prior to calling an interrupt.
-#define MAX_SENTENCE_LENGTH 127 	//The maximum number of bytes in a NMEA0183 sentence. The standard limit is 82, but some devices do not follow convention hence extra room
+#define MAX_SENTENCE_LENGTH 127 	//The maximum number of bytes in a NMEA0183 sentence. The standard limit is 82, but some devices do not follow convention, hence extra room
 
 #define MAX_DATA_BUFFER_SIZE 8
 
@@ -43,10 +42,14 @@
 #define MESSAGE_MWV 0x56574D
 #define MESSAGE_XDR 0x524458
 
-#define GOOD_MESSAGE 0
-#define BAD_START_CHARACTER 1
-#define BAD_TERMINATION_SEQUENCE 2
-#define BAD_CHECK_SUM 3
+//enum for the result of the checks conducted on a message
+typedef enum {
+	GOOD_MESSAGE = 0,
+	BAD_START_CHARACTER = 1,
+	BAD_TERMINATION_SEQUENCE = 2,
+	BAD_CHECK_SUM = 3
+}MESSAGE_STATUS;
+
 
 //The NMEA0183Raw data type
 typedef struct {
@@ -70,14 +73,6 @@ typedef struct {
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-uint8_t NMEA0183__checkMessage(NMEA0183Raw * raw);
-
-NMEA0183Raw * NMEA0183__getTopBufferItem(NMEA0183 * self);
-
-void NMEA0183__incrementReadIndex(NMEA0183 * self);
-
-uint8_t NMEA0183__itemsInBuffer(NMEA0183* self);
 
 /*
  * Creates a new NMEA0183 object.
@@ -104,24 +99,46 @@ void NMEA0183__destroy(NMEA0183* self);
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- NMEA0183 METHODS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 /*
- * This function should be called when there is a UART DMA receive request associated with a NMEA channel.
- * This function may call the "dataHandler" function as passed in "NMEA0183__create"
+ * Return the number of items in the NMEA0183 buffer.
  *
- * @param huart Is the UART data received from the DMA callback.
+ * @param self is an initialized NMEA0183 object
+ * @return the number of items in the buffer.
  */
-void NMEA0183__handleDMA(UART_HandleTypeDef *huart);
+uint8_t NMEA0183__itemsInBuffer(NMEA0183* self);
 
 /*
+ * Checks if the NMEA0183 message is valid. (i.e. check sum, termination characters, etc.)
  *
+ * @param raw is the NMEA0183 message to check
+ * @return gives the status of the message
+ */
+MESSAGE_STATUS NMEA0183__checkMessage(NMEA0183Raw * raw);
+
+/*
+ * Gets the next item in the buffer. Does not remove it from the buffer!
+ *
+ * @param self is an initialized NMEA0183 object with at least one item in the buffer
+ * @return a raw NMEA0183 object. Can only be muted until the read index is incremented, at which point it may get overwritten with new data.
+ */
+NMEA0183Raw * NMEA0183__getTopBufferItem(NMEA0183 * self);
+
+/*
+ * Increments the read index for the NMEA0183 message buffer.
+ *
+ * @param self is an initialized NMEA0183 object with at least one item in the buffer
+ */
+void NMEA0183__incrementReadIndex(NMEA0183 * self);
+
+/*
+ * Deals the interrupts for the NMEA0183 channel. Should be placed TODO: find best place this can be put
+ *
+ * @huart is the huart channel which triggered the interrupt.
  */
 void NMEA0183__IRQHandler(UART_HandleTypeDef *huart);
 
 /*
  * Retrieves a pointer to a specified field of the NMEA0183 message.
- * Can only be called from the function defined by the "dataHandler" function pointer in "NMEA0183__create()" or
- * a NULL pointer will be returned.
  *
  * @param self Must be an initialized NMEA0183 object
  * @param targetField Must be a target field that exists in this message. 0 returns the sentence data type.
@@ -131,8 +148,6 @@ uint8_t* NMEA0183__getField(NMEA0183Raw* self, uint8_t targetField);
 
 /*
  * Retrieves a unique hash for the message data type.
- * Can only be called from the function defined by the "dataHandler" function pointer in "NMEA0183__create()" or
- * the return value will UINT32_MAX.
  *
  * @param self Must be an initialized NMEA0183 object
  * @return Is a unique value for each different message data type. Some hashes are defined above.
