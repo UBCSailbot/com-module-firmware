@@ -151,7 +151,9 @@ bool AIS__checkLength(AIS* self) {
         return length == 28;
     }
     else if (messageID == 5 || messageID == 18) {
-        return length == 71;
+        if(length >= 45) //TODO: ADD SUPPORT FOR MULTI PART MESSAGES
+        	return true;
+        Error_Handler();
     }
     else if (messageID == 19) {
         return length == 52;
@@ -405,50 +407,50 @@ uint16_t AIS__getDimensionA(AIS* self) {
     }
     return UINT16_MAX;
 }
-
-uint8_t AIS__getPositionFixingDevice(AIS* self) {
-    if (convertSixBit(self->sixBitData[0]) == 5) {
-        return (convertSixBit(self->sixBitData[45]) >> 2) & 15;
-    }
-    else if (convertSixBit(self->sixBitData[0]) == 19) {
-        return (convertSixBit(self->sixBitData[50]) >> 1) & 15;
-    }
-    else if (convertSixBit(self->sixBitData[0]) == 24 && (convertSixBit(self->sixBitData[6]) & 12) == 4) {
-        return (convertSixBit(self->sixBitData[27]) >> 2) & 15;
-    }
-    return UINT8_MAX;
-}
-
-uint32_t AIS__getETA(AIS* self) {
-    if (convertSixBit(self->sixBitData[0]) == 5) {
-        return getBinaryBits(self->sixBitData, 274, 293);
-    }
-    return UINT32_MAX;
-}
-
-uint8_t AIS__getMaximumDraught(AIS* self) {
-    if (convertSixBit(self->sixBitData[0]) == 5) {
-        return getBinaryBits(self->sixBitData, 294, 301);
-    }
-    return 0;
-}
-
-bool AIS__getDestination(AIS* self, uint8_t output[21]) {
-    if (convertSixBit(self->sixBitData[0]) == 5) {
-        getAsciiString(self->sixBitData, output, 302, 421);
-        output[20] = '\0';
-        return true;
-    }
-    return false;
-}
-
-uint8_t AIS__getDTE(AIS* self) {
-    if (convertSixBit(self->sixBitData[0]) == 5) {
-        return (convertSixBit(self->sixBitData[70]) >> 3) & 1;
-
-    }
-    return UINT8_MAX;
-}
+//TODO: ADD multi message support so this can be added back in.
+//uint8_t AIS__getPositionFixingDevice(AIS* self) {
+//    if (convertSixBit(self->sixBitData[0]) == 5) {
+//        return (convertSixBit(self->sixBitData[45]) >> 2) & 15;
+//    }
+//    else if (convertSixBit(self->sixBitData[0]) == 19) {
+//        return (convertSixBit(self->sixBitData[50]) >> 1) & 15;
+//    }
+//    else if (convertSixBit(self->sixBitData[0]) == 24 && (convertSixBit(self->sixBitData[6]) & 12) == 4) {
+//        return (convertSixBit(self->sixBitData[27]) >> 2) & 15;
+//    }
+//    return UINT8_MAX;
+//}
+//
+//uint32_t AIS__getETA(AIS* self) {
+//    if (convertSixBit(self->sixBitData[0]) == 5) {
+//        return getBinaryBits(self->sixBitData, 274, 293);
+//    }
+//    return UINT32_MAX;
+//}
+//
+//uint8_t AIS__getMaximumDraught(AIS* self) {
+//    if (convertSixBit(self->sixBitData[0]) == 5) {
+//        return getBinaryBits(self->sixBitData, 294, 301);
+//    }
+//    return 0;
+//}
+//
+//bool AIS__getDestination(AIS* self, uint8_t output[21]) {
+//    if (convertSixBit(self->sixBitData[0]) == 5) {
+//        getAsciiString(self->sixBitData, output, 302, 421);
+//        output[20] = '\0';
+//        return true;
+//    }
+//    return false;
+//}
+//
+//uint8_t AIS__getDTE(AIS* self) {
+//    if (convertSixBit(self->sixBitData[0]) == 5) {
+//        return (convertSixBit(self->sixBitData[70]) >> 3) & 1;
+//
+//    }
+//    return UINT8_MAX;
+//}
 
 uint8_t AIS__getMessageAOrB(AIS* self) {
     if (convertSixBit(self->sixBitData[0]) == 24) {
