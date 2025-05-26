@@ -97,7 +97,7 @@ void SHIP_TRACKER__destroy(SHIP_TRACKER * self);
  *  @param self Is an initialized SHIP_TRACKER object
  *  @param ais Is an AIS object with a message already passed to it.
  */
-void SHIP_TRACKER__addShip(SHIP_TRACKER * self, AIS * ais);
+void SHIP_TRACKER__addShip(SHIP_TRACKER * self, AIS_DATA * ais);
 
 /*
  * Gets the number of ships currently in the transmit buffer.

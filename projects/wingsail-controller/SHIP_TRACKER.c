@@ -21,7 +21,7 @@
  * @param ais Is an AIS object with a supported message type.
  * @return A pointer to the SHIP_SIZE object with MMSI number matching that of the AIS object. NULL pointer otherwise.
  */
-SHIP_SIZE * SHIP_TRACKER__addShipSize(SHIP_TRACKER * self, AIS * ais);
+SHIP_SIZE * SHIP_TRACKER__addShipSize(SHIP_TRACKER * self, AIS_DATA * ais);
 
 /*
  * Updates the TX buffer with new information
@@ -30,7 +30,7 @@ SHIP_SIZE * SHIP_TRACKER__addShipSize(SHIP_TRACKER * self, AIS * ais);
  * @param ais Is an initialized AIS object with a supported message type.
  * @param size Is size information to update this ship with. If this is a NULL pointer no size information will be updated.
  */
-void updateTxBuffer(SHIP * shipToUpdate, AIS * ais, SHIP_SIZE * size);
+void updateTxBuffer(SHIP * shipToUpdate, AIS_DATA * ais, SHIP_SIZE * size);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ void SHIP_TRACKER__destroy(SHIP_TRACKER * data){
 //--------------------------------------------------------------------------- HELPER FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-SHIP_SIZE * SHIP_TRACKER__addShipSize(SHIP_TRACKER * self, AIS * ais){
+SHIP_SIZE * SHIP_TRACKER__addShipSize(SHIP_TRACKER * self, AIS_DATA * ais){
 	//First see if there is a matching entry in the ship size buffer and update it if we have static data, or just return it.
 	uint32_t shipMMSINumber = AIS__getMMSINumber(ais);
 	for(uint16_t sizeIterator = 0; sizeIterator < SHIP_SIZE_BUFFER_LENGTH; sizeIterator++){
@@ -91,7 +91,7 @@ SHIP_SIZE * SHIP_TRACKER__addShipSize(SHIP_TRACKER * self, AIS * ais){
 	return NULL;
 }
 
-void updateTxBuffer(SHIP * shipToUpdate, AIS * ais, SHIP_SIZE * size){
+void updateTxBuffer(SHIP * shipToUpdate, AIS_DATA * ais, SHIP_SIZE * size){
 	//Update the MMSI number
 	shipToUpdate->MMSINumber = AIS__getMMSINumber(ais);
 
@@ -116,7 +116,7 @@ void updateTxBuffer(SHIP * shipToUpdate, AIS * ais, SHIP_SIZE * size){
 //--------------------------------------------------------------------------- DATA PARSING FUNCTIONS ---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void SHIP_TRACKER__addShip(SHIP_TRACKER * self, AIS * ais){
+void SHIP_TRACKER__addShip(SHIP_TRACKER * self, AIS_DATA * ais){
 	if(AIS__isSupportedMessage(ais) == true && AIS__checkLength(ais) == true){
 		//Update the ship size / get the ship size
 		SHIP_SIZE * shipSize = SHIP_TRACKER__addShipSize(self, ais);

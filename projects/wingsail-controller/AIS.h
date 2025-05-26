@@ -29,9 +29,24 @@
 //Defines the max number of bytes the library will parse. This can be increased up to 254 without issue if needed.
 #define MAX_LENGTH 80
 
-//The AIS structure. sixBitData is the raw AIS binary message.
+#define MULTI_SENTENCE_TIME_WINDOW 60000
+
 typedef struct {
-	uint8_t* sixBitData;
+	uint8_t sixBitData[424];
+	uint16_t dataLength;
+} AIS_DATA;
+
+typedef struct {
+	uint8_t totalSentenceParts;
+	uint8_t lastSentenceIndex;
+	uint8_t vhfChannel;
+	uint32_t timeStamp;
+	AIS_DATA aisData;
+} AIS_MULTI_SENTENCE;
+
+typedef struct {
+	AIS_DATA singleSentenceData;
+	AIS_MULTI_SENTENCE multiSentenceHeap[10];
 } AIS;
 
 //Custom enum for true or false returns.
@@ -47,10 +62,9 @@ typedef enum {
 /*
  * Creates a new AIS object.
  *
- * @param data Must be a NMEA0183 object which has received a NMEA0183 AIS message
- * @return an initialized AIS object. Will return NULL pointer for invalid NMEA0183 sentence inputs.
+ * @return an initialized AIS object.
  */
-AIS* AIS__create(NMEA0183Raw * data);
+AIS* AIS__create();
 
 /*
  * Deletes the AIS object.
@@ -63,13 +77,15 @@ void AIS__destroy(AIS* self);
 //--------------------------------------------------------------------------- AIS METHODS ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+AIS_DATA * AIS__addNMEAMessage(AIS * self, NMEA0183Raw * data);
+
 /*
  * Check if the message type include the dimensions of the vessel
  *
  * @param self Is an initialized AIS object
  * @return Is true is the message includes the dimension of the vessel. false otherwise.
  */
-bool AIS__isSizeMessage(AIS * self);
+bool AIS__isSizeMessage(AIS_DATA * self);
 
 /*
  * Check if the message is a dynamic message type (where it would include things like latitude and longitude)
@@ -77,7 +93,7 @@ bool AIS__isSizeMessage(AIS * self);
  * @param self Is an initialized AIS object
  * @return Is true is the message is a dynamic message type. false otherwise.
  */
-bool AIS__isDynamicMessage(AIS * self);
+bool AIS__isDynamicMessage(AIS_DATA * self);
 
 /*
  * Check if the message type is supported by this module.
@@ -85,7 +101,7 @@ bool AIS__isDynamicMessage(AIS * self);
  * @param self Is an initialized AIS object
  * @return Is true is the message type is supported. false otherwise.
  */
-bool AIS__isSupportedMessage(AIS * self);
+bool AIS__isSupportedMessage(AIS_DATA * self);
 
 /*
  * Check if number of bytes passed is equal to the number expected by the message ID.
@@ -93,7 +109,7 @@ bool AIS__isSupportedMessage(AIS * self);
  * @param self Is an initialized AIS object.
  * @return Is true if the the length is correct or if the message ID is not supported by this library, false otherwise.
  */
-bool AIS__checkLength(AIS* self);
+bool AIS__checkLength(AIS_DATA* data);
 
 /*
  * Returns the numeric ID of the received message.
@@ -101,7 +117,7 @@ bool AIS__checkLength(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The ID value from 1-63.
  */
-uint8_t AIS__getMessageID(AIS* self);
+uint8_t AIS__getMessageID(AIS_DATA* data);
 
 /*
  * Returns the repeat indicator of the message as defined in [1].
@@ -109,7 +125,7 @@ uint8_t AIS__getMessageID(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The repeat indicator is the 2 LSBs.
  */
-uint8_t AIS__getRepeatIndicator(AIS* self);
+uint8_t AIS__getRepeatIndicator(AIS_DATA* data);
 
 /*
  * Returns the MMSI number of the vessel that broadcasted.
@@ -117,7 +133,7 @@ uint8_t AIS__getRepeatIndicator(AIS* self);
  * @param self Is an initialized AIS object.
  * @return Returns the MMSI number of the vessel that broadcasted. This is in the 30 LSBs.
  */
-uint32_t AIS__getMMSINumber(AIS* self);
+uint32_t AIS__getMMSINumber(AIS_DATA* data);
 
 /*
  * Gets the navigational status of the vessel that broadcasted. Only works for message ID of 1,2 or 3 otherwise returns UINT8_MAX. The valid navigational values are:
@@ -141,7 +157,7 @@ uint32_t AIS__getMMSINumber(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The navigational status in the 4 LSBs.
  */
-uint8_t AIS__getNavigationalStatus(AIS* self);
+uint8_t AIS__getNavigationalStatus(AIS_DATA* data);
 
 /*
  * Returns the rate of turn of the broadcasted vessel. Only works for message ID of 1, 2, or 3 otherwise returns INT8_MIN.
@@ -150,7 +166,7 @@ uint8_t AIS__getNavigationalStatus(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The rate of turn.
  */
-int8_t AIS__getRateOfTurn(AIS* self);
+int8_t AIS__getRateOfTurn(AIS_DATA* data);
 
 /*
  * Returns the speed over ground of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18, or 19 otherwise returns UINT16_MAX.
@@ -158,7 +174,7 @@ int8_t AIS__getRateOfTurn(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The speed over ground in 1/10 knots. 1023 means the data is unavailable. 1022 means a vessel speed of >=102.2 knots. Data in aligned in 10 LSBs.
  */
-uint16_t AIS__getSpeedOverGround(AIS* self);
+uint16_t AIS__getSpeedOverGround(AIS_DATA* data);
 
 /*
  * Returns the positional accuracy of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18 or 19 otherwise returns UINT8_MAX.
@@ -166,7 +182,7 @@ uint16_t AIS__getSpeedOverGround(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The positional accuracy in the LSB. 0 means an accuracy of >10m and is the default value. 1 means an accuracy of <=10m.
  */
-uint8_t AIS__getPositionalAccuracy(AIS* self);
+uint8_t AIS__getPositionalAccuracy(AIS_DATA* data);
 
 /*
  * Returns the longitude of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18 or 19. Otherwise returns INT32_MAX.
@@ -174,7 +190,7 @@ uint8_t AIS__getPositionalAccuracy(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The longitude in degrees / 600,000 with East being positive. 181 means data is unavailable.
  */
-int32_t AIS__getLongitude(AIS* self);
+int32_t AIS__getLongitude(AIS_DATA* data);
 
 /*
  * Returns the latitude of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18 or 19. Otherwise returns INT32_MAX.
@@ -182,7 +198,7 @@ int32_t AIS__getLongitude(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The longitude in degrees / 600,000 with North being positive. 91 means data is unavailable.
  */
-int32_t AIS__getLatitude(AIS* self);
+int32_t AIS__getLatitude(AIS_DATA* data);
 
 /*
  * Returns the course over ground of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18 or 19. Otherwise returns UINT16_MAX.
@@ -190,7 +206,7 @@ int32_t AIS__getLatitude(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The course over ground in degrees 1/10. 3600 means data is unavailable.
  */
-uint16_t AIS__getCourseOverGround(AIS* self);
+uint16_t AIS__getCourseOverGround(AIS_DATA* data);
 
 /*
  * Returns the true heading of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18 or 19. Otherwise returns UINT16_MAX.
@@ -198,7 +214,7 @@ uint16_t AIS__getCourseOverGround(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The true heading in degrees. 511 indicates data is unavailable.
 */
-uint16_t AIS__getTrueHeading(AIS* self);
+uint16_t AIS__getTrueHeading(AIS_DATA* data);
 
 /*
  * Returns the time stamp of the broadcasted vessel. Only works for message ID of 1, 2, 3, 18 or 19. Otherwise returns UINT8_MAX.
@@ -211,7 +227,7 @@ uint16_t AIS__getTrueHeading(AIS* self);
  *				62 = Electronic position fixing system operates in estimated (dead reckoning) mode
  *				63 = The positioning system is inoperative
  */
-uint8_t AIS__getTimeStamp(AIS* self);
+uint8_t AIS__getTimeStamp(AIS_DATA* data);
 
 /*
  * Returns the special maneuvre indicator of the broadcasted vessel. Only works for message ID of 1, 2, 3 or 18. Otherwise returns UINT8_MAX.
@@ -222,7 +238,7 @@ uint8_t AIS__getTimeStamp(AIS* self);
  *				1 = not engaged in special maneuver
  *				2 = engaged in special maneuver
  */
-uint8_t AIS__getSpecialManeuvreIndicator(AIS* self);
+uint8_t AIS__getSpecialManeuvreIndicator(AIS_DATA* data);
 
 /*
  * Returns the communication state of the broadcasted vessel. Only works for message ID of 1, 2, 3 or 18. Otherwise returns UINT32_MAX.
@@ -230,7 +246,7 @@ uint8_t AIS__getSpecialManeuvreIndicator(AIS* self);
  * @param self Is an initialized AIS object.
  * @return The communication in the 19 LSBs. See [1] for the formatting.
  */
-uint32_t AIS__getCommunicationState(AIS* self);
+uint32_t AIS__getCommunicationState(AIS_DATA* data);
 
 /*
  * Returns the version indicator of the broadcasted AIS module. Only works for message ID of 5. Otherwise returns UINT8_MAX.
@@ -242,7 +258,7 @@ uint32_t AIS__getCommunicationState(AIS* self);
  *				2 = station compliant with Recommendation ITU-R M.1371-5 (or later)
  *				3 = station compliant with future editions
  */
-uint8_t AIS__getVersionIndicator(AIS* self);
+uint8_t AIS__getVersionIndicator(AIS_DATA* data);
 
 /*
  * Returns the IMO number of the broadcasted vessel. Only works for message ID of 5. Otherwise returns UINT32_MAX.
@@ -254,7 +270,7 @@ uint8_t AIS__getVersionIndicator(AIS* self);
  *				0001000000-0009999999 = valid IMO number;
  *				0010000000-1073741823 = official flag state number.
  */
-uint32_t AIS__getIMONumber(AIS* self);
+uint32_t AIS__getIMONumber(AIS_DATA* data);
 
 /*
  * Sets output to the callsign of the broadcasted ship. Works for message ID of 5 or 24B resulting in a return of true. Otherwise returns false.
@@ -263,7 +279,7 @@ uint32_t AIS__getIMONumber(AIS* self);
  * @param output Will be edited to contain the callsign of the ship in plain ASCII. First 7 bytes is the callsign, last byte is \0.
  * @return Will be true for a valid message ID.
  */
-bool AIS__getCallSign(AIS* self, uint8_t output[8]);
+bool AIS__getCallSign(AIS_DATA* data, uint8_t output[8]);
 
 /*
  * Sets output to the name of the broadcasted ship. Works for message ID of 5 or 24A resulting in a return of true. Otherwise returns false.
@@ -272,7 +288,7 @@ bool AIS__getCallSign(AIS* self, uint8_t output[8]);
  * @param output Will be edited to contain the name of the ship in plain ASCII. First 20 bytes is the name, last byte is \0.
  * @return Will be true for a valid message ID.
  */
-bool AIS__getName(AIS* self, uint8_t output[21]);
+bool AIS__getName(AIS_DATA* data, uint8_t output[21]);
 
 /*
  * Returns the type of ship / cargo. Works for message ID of 5, 19 or 24B otherwise returns a value of UINT8_MAX.
@@ -280,7 +296,7 @@ bool AIS__getName(AIS* self, uint8_t output[21]);
  * @param self Is an initialized AIS object.
  * @return THe type of cargo / ship. See [1] for definition of return values.
  */
-uint8_t AIS__getCargoType(AIS* self);
+uint8_t AIS__getCargoType(AIS_DATA* data);
 
 /*
  * Returns dimension A. Works for message ID of 5, 19 or 24B otherwise returns a value of UINT16_MAX.
@@ -288,7 +304,7 @@ uint8_t AIS__getCargoType(AIS* self);
  * @param self Is an initialized AIS object.
  * @return Dimension A, the distance from the AIS unit to the bow of the ship.
  */
-uint16_t AIS__getDimensionA(AIS* self);
+uint16_t AIS__getDimensionA(AIS_DATA* data);
 
 /*
  * Returns dimension B. Works for message ID of 5, 19 or 24B otherwise returns a value of UINT16_MAX.
@@ -296,7 +312,7 @@ uint16_t AIS__getDimensionA(AIS* self);
  * @param self Is an initialized AIS object.
  * @return Dimension B, the distance from the AIS unit to the stern of the ship.
  */
-uint16_t AIS__getDimensionB(AIS* self);
+uint16_t AIS__getDimensionB(AIS_DATA* data);
 
 /*
  * Returns dimension C. Works for message ID of 5, 19 or 24B otherwise returns a value of UINT8_MAX.
@@ -304,7 +320,7 @@ uint16_t AIS__getDimensionB(AIS* self);
  * @param self Is an initialized AIS object.
  * @return Dimension C, the distance from the AIS unit to the port side of the ship.
  */
-uint8_t AIS__getDimensionC(AIS* self);
+uint8_t AIS__getDimensionC(AIS_DATA* data);
 
 /*
  * Returns dimension D. Works for message ID of 5, 19 or 24B otherwise returns a value of UINT8_MAX.
@@ -312,7 +328,7 @@ uint8_t AIS__getDimensionC(AIS* self);
  * @param self Is an initialized AIS object.
  * @return Dimension D, the distance from the AIS unit to the starboard side of the ship.
  */
-uint8_t AIS__getDimensionD(AIS* self);
+uint8_t AIS__getDimensionD(AIS_DATA* data);
 
 /*
  * Returns the type of position fixing device. Works for message ID of 5, 19 or 24B otherwise returns a value of UINT8_MAX.
@@ -331,7 +347,7 @@ uint8_t AIS__getDimensionD(AIS* self);
  *				9-14 = not used
  *				15 = internal GNSS
  */
-uint8_t AIS__getPositionFixingDevice(AIS* self);
+uint8_t AIS__getPositionFixingDevice(AIS_DATA* data);
 
 /*
  * Returns the ETA. Works for message ID of 5 otherwise returns a value of UINT32_MAX.
@@ -343,7 +359,7 @@ uint8_t AIS__getPositionFixingDevice(AIS* self);
  *				Bits 10-6: hour; 0-23; 24 = not available = default
  *				Bits 5-0: minute; 0-59; 60 = not available = default
  */
-uint32_t AIS__getETA(AIS* self);
+uint32_t AIS__getETA(AIS_DATA* data);
 
 /*
  * Returns the maximum present static draught. Works for message ID of 5 otherwise returns 0.
@@ -353,7 +369,7 @@ uint32_t AIS__getETA(AIS* self);
  *				255 = draught 25.5 m or greater
  *				0 = not available = default
  */
-uint8_t AIS__getMaximumDraught(AIS* self);
+uint8_t AIS__getMaximumDraught(AIS_DATA* data);
 
 /*
  * Sets output to the destination of the broadcasted ship. Works for message ID of 5 resulting in a return of true. Otherwise returns false.
@@ -362,7 +378,7 @@ uint8_t AIS__getMaximumDraught(AIS* self);
  * @param output Will be edited to contain the destination of the ship in plain ASCII. First 20 bytes is the destination, last byte is \0.
  * @return Will be true for a valid message ID.
  */
-bool AIS__getDestination(AIS* self, uint8_t output[21]);
+bool AIS__getDestination(AIS_DATA* data, uint8_t output[21]);
 
 /*
  * Returns if data terminal equipment is available. Works for message ID of 5 otherwise returns UINT8_MAX.
@@ -370,7 +386,7 @@ bool AIS__getDestination(AIS* self, uint8_t output[21]);
  * @param self Is an initialized AIS object.
  * @return 0 if it is available or 1 if it is not.
  */
-uint8_t AIS__getDTE(AIS* self);
+uint8_t AIS__getDTE(AIS_DATA* data);
 
 /*
  * Differentiates between message 24A or 24B. Works for message ID of 24 or returns UINT8_MAX.
@@ -378,7 +394,7 @@ uint8_t AIS__getDTE(AIS* self);
  * @param self Is an initialized AIS object.
  * @return 0 if it is message 24A or 1 if it is message 24B.
  */
-uint8_t AIS__getMessageAOrB(AIS* self);
+//uint8_t AIS__getMessageAOrB(AIS* self);
 
 /*
  * Sets output to the vendor ID of the broadcasted ship. Works for message ID of 24B resulting in a return of true. Otherwise returns false.
@@ -387,7 +403,7 @@ uint8_t AIS__getMessageAOrB(AIS* self);
  * @param output Will be edited to contain the vendor ID of the ship in plain ASCII. First 7 bytes is the destination, last byte is \0.
  * @return Will be true for a valid message ID.
  */
-bool AIS__getVendorID(AIS* self, uint8_t output[8]);
+bool AIS__getVendorID(AIS_DATA* data, uint8_t output[8]);
 
 
 #endif /* INC_AIS_H_ */
