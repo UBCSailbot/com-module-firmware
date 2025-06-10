@@ -14,9 +14,9 @@
 #include "can.h"
 #include "main.h"
 #include <stdio.h>
+#include <string.h>
 
 /* Variables ------------------------------------------------------------------*/
-FDCAN_HandleTypeDef hfdcan1;  		/* Handle for FDCAN1 */
 HAL_StatusTypeDef CanStartStatus; 	/* Status of FDCAN start operation */
 uint8_t* RxData1 = NULL; 			/* Pointer to receive buffer for FIFO0 (Standard ID)*/
 uint8_t* RxData2 = NULL; 			/* Pointer to receive buffer for FIFO1 (Extended ID)*/
@@ -58,7 +58,7 @@ void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length) {
  * 			Starts the FDCAN controller (continuous listening CAN bus)
  * 			Activates Notifications
  */
-void CAN_Init(void) {
+void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	/*##-1 Configures FDCAN meta data and controllers*/
 	FDCAN_FilterTypeDef sFilterConfig;
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -66,8 +66,8 @@ void CAN_Init(void) {
 	sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
 	sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
 	sFilterConfig.FilterID1 = 0x000;
-	sFilterConfig.FilterID2 = 0x2FF;
-	if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+	sFilterConfig.FilterID2 = 0x7FF;
+	if (HAL_FDCAN_ConfigFilter(hfdcan1, &sFilterConfig) != HAL_OK)
 	{
 	Error_Handler();
 	}
@@ -78,29 +78,29 @@ void CAN_Init(void) {
 	sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
 	sFilterConfig.FilterID1 = 0x1111111;
 	sFilterConfig.FilterID2 = 0x2222222;
-	if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+	if (HAL_FDCAN_ConfigFilter(hfdcan1, &sFilterConfig) != HAL_OK)
 	{
 	Error_Handler();
 	}
 
-	if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+	if (HAL_FDCAN_ConfigGlobalFilter(hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
 	{
 	  Error_Handler();
 	}
 
 	/*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
-	CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
+	CanStartStatus = HAL_FDCAN_Start(hfdcan1);
 	if (CanStartStatus != HAL_OK)
 	{
 	Error_Handler();
 	}
 
-	if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+	if (HAL_FDCAN_ActivateNotification(hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
 	{
 	Error_Handler();
 	}
 
-	if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
+	if (HAL_FDCAN_ActivateNotification(hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
 	{
 	Error_Handler();
 	}
@@ -121,7 +121,7 @@ void CAN_Init(void) {
  * @param 	DataBuffer: Pointer to the TxData buffer.
  * @return 	HAL_StatusTypeDef HAL_OK if successful, !HAL_OK otherwise.
  */
-HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer) {
+HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1) {
     FDCAN_TxHeaderTypeDef TxHeader;
 
     TxHeader.Identifier = Identifier;
@@ -133,7 +133,22 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
     TxHeader.FDFormat = FDCAN_FD_CAN;
     TxHeader.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-    return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, DataBuffer);
+    return HAL_FDCAN_AddMessageToTxFifoQ(hfdcan1, &TxHeader, DataBuffer);
+}
+
+/**
+ * @brief   Copies received CAN RX data into a local user-provided buffer.
+ * @param   LocalBuffer: Pointer to the buffer where the received data should be copied.
+ * @note    The function prioritizes FIFO0 over FIFO1 if both have data.
+ */
+void CAN_Receive(uint8_t *LocalBuffer) {
+    if (RxData1 != NULL && RxData1_BufferLength > 0) {
+        memcpy(LocalBuffer, RxData1, RxData1_BufferLength);
+    } else if (RxData2 != NULL && RxData2_BufferLength > 0) {
+        memcpy(LocalBuffer, RxData2, RxData2_BufferLength);
+    } else {
+    	//
+    }
 }
 
 /**
@@ -164,17 +179,19 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
         FDCAN_RxHeaderTypeDef RxHeader;
+        memset(RxData1, 0, 64);
         if (RxData1 == NULL) {
             Error_Handler();
         }
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData1) != HAL_OK) {
             Error_Handler();
+            //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
         }
         //check actual length incoming against the buf len rather than stringcmp?
-        RxData1_BufferLength = RxHeader.DataLength;
+        RxData1_BufferLength = dlc_to_bytes(RxHeader.DataLength);
     }
     /* added for debug */
-    //HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+    //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 }
 
 /**
@@ -185,13 +202,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
     if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
         FDCAN_RxHeaderTypeDef RxHeader;
+        memset(RxData2, 0, 64);
         if (RxData2 == NULL) {
             Error_Handler();
         }
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &RxHeader, RxData2) != HAL_OK) {
             Error_Handler();
         }
-        RxData2_BufferLength = RxHeader.DataLength;
+        RxData2_BufferLength = dlc_to_bytes(RxHeader.DataLength);
     }
 }
 
@@ -220,11 +238,19 @@ void CAN_PrintRxData(void) {
 
     if (RxData2 != NULL && RxData2_BufferLength > 0) {
         printf("FIFO1 Received: ");
-        for (uint16_t i = 0; i < RxData2_BufferLength; i++) {
+        for (uint16_t i = 0; i < RxData1_BufferLength; i++) {
             printf("%02X ", RxData2[i]);
         }
         printf("\n");
     } else {
         printf("FIFO1: No data received.\n");
     }
+}
+
+/* DLC to bytes lookup */
+uint8_t dlc_to_bytes(uint8_t dlc) {
+    static const uint8_t dlc_lut[16] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64
+    };
+    return dlc_lut[dlc & 0x0F];
 }
