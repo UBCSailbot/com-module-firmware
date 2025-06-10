@@ -19,7 +19,6 @@
 #include <stdlib.h>
 
 /* Variables ------------------------------------------------------------------*/
-extern FDCAN_HandleTypeDef hfdcan1; /* Handle for FDCAN1 */
 extern uint8_t* RxData1; 			/* Pointer to receive buffer for FIFO0 (Standard ID)*/
 extern uint8_t* RxData2; 			/* Pointer to receive buffer for FIFO1 (Extended ID)*/
 extern uint16_t RxData1_Length; 	/* Length of data received in FIFO0 */
@@ -27,11 +26,13 @@ extern uint16_t RxData2_Length; 	/* Length of data received in FIFO1 */
 
 /* Function prototypes ------------------------------------------------------------------*/
 void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length);
-void CAN_Init(void);
-HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer);
+void CAN_Init(FDCAN_HandleTypeDef *hfdcan1);
+HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1);
+void CAN_Receive(uint8_t *LocalBuffer);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs);
 void CAN_PrintRxData(void);
+uint8_t dlc_to_bytes(uint8_t dlc);
 
 #endif /* SRC_CAN_H_ */
 
