@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+	/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -124,10 +124,10 @@ int main(void)
   /* Configure standard ID reception filter to Rx buffer 0 */
   sFilterConfig.IdType = FDCAN_STANDARD_ID;
   sFilterConfig.FilterIndex = 0;
-  sFilterConfig.FilterType = FDCAN_FILTER_MASK;
+  sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
   sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
   sFilterConfig.FilterID1 = 0x000;
-  sFilterConfig.FilterID2 = 0x000;
+  sFilterConfig.FilterID2 = 0x7FF;
   if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
   {
     Error_Handler();
@@ -174,6 +174,8 @@ int main(void)
 
   char uartLine[128];
   uint8_t canDLC, canData[64];
+  uint32_t canID = 0;
+//  uint8_t TxDataD[4] = {};
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -187,68 +189,58 @@ int main(void)
 	while (HAL_GPIO_ReadPin(USER_BUTTON_GPIO_Port, USER_BUTTON_Pin) == GPIO_PIN_SET){
 
 		/* For testing TX: Ask the user to transmit from test board to user board*/
-			const char *prompt = "\r\nType: <ID> <LEN> <byte0> <byte1> ... (hex)  then press ENTER\r\n  ex: 123 5 11 22 33 44 55\r\n> ";
-			HAL_UART_Transmit(&huart1, (uint8_t*)prompt, strlen(prompt), HAL_MAX_DELAY);
+		static const char prompt[] =
+		"\r\n Type: <ID> <LEN> <byte0> <byte1> ... (hex) then press ENTER\r\n  ex: 123 5 11 22 33 44 55\r\n> ";
+		HAL_UART_Transmit(&huart1,(uint8_t*)prompt,sizeof(prompt)-1,HAL_MAX_DELAY);
 
-			/* --- read the full line (blocking) -------------------------------- */
-			uint8_t  c;
-			uint16_t i = 0;
+		uint8_t  c;
+		uint16_t idx = 0;
+		while (idx < sizeof(uartLine)-1) {
+		    HAL_UART_Receive (&huart1,&c,1,HAL_MAX_DELAY);
+		    HAL_UART_Transmit(&huart1,&c,1,HAL_MAX_DELAY);
+		    if (c == '\r' || c == '\n') break;
+		    uartLine[idx++] = c;
+		}
+		uartLine[idx] = '\0';
 
-			while (i < sizeof(uartLine)-1)
-			{
-				HAL_UART_Receive(&huart1, &c, 1, HAL_MAX_DELAY);
-				HAL_UART_Transmit(&huart1, &c, 1, HAL_MAX_DELAY);
+		/* ----------  PARSE ---------- */
+		char *token = strtok(uartLine," \t");   /* CAN-ID */
+		if (!token) { HAL_UART_Transmit(&huart1,(uint8_t*)"[ERR] Missing ID\r\n",16,HAL_MAX_DELAY); continue; }
+		uint32_t id = strtoul(token,NULL,16);
+		if (id > 0x7FF){ HAL_UART_Transmit(&huart1,(uint8_t*)"[ERR] Bad ID\r\n",13,HAL_MAX_DELAY);     continue; }
 
-				if (c == '\r' || c == '\n')  break;
-				uartLine[i++] = c;
-			}
-			uartLine[i] = '\0';
+		token = strtok(NULL," \t");
+		if (!token){ HAL_UART_Transmit(&huart1,(uint8_t*)"[ERR] Missing LEN\r\n",17,HAL_MAX_DELAY); continue; }
+		uint32_t len = strtoul(token,NULL,0);
+		if (len>64) { HAL_UART_Transmit(&huart1,(uint8_t*)"[ERR] LEN>64\r\n",14,HAL_MAX_DELAY);      continue; }
 
-			/* Generated Parse <ID> <LEN> <DATA…> */
-			char *token = strtok(uartLine, " ");
-			uint32_t canID = 0;
-			uint8_t  payloadLen = 0;
+		uint8_t canData[64] = {0};
+		uint32_t i;
+		for (i=0;i<len;i++) {
+		    token = strtok(NULL," \t");
+		    if (!token) {
+		        HAL_UART_Transmit(&huart1,(uint8_t*)"[ERR] Not enough data bytes\r\n",27,HAL_MAX_DELAY);
+		    }
+		    canData[i] = (uint8_t)strtoul(token,NULL,16);
+		}
 
-			if (!token || (sscanf(token, "%lx", &canID) != 1)) continue;
+		/* ----------  BUILD TX HEADER  ---------- */
+		TxHeader1.Identifier         = id;
+		TxHeader1.IdType             = (id>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+		TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
+		TxHeader1.DataLength         = byte_to_dlc((uint8_t)len);  /* HAL expects DLC in bits [19:16] */
+		TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
+		TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
+		TxHeader1.FDFormat           = FDCAN_FD_CAN;
+		TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-			token = strtok(NULL, " ");
-			if (!token || (sscanf(token, "%hhu", &payloadLen) != 1)) continue;
-			if (payloadLen > 64) payloadLen = 64;   /* clamp */
-
-			for (uint8_t i = 0; i < payloadLen; ++i)
-			{
-				token = strtok(NULL, " ");
-				if (!token || (sscanf(token, "%hhx", &canData[i]) != 1))
-				{
-					payloadLen = i;      /* user gave fewer bytes – trim length */
-					break;
-				}
-			}
-
-			uint8_t dlc_payload = byte_to_dlc(payloadLen);
-
-			TxHeader1.Identifier = canID;
-			TxHeader1.IdType = FDCAN_STANDARD_ID;
-			TxHeader1.TxFrameType = FDCAN_DATA_FRAME;
-			TxHeader1.DataLength = dlc_payload;
-			TxHeader1.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-			TxHeader1.BitRateSwitch = FDCAN_BRS_ON;
-			TxHeader1.FDFormat = FDCAN_FD_CAN;
-			TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
-
-			if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader1, canData) != HAL_OK)
-			{
-				const char *err = "!HAL_OK ERROR\r\n";
-				HAL_UART_Transmit(&huart1, (uint8_t*)err, strlen(err), HAL_MAX_DELAY);
-				Error_Handler();
-			}
-			else
-			{
-				const char *ok = "\r\n>> CAN frame sent\r\n";
-				HAL_UART_Transmit(&huart1, (uint8_t*)ok, strlen(ok), HAL_MAX_DELAY);
-			}
-
-			/* For testing TX: END*/
+		/* ----------  SEND  ---------- */
+		if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,canData)==HAL_OK) {
+		    HAL_UART_Transmit(&huart1,(uint8_t*)"\r\n>> CAN frame sent\r\n",20,HAL_MAX_DELAY);
+		} else {
+		    HAL_UART_Transmit(&huart1,(uint8_t*)"\r\n[ERROR]\r\n",38,HAL_MAX_DELAY);
+		}
+		/* For testing TX: END*/
 
         while (HAL_GPIO_ReadPin(USER_BUTTON_GPIO_Port, USER_BUTTON_Pin) == GPIO_PIN_RESET);
 	}
