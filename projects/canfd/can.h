@@ -28,11 +28,10 @@ extern uint16_t RxData2_Length; 	/* Length of data received in FIFO1 */
 void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length);
 void CAN_Init(FDCAN_HandleTypeDef *hfdcan1);
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1);
-void CAN_Receive(uint8_t *LocalBuffer);
+uint8_t* CAN_Receive(void);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs);
 void CAN_PrintRxData(void);
 uint8_t dlc_to_bytes(uint8_t dlc);
 
 #endif /* SRC_CAN_H_ */
-
