@@ -22,6 +22,8 @@ uint8_t* RxData1 = NULL; 			/* Pointer to receive buffer for FIFO0 (Standard ID)
 uint8_t* RxData2 = NULL; 			/* Pointer to receive buffer for FIFO1 (Extended ID)*/
 uint16_t RxData1_BufferLength = 0; 	/* Length of data received in FIFO0 */
 uint16_t RxData2_BufferLength = 0; 	/* Length of data received in FIFO1 */
+uint32_t RxData1_Identifier;
+uint32_t RxData2_Identifier;
 
 /* Functions ------------------------------------------------------------------*/
 
@@ -138,17 +140,28 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
 
 /**
  * @brief   Copies received CAN RX data into a local user-provided buffer.
- * @param   LocalBuffer: Pointer to the buffer where the received data should be copied.
+ * @return  unint8_t *Buffer: Pointer to the buffer where the received data should be copied
+ * 			Format = {ID, DataLength, Data, ..., Data}
  * @note    The function prioritizes FIFO0 over FIFO1 if both have data.
  */
-void CAN_Receive(uint8_t *LocalBuffer) {
+uint8_t* CAN_Receive(void) {
+	uint8_t *LocalBuffer = NULL;
     if (RxData1 != NULL && RxData1_BufferLength > 0) {
-        memcpy(LocalBuffer, RxData1, RxData1_BufferLength);
+    	LocalBuffer = (uint8_t*)malloc(RxData1_BufferLength + 2);
+		if (LocalBuffer) {
+			LocalBuffer[0] = RxData1_Identifier;  // example use
+			LocalBuffer[1] = RxData1_BufferLength;
+			memcpy(LocalBuffer + 2, RxData1, RxData1_BufferLength);
+		}
     } else if (RxData2 != NULL && RxData2_BufferLength > 0) {
-        memcpy(LocalBuffer, RxData2, RxData2_BufferLength);
-    } else {
-    	//
+    	LocalBuffer = (uint8_t*)malloc(RxData2_BufferLength + 2);
+		if (LocalBuffer) {
+			LocalBuffer[0] = RxData2_Identifier;  // example use
+			LocalBuffer[1] = RxData2_BufferLength;
+			memcpy(LocalBuffer + 2, RxData2, RxData2_BufferLength);
+		}
     }
+    return LocalBuffer;
 }
 
 /**
@@ -185,13 +198,14 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
         }
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData1) != HAL_OK) {
             Error_Handler();
-            //HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
         }
         //check actual length incoming against the buf len rather than stringcmp?
         RxData1_BufferLength = dlc_to_bytes(RxHeader.DataLength);
+        RxData1_Identifier = RxHeader.Identifier;
     }
     /* added for debug */
-    //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 }
 
 /**
@@ -210,6 +224,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
             Error_Handler();
         }
         RxData2_BufferLength = dlc_to_bytes(RxHeader.DataLength);
+        RxData2_Identifier = RxHeader.Identifier;
     }
 }
 
@@ -227,7 +242,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
  */
 void CAN_PrintRxData(void) {
     if (RxData1 != NULL && RxData1_BufferLength > 0) {
-        printf("FIFO0 Received: ");
+        printf("\r\nFIFO0 Received: \r\n");
         for (uint16_t i = 0; i < RxData1_BufferLength; i++) {
             printf("%02X ", RxData1[i]);
         }
@@ -237,7 +252,7 @@ void CAN_PrintRxData(void) {
     }
 
     if (RxData2 != NULL && RxData2_BufferLength > 0) {
-        printf("FIFO1 Received: ");
+        printf("\r\nFIFO1 Received: \r\n");
         for (uint16_t i = 0; i < RxData1_BufferLength; i++) {
             printf("%02X ", RxData2[i]);
         }
