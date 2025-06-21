@@ -47,7 +47,7 @@ typedef struct {
 } SHIP_SIZE;
 
 //The data structure for all parameters about the ships we care about.
-typedef struct {
+typedef struct __attribute__((packed)) {
 	uint32_t MMSINumber;
 	uint32_t latitude;
 	uint32_t longitude;
