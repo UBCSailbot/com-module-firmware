@@ -19,8 +19,8 @@
 
 
 
-#ifndef RUDDERPID_H
-#define RUDDERPID_H
+#ifndef MOTOR_PID_H
+#define MOTOR_PID_H
 
 #include <stdint.h>
 #include <math.h>
@@ -28,18 +28,21 @@
 #include "stm32u5xx_hal.h"
 
 // Constants
-#define PROPORTIONAL_GAIN 0.0017f
-#define INTEGRAL_GAIN 0.0000004f
-#define ERROR_THRESHOLD 1.0f
-#define INTEGRAL_LIMIT 15000
-#define MOTOR_STOP 0
-#define MAX_MOTOR 1.0f
+
+#define PROPORTIONAL_GAIN 0.0017	// Proportional gain tuning parameter
+#define INTEGRAL_GAIN 0.0000004		// Integral gain tuning parameter
+#define ERROR_THRESHOLD 1.0f		// Desired error threshold
+#define INTEGRAL_LIMIT 15000		// Set for integral clamp to prevent integral error from growing too large
+#define MOTOR_STOP 0				// Zero output from DAC
+#define MAX_MOTOR 1.0f				// Full output of the DAC
+#define MAX_ANGLE 45.0f				// Maximum/minimum range of motion of the rudder
+#define MIN_MOTOR 0.65				// Sets the minimum DAC output to move the motor if needed
 
 // Function prototypes
-void DAC_STEP(int step);
-void Set_Motor(float Motor_Control);
+void DAC_STEP(int step, DAC_HandleTypeDef hdac);
+void Set_Motor(float Motor_Control, DAC_HandleTypeDef hdac);
 void PI_Motor(int32_t desired_heading, int32_t current_heading,
               float* integral_error, uint32_t* last_time_stamp,
-              int32_t* past_encoder_heading, int8_t* past_motor_direction);
+              int32_t* past_encoder_heading, DAC_HandleTypeDef hdac);
 
-#endif // RUDDERPID_H
+#endif // MOTOR_PID_H
