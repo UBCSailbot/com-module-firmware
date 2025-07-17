@@ -29,14 +29,14 @@
 
 // Constants
 
-#define PROPORTIONAL_GAIN 0.0017	// Proportional gain tuning parameter
-#define INTEGRAL_GAIN 0.0000004		// Integral gain tuning parameter
+#define PROPORTIONAL_GAIN 0.005//0.00017	// Proportional gain tuning parameter
+#define INTEGRAL_GAIN 0.001//0.0000004		// Integral gain tuning parameter
 #define ERROR_THRESHOLD 1.0f		// Desired error threshold
 #define INTEGRAL_LIMIT 15000		// Set for integral clamp to prevent integral error from growing too large
 #define MOTOR_STOP 0				// Zero output from DAC
 #define MAX_MOTOR 1.0f				// Full output of the DAC
 #define MAX_ANGLE 45.0f				// Maximum/minimum range of motion of the rudder
-#define MIN_MOTOR 0.65				// Sets the minimum DAC output to move the motor if needed
+#define MIN_MOTOR 0.0				// Sets the minimum DAC output to move the motor if needed
 
 // Function prototypes
 void DAC_STEP(int step, DAC_HandleTypeDef hdac);

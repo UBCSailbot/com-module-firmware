@@ -81,6 +81,52 @@ static void MX_DAC1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 BRITER * encoderObject;
+int get_encoder_delta(int prev, int curr) {
+      int delta = curr - prev;
+      if (delta > 512) delta -= 1024;
+      if (delta < -512) delta += 1024;
+      return delta;
+  }
+
+  void run_motor_speed_test() {
+      float speed;
+      for (speed = -1.0f; speed <= 1.0001f; speed += 0.05f) {
+
+          // Turn off motor and wait 1 second
+          Set_Motor(0.0f, hdac1);
+          HAL_Delay(1000);
+
+          // Set motor speed and wait 1 second before measurement
+          Set_Motor(speed, hdac1);
+          HAL_Delay(1000);
+
+          // Start averaging over 10 seconds
+          int initial_encoder = BRITER__getEncoderRaw(encoderObject);
+          uint32_t start_time = HAL_GetTick();
+
+          int32_t accumulated_delta = 0;
+          int prev_encoder = initial_encoder;
+
+          while (HAL_GetTick() - start_time < 10000) {
+              HAL_Delay(20); // Small delay to avoid spamming
+
+              int curr_encoder = BRITER__getEncoderRaw(encoderObject);
+              accumulated_delta += get_encoder_delta(prev_encoder, curr_encoder);
+              prev_encoder = curr_encoder;
+          }
+
+          // Convert to degrees per second
+          float revolutions = accumulated_delta / 1024.0f;
+          float degrees = revolutions * 360.0f;
+          float degrees_per_second = degrees / 10.0f;
+
+          // Print result
+          printf("Speed setting: %.2f -> Avg deg/s: %.2f\r\n", speed, degrees_per_second);
+      }
+
+      // Stop motor at the end
+      Set_Motor(0.0f, hdac1);
+  }
 /* USER CODE END 0 */
 
 /**
@@ -123,12 +169,22 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DAC1_Init();
   /* USER CODE BEGIN 2 */
+  uint32_t ts = HAL_GetTick();
+  float errorSum = 0.0f;
+  int32_t heading = 0;
+
+  uint32_t *pastTS = &ts;
+  float *integralError = &errorSum;
+  int32_t *past_encoder_heading = &heading;
+
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
   HAL_Delay(500);
-  encoderObject = BRITER__create(&huart2, 50);
+  encoderObject = BRITER__create(&huart2, 20);
   HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
-  Set_Motor(0.2, hdac1);
+  Set_Motor(0, hdac1);
+  HAL_Delay(1000);
+  run_motor_speed_test();
 
   /* USER CODE END 2 */
 
@@ -136,8 +192,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(500);
-	  printf("Encoder Reading: %i\x0D\x0A", BRITER__computeAngle(encoderObject));
+//	  HAL_Delay(10000);
+//	  Set_Motor(0, hdac1);
+	  HAL_Delay(10000);
+//	  Set_Motor(1, hdac1);
+
+	  printf("Encoder Reading: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
+//	  PI_Motor(0, BRITER__clampAngle(encoderObject),
+//	  	              integralError, pastTS,
+//	  	               past_encoder_heading, hdac1);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
