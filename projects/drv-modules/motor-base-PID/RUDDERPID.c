@@ -55,11 +55,11 @@ void Set_Motor(float_t Motor_Control, DAC_HandleTypeDef hdac)
 
     // Sets PA7 high if Motor_Control is positive, otherwise low
 
-    if (Motor_Control > 0.0f)
+    if (Motor_Control < 0.0f)
     {
         HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
     }
-    else
+    else if (Motor_Control > 0.0f)
     {
         HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_SET);
     }

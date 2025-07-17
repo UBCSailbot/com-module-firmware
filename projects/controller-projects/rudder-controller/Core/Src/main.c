@@ -127,6 +127,77 @@ int get_encoder_delta(int prev, int curr) {
       // Stop motor at the end
       Set_Motor(0.0f, hdac1);
   }
+
+#include "main.h"
+#include <stdio.h>
+#include <stdbool.h>
+#include <math.h>
+
+
+#define MOTION_THRESHOLD_DPS 1.0f
+#define MEASURE_DURATION_MS 3000
+#define STEP 0.002f
+
+
+bool motor_has_motion(float speed) {
+    Set_Motor(speed, hdac1);
+    HAL_Delay(1000);  // settle time
+
+    int start_enc = BRITER__getEncoderRaw(encoderObject);
+    int prev_enc = start_enc;
+    int32_t total_delta = 0;
+    uint32_t start_time = HAL_GetTick();
+
+    while (HAL_GetTick() - start_time < MEASURE_DURATION_MS) {
+        HAL_Delay(20);
+        int curr_enc = BRITER__getEncoderRaw(encoderObject);
+        total_delta += get_encoder_delta(prev_enc, curr_enc);
+        prev_enc = curr_enc;
+    }
+
+    Set_Motor(0.0f, hdac1);  // stop motor after test
+    HAL_Delay(500);
+
+    float revs = total_delta / 1024.0f;
+    float deg = revs * 360.0f;
+    float dps = deg / (MEASURE_DURATION_MS / 1000.0f);
+
+    return fabsf(dps) > MOTION_THRESHOLD_DPS;
+}
+
+void find_motor_deadband() {
+    float lower_cutoff = 0.0f;
+    float upper_cutoff = 0.0f;
+    bool lower_found = false;
+    bool upper_found = false;
+
+    // Negative direction
+    for (float speed = -0.01f; speed >= -0.4f; speed -= STEP) {
+    	printf("Trying speed %.3f\x0D\x0A", speed);
+        if (motor_has_motion(speed)) {
+            lower_cutoff = speed;
+            lower_found = true;
+            break;
+        }
+    }
+
+    // Positive direction
+    for (float speed = 0.01f; speed <= 0.4f; speed += STEP) {
+    	printf("Trying speed %.3f\x0D\x0A", speed);
+        if (motor_has_motion(speed)) {
+            upper_cutoff = speed;
+            upper_found = true;
+            break;
+        }
+    }
+
+    if (lower_found && upper_found) {
+        printf("Deadband range: %.3f to %.3f (no motion)\r\n", lower_cutoff, upper_cutoff);
+    } else {
+        printf("Could not determine deadband precisely.\r\n");
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -183,9 +254,9 @@ int main(void)
   encoderObject = BRITER__create(&huart2, 20);
   HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
   Set_Motor(0, hdac1);
-  HAL_Delay(1000);
-  run_motor_speed_test();
-
+  HAL_Delay(3000);
+//  run_motor_speed_test();
+  find_motor_deadband();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -653,9 +724,13 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0|GPIO_PIN_1|LED_RED_Pin, GPIO_PIN_RESET);
@@ -671,6 +746,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PF13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PG0 PG1 */
   GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
