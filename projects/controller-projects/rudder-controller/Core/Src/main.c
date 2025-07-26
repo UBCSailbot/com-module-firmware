@@ -93,11 +93,11 @@ int get_encoder_delta(int prev, int curr) {
       for (speed = -1.0f; speed <= 1.0001f; speed += 0.05f) {
 
           // Turn off motor and wait 1 second
-          Set_Motor(0.0f);
+          Set_Motor_Calibrated(0.0f);
           HAL_Delay(1000);
 
           // Set motor speed and wait 1 second before measurement
-          Set_Motor(speed);
+          Set_Motor_Calibrated(speed);
           HAL_Delay(1000);
 
           // Start averaging over 10 seconds
@@ -125,7 +125,7 @@ int get_encoder_delta(int prev, int curr) {
       }
 
       // Stop motor at the end
-      Set_Motor(0.0f);
+      Set_Motor_Raw(0.0f);
   }
 
 #include "main.h"
@@ -140,7 +140,7 @@ int get_encoder_delta(int prev, int curr) {
 
 
 bool motor_has_motion(float speed) {
-    Set_Motor(speed);
+    Set_Motor_Raw(speed);
     HAL_Delay(1000);  // settle time
 
     int start_enc = BRITER__getEncoderRaw(encoderObject);
@@ -155,7 +155,7 @@ bool motor_has_motion(float speed) {
         prev_enc = curr_enc;
     }
 
-    Set_Motor(0.0f);  // stop motor after test
+    Set_Motor_Raw(0.0f);  // stop motor after test
     HAL_Delay(500);
 
     float revs = total_delta / 1024.0f;
@@ -199,7 +199,7 @@ void find_motor_deadband() {
 }
 
 void run_velocity_monitor() {
-    Set_Motor(1.0f);  // Start motor at full speed
+    Set_Motor_Raw(1.0f);  // Start motor at full speed
 
     int prev_encoder = BRITER__getEncoderRaw(encoderObject);
     uint32_t prev_time = HAL_GetTick();
@@ -290,7 +290,7 @@ int main(void)
 
   Setup_Motor(motorConfig);
   HAL_Delay(1000);
-  Set_Motor(0);
+  Set_Motor_Raw(0);
   HAL_Delay(2000);
   run_motor_speed_test();
 //  find_motor_deadband();

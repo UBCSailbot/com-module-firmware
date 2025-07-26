@@ -40,7 +40,21 @@ void DAC_STEP(int step) {
 }
 
 
-void Set_Motor(float_t Motor_Control)
+void Set_Motor_Calibrated(float_t Motor_Control){
+	if(fabs(Motor_Control) < MIN_MOTOR_VELOCITY_COMMAND){
+		Set_Motor_Raw(0);
+		return;
+	}
+
+	if(Motor_Control > 0){
+		Set_Motor_Raw(Motor_Control * (1 - MIN_MOTOR) + MIN_MOTOR);
+	} else {
+		Set_Motor_Raw(Motor_Control * (1 - MIN_MOTOR) - MIN_MOTOR);
+	}
+
+}
+
+void Set_Motor_Raw(float_t Motor_Control)
 {
 
 	/*
@@ -53,11 +67,13 @@ void Set_Motor(float_t Motor_Control)
 	 */
 
 
+	if(fabs(Motor_Control) < MIN_MOTOR_VELOCITY_COMMAND){
+	    HAL_DAC_SetValue(globalMCfg.motorDacPeripheral, globalMCfg.motorDacChannel, DAC_ALIGN_12B_R, 0);
+	    return;
+	}
+
     uint32_t Motor_DAC = (uint32_t)(fabsf(Motor_Control) * 4095.0f);
-
-    //printf(Motor_DAC);
-
-    // (uint32_t)(fabsf(Motor_Control) * 4095.0f);
+    Motor_DAC = fmin(DAC_MAX_OUTPUT, Motor_DAC);
 
     HAL_DAC_SetValue(globalMCfg.motorDacPeripheral, globalMCfg.motorDacChannel, DAC_ALIGN_12B_R, Motor_DAC); // Manually sets the output of the DAC
 
@@ -126,7 +142,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
 
     // Check if error is within the acceptable threshold
 	if (fabsf(error) < ERROR_THRESHOLD) {
-		Set_Motor(0); // Stop the motor
+		Set_Motor_Raw(0); // Stop the motor
 		*integral_error = 0.0f; // Reset the integral term
 		*last_time_stamp = current_time_stamp; // Update timestamp
 		*past_encoder_heading = current_heading; // Store latest encoder reading
@@ -135,7 +151,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
 
 	// If angular velocity and desired direction are opposite, stop motor - required for motor driver
 	if ((angular_velocity > 0 && new_motor_direction < 0) || (angular_velocity < 0 && new_motor_direction > 0)) {
-		Set_Motor(0); // Stop motor before reversing
+		Set_Motor_Raw(0); // Stop motor before reversing
 		*integral_error = 0.0f; // Reset integral to avoid wind-up
 		*last_time_stamp = current_time_stamp;
 		*past_encoder_heading = current_heading;
@@ -158,7 +174,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
 
     motor_output = fminf(fmaxf(motor_output, -MAX_MOTOR), MAX_MOTOR); // Clamp the motor output
 
-    Set_Motor(motor_output); // Actuate the motor
+    Set_Motor_Raw(motor_output); // Actuate the motor
 
     *last_time_stamp = current_time_stamp; // Update the timestamp for the next iteration
     *past_encoder_heading = current_heading; // Store current encoder value to compute angular velocity next loop
