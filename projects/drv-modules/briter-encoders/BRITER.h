@@ -80,6 +80,13 @@
  void BRITER__handleDMA(BRITER *self, UART_HandleTypeDef *huart, uint16_t size);
  
  /**
+  * Gets the time stamp of the last received angle message
+  *
+  * @return the last time stamp in ms. 0 is returned if no valid messages have been received yet.
+  */
+ uint32_t BRITER__getLastReadTimestamp(BRITER * self);
+
+ /**
   * Computes angle (0-360 degrees) from raw encoder value.
   *
   * @param self Pointer to BRITER object.
@@ -95,6 +102,14 @@
   */
  int16_t BRITER__clampAngle(BRITER *self);
  
+ /**
+  * Computes the angle (-180 to 180 degrees) in float format
+  *
+  * @param self Pointer to BRITER object.
+  * @return Clamped angle.
+  */
+float BRITER__floatAngle(BRITER *self);
+
  /**
   * Checks for timeout and encoder communication errors.
   *

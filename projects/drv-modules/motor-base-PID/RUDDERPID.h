@@ -29,9 +29,9 @@
 
 // Constants
 
-#define PROPORTIONAL_GAIN 0.005//0.00017	// Proportional gain tuning parameter
-#define INTEGRAL_GAIN 0.001//0.0000004		// Integral gain tuning parameter
-#define ERROR_THRESHOLD 1.0f		// Desired error threshold
+#define PROPORTIONAL_GAIN 0.003//0.003	// Proportional gain tuning parameter
+#define INTEGRAL_GAIN 0.0001//0.0001		// Integral gain tuning parameter
+#define ERROR_THRESHOLD 2.0f		// Desired error threshold
 #define INTEGRAL_LIMIT 15000		// Set for integral clamp to prevent integral error from growing too large
 #define MOTOR_STOP 0				// Zero output from DAC
 #define MAX_MOTOR 1.0f				// Full output of the DAC
@@ -39,6 +39,7 @@
 #define MIN_MOTOR 0.062				// Sets the motor dead band where 0 would be 0V of dead band and 1.0 would be 3.3V of dead band
 #define MIN_MOTOR_VELOCITY_COMMAND 0.0001
 #define DAC_MAX_OUTPUT 4095
+#define HARD_ANGLE_LIMIT 50.0f		//Absolute maximum range
 
 typedef struct {
 	DAC_HandleTypeDef *motorDacPeripheral;
@@ -51,11 +52,11 @@ typedef struct {
 
 // Function prototypes
 void Setup_Motor(MOTOR_CONFIG motorConfig);
+void Enable_Motor();
+void Disable_Motor();
 void DAC_STEP(int step);
 void Set_Motor_Raw(float Motor_Control);
 void Set_Motor_Calibrated(float Motor_control);
-void PI_Motor(int32_t desired_heading, int32_t current_heading,
-              float* integral_error, uint32_t* last_time_stamp,
-              int32_t* past_encoder_heading, DAC_HandleTypeDef hdac);
+void PI_Motor(int32_t desired_heading, int32_t current_heading, uint32_t angle_timestamp);
 
 #endif // MOTOR_PID_H

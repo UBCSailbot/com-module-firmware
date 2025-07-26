@@ -176,6 +176,10 @@ int16_t BRITER__computeAngle(BRITER *self) {
     return (int16_t)((raw * 360.0f) / 1024.0f);
 }
 
+uint32_t BRITER__getLastReadTimestamp(BRITER * self){
+	return self->lastValidDataTime;
+}
+
 
 
 // Compute the clamped -45 to 45 passval
@@ -197,6 +201,22 @@ int16_t BRITER__clampAngle(BRITER *self) {
     } else {
         return signedAngle;
     }
+}
+
+float BRITER__floatAngle(BRITER *self){
+	if (self == NULL) return -1000; // Sentinel error value
+	// Ensure angleVal is up to date
+	float floatAngleVal = ((BRITER__getEncoderRaw(self) * 360.0f) / 1024.0f);
+
+	float signedAngle = (floatAngleVal < 180) ? floatAngleVal : floatAngleVal - 360;
+
+	if (signedAngle > 180) {
+	    return 180;
+    } else if (signedAngle < -180) {
+	    return -180;
+	} else {
+	    return signedAngle;
+	}
 }
 
 

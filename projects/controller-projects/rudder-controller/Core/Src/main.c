@@ -224,6 +224,37 @@ void run_velocity_monitor() {
     }
 }
 
+// Current motor speed state
+float currentSpeed = 0.0f;
+
+// Set motor speed and update state
+void updateMotorSpeed(float newSpeed) {
+    Set_Motor_Calibrated(newSpeed);
+    currentSpeed = newSpeed;
+}
+
+void processUserInput(char input) {
+    if (input == 'a') {
+        if (fabs(currentSpeed) > 0.0f) {
+            updateMotorSpeed(0.0f);
+        } else {
+            updateMotorSpeed(0.1f);
+        }
+    } else if (input == 'd') {
+        if (fabs(currentSpeed) > 0.0f) {
+            updateMotorSpeed(0.0f);
+        } else {
+            updateMotorSpeed(-0.1f);
+        }
+    } else if (input == 'z') {
+    	updateMotorSpeed(0.0f);
+    	BRITER__zeroPosition(encoderObject);
+    } else {
+    	updateMotorSpeed(0.0f);
+    }
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -292,7 +323,9 @@ int main(void)
   HAL_Delay(1000);
   Set_Motor_Raw(0);
   HAL_Delay(2000);
-  run_motor_speed_test();
+  Enable_Motor();
+  char rx_char;
+//  run_motor_speed_test();
 //  find_motor_deadband();
 //  run_velocity_monitor();
   /* USER CODE END 2 */
@@ -301,12 +334,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  HAL_Delay(10000);
+//	  HAL_Delay(50);
 //	  Set_Motor(0, hdac1);
 //	  HAL_Delay(10000);
 //	  Set_Motor(1, hdac1);
+//	  printf("Encoder Reading Raw: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
+//	  printf("Encoder Reading Clamp: %i\x0D\x0A", BRITER__clampAngle(encoderObject));
+	  printf("Encoder Reading Float: %f\x0D\x0A", BRITER__floatAngle(encoderObject));
+	  if (HAL_UART_Receive(&huart1, (uint8_t*)&rx_char, 1, 100) == HAL_OK) {
+		  processUserInput(rx_char);
+	  }
 
-//	  printf("Encoder Reading: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
+
 //	  PI_Motor(0, BRITER__clampAngle(encoderObject),
 //	  	              integralError, pastTS,
 //	  	               past_encoder_heading, hdac1);
@@ -792,10 +831,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PG0 PG1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+  /*Configure GPIO pin : PG0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PG1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
@@ -848,6 +894,7 @@ PUTCHAR_PROTOTYPE
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
+//	PI_Motor(80, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
 }
 /* USER CODE END 4 */
 
@@ -860,6 +907,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+  Disable_Motor();
   while (1)
   {
   }
