@@ -10,8 +10,17 @@
  #include <math.h>
  #include <stdio.h>
 
+MOTOR_CONFIG globalMCfg;
+
+void Setup_Motor(MOTOR_CONFIG motorConfig){
+	globalMCfg = motorConfig;
+	HAL_DAC_Start(globalMCfg.motorDacPeripheral, globalMCfg.motorDacChannel);
+	HAL_GPIO_WritePin(globalMCfg.enableGPIOPeripheral, globalMCfg.enableGPIOPin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(globalMCfg.reverseGPIOPeripheral, globalMCfg.reverseGPIOPin, GPIO_PIN_RESET);
+}
+
 // fix this
-void DAC_STEP(int step, DAC_HandleTypeDef hdac) {
+void DAC_STEP(int step) {
 
 	/*
 	 * Adjusts the DAC output in steps of 1/50th - used for testing the minimum power required to drive
@@ -23,7 +32,7 @@ void DAC_STEP(int step, DAC_HandleTypeDef hdac) {
 	 */
 
     uint8_t Motor_DAC = (uint8_t)(step * 4095.0f / 50); // Keep DAC value as 12-bit resolution
-    HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, Motor_DAC); // Set DAC output
+    HAL_DAC_SetValue(globalMCfg.motorDacPeripheral, globalMCfg.motorDacChannel, DAC_ALIGN_12B_R, Motor_DAC); // Set DAC output
     float voltage = (step * 3.3f) / 50; // Convert DAC value to voltage
 
     printf("%u\r\n", Motor_DAC);
@@ -31,7 +40,7 @@ void DAC_STEP(int step, DAC_HandleTypeDef hdac) {
 }
 
 
-void Set_Motor(float_t Motor_Control, DAC_HandleTypeDef hdac)
+void Set_Motor(float_t Motor_Control)
 {
 
 	/*
@@ -50,18 +59,19 @@ void Set_Motor(float_t Motor_Control, DAC_HandleTypeDef hdac)
 
     // (uint32_t)(fabsf(Motor_Control) * 4095.0f);
 
-    HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, Motor_DAC); // Manually sets the output of the DAC
+    HAL_DAC_SetValue(globalMCfg.motorDacPeripheral, globalMCfg.motorDacChannel, DAC_ALIGN_12B_R, Motor_DAC); // Manually sets the output of the DAC
 
 
     // Sets PA7 high if Motor_Control is positive, otherwise low
 
     if (Motor_Control < 0.0f)
     {
-        HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
+//        HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
+    	HAL_GPIO_WritePin(globalMCfg.reverseGPIOPeripheral, globalMCfg.reverseGPIOPin, GPIO_PIN_RESET);
     }
     else if (Motor_Control > 0.0f)
     {
-        HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(globalMCfg.reverseGPIOPeripheral, globalMCfg.reverseGPIOPin, GPIO_PIN_SET);
     }
 
     return;
@@ -116,7 +126,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
 
     // Check if error is within the acceptable threshold
 	if (fabsf(error) < ERROR_THRESHOLD) {
-		Set_Motor(0, hdac); // Stop the motor
+		Set_Motor(0); // Stop the motor
 		*integral_error = 0.0f; // Reset the integral term
 		*last_time_stamp = current_time_stamp; // Update timestamp
 		*past_encoder_heading = current_heading; // Store latest encoder reading
@@ -125,7 +135,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
 
 	// If angular velocity and desired direction are opposite, stop motor - required for motor driver
 	if ((angular_velocity > 0 && new_motor_direction < 0) || (angular_velocity < 0 && new_motor_direction > 0)) {
-		Set_Motor(0, hdac); // Stop motor before reversing
+		Set_Motor(0); // Stop motor before reversing
 		*integral_error = 0.0f; // Reset integral to avoid wind-up
 		*last_time_stamp = current_time_stamp;
 		*past_encoder_heading = current_heading;
@@ -148,7 +158,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading,
 
     motor_output = fminf(fmaxf(motor_output, -MAX_MOTOR), MAX_MOTOR); // Clamp the motor output
 
-    Set_Motor(motor_output, hdac); // Actuate the motor
+    Set_Motor(motor_output); // Actuate the motor
 
     *last_time_stamp = current_time_stamp; // Update the timestamp for the next iteration
     *past_encoder_heading = current_heading; // Store current encoder value to compute angular velocity next loop

@@ -93,11 +93,11 @@ int get_encoder_delta(int prev, int curr) {
       for (speed = -1.0f; speed <= 1.0001f; speed += 0.05f) {
 
           // Turn off motor and wait 1 second
-          Set_Motor(0.0f, hdac1);
+          Set_Motor(0.0f);
           HAL_Delay(1000);
 
           // Set motor speed and wait 1 second before measurement
-          Set_Motor(speed, hdac1);
+          Set_Motor(speed);
           HAL_Delay(1000);
 
           // Start averaging over 10 seconds
@@ -125,7 +125,7 @@ int get_encoder_delta(int prev, int curr) {
       }
 
       // Stop motor at the end
-      Set_Motor(0.0f, hdac1);
+      Set_Motor(0.0f);
   }
 
 #include "main.h"
@@ -140,7 +140,7 @@ int get_encoder_delta(int prev, int curr) {
 
 
 bool motor_has_motion(float speed) {
-    Set_Motor(speed, hdac1);
+    Set_Motor(speed);
     HAL_Delay(1000);  // settle time
 
     int start_enc = BRITER__getEncoderRaw(encoderObject);
@@ -155,7 +155,7 @@ bool motor_has_motion(float speed) {
         prev_enc = curr_enc;
     }
 
-    Set_Motor(0.0f, hdac1);  // stop motor after test
+    Set_Motor(0.0f);  // stop motor after test
     HAL_Delay(500);
 
     float revs = total_delta / 1024.0f;
@@ -195,6 +195,32 @@ void find_motor_deadband() {
         printf("Deadband range: %.3f to %.3f (no motion)\r\n", lower_cutoff, upper_cutoff);
     } else {
         printf("Could not determine deadband precisely.\r\n");
+    }
+}
+
+void run_velocity_monitor() {
+    Set_Motor(1.0f);  // Start motor at full speed
+
+    int prev_encoder = BRITER__getEncoderRaw(encoderObject);
+    uint32_t prev_time = HAL_GetTick();
+
+    while (1) {
+        HAL_Delay(200);  // wait 1 second
+
+        int curr_encoder = BRITER__getEncoderRaw(encoderObject);
+        uint32_t curr_time = HAL_GetTick();
+
+        int delta = get_encoder_delta(prev_encoder, curr_encoder);
+        float revs = delta / 1024.0f;
+        float degrees = revs * 360.0f;
+
+        float elapsed_sec = (curr_time - prev_time) / 1000.0f;
+        float dps = degrees / elapsed_sec;
+
+        printf("Velocity: %.2f deg/s\r\n", dps);
+
+        prev_encoder = curr_encoder;
+        prev_time = curr_time;
     }
 }
 
@@ -248,15 +274,27 @@ int main(void)
   float *integralError = &errorSum;
   int32_t *past_encoder_heading = &heading;
 
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET); // Encoder en
+//  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET); // Motor en
   HAL_Delay(500);
   encoderObject = BRITER__create(&huart2, 20);
-  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
-  Set_Motor(0, hdac1);
-  HAL_Delay(3000);
-//  run_motor_speed_test();
-  find_motor_deadband();
+
+  MOTOR_CONFIG motorConfig = {
+      .motorDacPeripheral = &hdac1,
+      .motorDacChannel = DAC_CHANNEL_2,
+      .enableGPIOPeripheral = GPIOG,
+      .enableGPIOPin = GPIO_PIN_1,
+      .reverseGPIOPeripheral = GPIOF,
+      .reverseGPIOPin = GPIO_PIN_13
+  };
+
+  Setup_Motor(motorConfig);
+  HAL_Delay(1000);
+  Set_Motor(0);
+  HAL_Delay(2000);
+  run_motor_speed_test();
+//  find_motor_deadband();
+//  run_velocity_monitor();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -265,10 +303,10 @@ int main(void)
   {
 //	  HAL_Delay(10000);
 //	  Set_Motor(0, hdac1);
-	  HAL_Delay(10000);
+//	  HAL_Delay(10000);
 //	  Set_Motor(1, hdac1);
 
-	  printf("Encoder Reading: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
+//	  printf("Encoder Reading: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
 //	  PI_Motor(0, BRITER__clampAngle(encoderObject),
 //	  	              integralError, pastTS,
 //	  	               past_encoder_heading, hdac1);

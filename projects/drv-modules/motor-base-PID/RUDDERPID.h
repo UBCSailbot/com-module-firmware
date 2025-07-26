@@ -38,9 +38,19 @@
 #define MAX_ANGLE 45.0f				// Maximum/minimum range of motion of the rudder
 #define MIN_MOTOR 0.0				// Sets the minimum DAC output to move the motor if needed
 
+typedef struct {
+	DAC_HandleTypeDef *motorDacPeripheral;
+	uint32_t motorDacChannel;
+	GPIO_TypeDef *enableGPIOPeripheral;
+	uint16_t enableGPIOPin;
+	GPIO_TypeDef *reverseGPIOPeripheral;
+	uint16_t reverseGPIOPin;
+ } MOTOR_CONFIG;
+
 // Function prototypes
-void DAC_STEP(int step, DAC_HandleTypeDef hdac);
-void Set_Motor(float Motor_Control, DAC_HandleTypeDef hdac);
+void Setup_Motor(MOTOR_CONFIG motorConfig);
+void DAC_STEP(int step);
+void Set_Motor(float Motor_Control);
 void PI_Motor(int32_t desired_heading, int32_t current_heading,
               float* integral_error, uint32_t* last_time_stamp,
               int32_t* past_encoder_heading, DAC_HandleTypeDef hdac);
