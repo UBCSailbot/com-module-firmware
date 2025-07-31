@@ -29,9 +29,9 @@
 
 // Constants
 
-#define PROPORTIONAL_GAIN 0.003//0.003	// Proportional gain tuning parameter
-#define INTEGRAL_GAIN 0.0001//0.0001		// Integral gain tuning parameter
-#define ERROR_THRESHOLD 2.0f		// Desired error threshold
+#define PROPORTIONAL_GAIN 0.05//0.003	// Proportional gain tuning parameter
+#define INTEGRAL_GAIN 0.001//0.0001		// Integral gain tuning parameter
+#define ERROR_THRESHOLD 1.0f		// Desired error threshold
 #define INTEGRAL_LIMIT 15000		// Set for integral clamp to prevent integral error from growing too large
 #define MOTOR_STOP 0				// Zero output from DAC
 #define MAX_MOTOR 1.0f				// Full output of the DAC
@@ -57,6 +57,6 @@ void Disable_Motor();
 void DAC_STEP(int step);
 void Set_Motor_Raw(float Motor_Control);
 void Set_Motor_Calibrated(float Motor_control);
-void PI_Motor(int32_t desired_heading, int32_t current_heading, uint32_t angle_timestamp);
+void PI_Motor(float desired_heading, float current_heading, uint32_t angle_timestamp);
 
 #endif // MOTOR_PID_H

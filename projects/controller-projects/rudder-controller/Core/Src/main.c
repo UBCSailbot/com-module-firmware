@@ -308,20 +308,24 @@ int main(void)
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET); // Encoder en
 //  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET); // Motor en
   HAL_Delay(500);
-  encoderObject = BRITER__create(&huart2, 20);
 
   MOTOR_CONFIG motorConfig = {
-      .motorDacPeripheral = &hdac1,
-      .motorDacChannel = DAC_CHANNEL_2,
-      .enableGPIOPeripheral = GPIOG,
-      .enableGPIOPin = GPIO_PIN_1,
-      .reverseGPIOPeripheral = GPIOF,
-      .reverseGPIOPin = GPIO_PIN_13
+        .motorDacPeripheral = &hdac1,
+        .motorDacChannel = DAC_CHANNEL_2,
+        .enableGPIOPeripheral = GPIOG,
+        .enableGPIOPin = GPIO_PIN_1,
+        .reverseGPIOPeripheral = GPIOF,
+        .reverseGPIOPin = GPIO_PIN_13
   };
 
   Setup_Motor(motorConfig);
   HAL_Delay(1000);
   Set_Motor_Raw(0);
+  encoderObject = BRITER__create(&huart2, 20);
+
+
+
+
   HAL_Delay(2000);
   Enable_Motor();
   char rx_char;
@@ -334,16 +338,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  HAL_Delay(50);
+	  HAL_Delay(50);
 //	  Set_Motor(0, hdac1);
 //	  HAL_Delay(10000);
 //	  Set_Motor(1, hdac1);
 //	  printf("Encoder Reading Raw: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
 //	  printf("Encoder Reading Clamp: %i\x0D\x0A", BRITER__clampAngle(encoderObject));
 	  printf("Encoder Reading Float: %f\x0D\x0A", BRITER__floatAngle(encoderObject));
-	  if (HAL_UART_Receive(&huart1, (uint8_t*)&rx_char, 1, 100) == HAL_OK) {
-		  processUserInput(rx_char);
-	  }
+//	  if (HAL_UART_Receive(&huart1, (uint8_t*)&rx_char, 1, 100) == HAL_OK) {
+//		  processUserInput(rx_char);
+//	  }
 
 
 //	  PI_Motor(0, BRITER__clampAngle(encoderObject),
@@ -894,7 +898,7 @@ PUTCHAR_PROTOTYPE
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
-//	PI_Motor(80, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
+	PI_Motor(-30.0, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
 }
 /* USER CODE END 4 */
 

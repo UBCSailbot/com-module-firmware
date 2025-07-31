@@ -27,7 +27,6 @@
 #define RECOVERY_GRACE_PERIOD_MS 2000
 #define RECOVERY_WAIT_MS 3000
 #define DATA_TIMEOUT_MS 100
-#define ENCODER_NOT_READY_SENTINEL -800 //this value is returned during intermittent periods of no data
 #define STARTUP_DELAY_MS 3000
 
 //Encoder Raw data and Recovery Flag
@@ -206,7 +205,12 @@ int16_t BRITER__clampAngle(BRITER *self) {
 float BRITER__floatAngle(BRITER *self){
 	if (self == NULL) return -1000; // Sentinel error value
 	// Ensure angleVal is up to date
-	float floatAngleVal = ((BRITER__getEncoderRaw(self) * 360.0f) / 1024.0f);
+	uint16_t raw_angle = BRITER__getEncoderRaw(self);
+	if (raw_angle == ENCODER_NOT_READY_SENTINEL) {
+	   return ENCODER_NOT_READY_SENTINEL;
+	}
+
+	float floatAngleVal = ((raw_angle * 360.0f) / 1024.0f);
 
 	float signedAngle = (floatAngleVal < 180) ? floatAngleVal : floatAngleVal - 360;
 

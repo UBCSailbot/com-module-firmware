@@ -124,7 +124,7 @@ void Set_Motor_Raw(float_t Motor_Control)
 }
 
 
-void PI_Motor(int32_t desired_heading, int32_t current_heading, uint32_t angle_timestamp)
+void PI_Motor(float desired_heading, float current_heading, uint32_t angle_timestamp)
 {
     /*
      * Calculates the error in boat's heading and adjusts the rudder accordingly
@@ -136,12 +136,15 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading, uint32_t angle_t
      * last_time_stamp - saves the last times the PI_controller was called to calculate change in time
      * past_encoder_heading - stores the previous encoder reading to check if the motor is still moving
      */
+	if (current_heading > 180.0 || current_heading < -180.0)
+		return;
+
 	if(globalMDyn.motorEnable == 0)
 		return;
 
 	if(globalMDyn.pastEncoderTimeStamp == 0){
-		if(current_heading != 0){
-			globalMDyn.pastEncoderTimeStamp = current_heading;
+		if(angle_timestamp != 0){
+			globalMDyn.pastEncoderTimeStamp = angle_timestamp;
 		}
 		return; //No past encoder info, do nothing
 	}
@@ -170,7 +173,7 @@ void PI_Motor(int32_t desired_heading, int32_t current_heading, uint32_t angle_t
     }
 
     // Calculate error
-    int16_t error = desired_heading - current_heading;
+    float error = desired_heading - current_heading;
 
     // Calculate angular velocity in deg/sec (or units/sec)
     float angular_velocity = (current_heading - globalMDyn.pastEncoderValue) / del_time;

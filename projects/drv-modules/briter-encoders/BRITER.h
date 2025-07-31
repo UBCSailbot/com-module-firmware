@@ -22,6 +22,8 @@
  #define LED_BLUE_Pin              GPIO_PIN_7
  #define LED_BLUE_GPIO_Port       GPIOB
  
+#define ENCODER_NOT_READY_SENTINEL 8000 //this value is returned during intermittent periods of no data
+
  //--------------------------------------------------------------------------------------------------------------------
  // Includes
  //--------------------------------------------------------------------------------------------------------------------
