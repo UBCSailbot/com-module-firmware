@@ -46,6 +46,8 @@ ADC_HandleTypeDef hadc1;
 
 DAC_HandleTypeDef hdac1;
 
+FDCAN_HandleTypeDef hfdcan1;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef handle_GPDMA1_Channel9;
@@ -53,7 +55,17 @@ DMA_HandleTypeDef handle_GPDMA1_Channel9;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+FDCAN_FilterTypeDef sFilterConfig;
+FDCAN_TxHeaderTypeDef TxHeader1;
+FDCAN_RxHeaderTypeDef RxHeader1;
+FDCAN_RxHeaderTypeDef RxHeader2;
+uint8_t RxData1[64];
+uint8_t RxData2[64];
+HAL_StatusTypeDef CanStartStatus;
 
+float desiredRudderAngle = 0;
+
+char uartBuffer[128];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,10 +80,14 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_DAC1_Init(void);
+static void MX_FDCAN1_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
    set to 'Yes') calls __io_putchar() */
+static uint8_t byte_to_dlc(uint8_t len);
+static uint8_t dlc_to_bytes(uint8_t len);
+
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
@@ -255,6 +271,12 @@ void processUserInput(char input) {
 }
 
 
+void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) {
+    bytes[0] = (uint8_t)(value & 0xFF);
+    bytes[1] = (uint8_t)((value >> 8) & 0xFF);
+    bytes[2] = (uint8_t)((value >> 16) & 0xFF);
+    bytes[3] = (uint8_t)((value >> 24) & 0xFF);
+}
 /* USER CODE END 0 */
 
 /**
@@ -263,6 +285,7 @@ void processUserInput(char input) {
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -276,11 +299,11 @@ int main(void)
 
   /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
-
   /* Configure the System Power */
   SystemPower_Config();
+
+  /* Configure the system clock */
+  SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
@@ -296,7 +319,63 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
   MX_DAC1_Init();
+  MX_FDCAN1_Init();
   /* USER CODE BEGIN 2 */
+  //CAN
+  /* Configure standard ID reception filter to Rx buffer 0 */
+    sFilterConfig.IdType = FDCAN_STANDARD_ID;
+    sFilterConfig.FilterIndex = 0;
+    sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
+    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+    sFilterConfig.FilterID1 = 0x000;
+    sFilterConfig.FilterID2 = 0x7FF;
+    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* Configure extended ID reception filter to Rx FIFO 1 */
+    sFilterConfig.IdType = FDCAN_EXTENDED_ID;
+    sFilterConfig.FilterIndex = 0;
+    sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
+    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+    sFilterConfig.FilterID1 = 0x1111111;
+    sFilterConfig.FilterID2 = 0x2222222;
+    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* Configure global filter:
+       Filter all remote frames with STD and EXT ID
+       Reject non matching frames with STD ID and EXT ID */
+    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
+    CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
+    if (CanStartStatus != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    char uartLine[128];
+      uint8_t canDLC, canData[64];
+      uint32_t canID = 0;
+      uint8_t * txMsg = (uint8_t *) malloc (4);
+
+  //Other
   uint32_t ts = HAL_GetTick();
   float errorSum = 0.0f;
   int32_t heading = 0;
@@ -338,13 +417,36 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(50);
+	  HAL_Delay(1000);
 //	  Set_Motor(0, hdac1);
 //	  HAL_Delay(10000);
 //	  Set_Motor(1, hdac1);
 //	  printf("Encoder Reading Raw: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
 //	  printf("Encoder Reading Clamp: %i\x0D\x0A", BRITER__clampAngle(encoderObject));
 	  printf("Encoder Reading Float: %f\x0D\x0A", BRITER__floatAngle(encoderObject));
+	  printf("Desired Rudder Angle: %f\x0D\x0A", desiredRudderAngle);
+
+	  TxHeader1.Identifier         = 0x204;
+	  		TxHeader1.IdType             = (0x204>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+	  		TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
+	  		TxHeader1.DataLength         = byte_to_dlc(4);  /* HAL expects DLC in bits [19:16] */
+	  		TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
+	  		TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
+	  		TxHeader1.FDFormat           = FDCAN_FD_CAN;
+	  		TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
+
+	  uint32_t canRudderMSG;
+	  if (BRITER__floatAngle(encoderObject) != ENCODER_NOT_READY_SENTINEL){
+		  canRudderMSG = (BRITER__floatAngle(encoderObject) + 90.0) * 1000.0f;
+	  } else {
+		  canRudderMSG = 181000;
+	  }
+
+	  uint32_to_little_endian_bytes(canRudderMSG, txMsg);
+
+	  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,txMsg)!=HAL_OK) {
+		  Error_Handler();
+	  }
 //	  if (HAL_UART_Receive(&huart1, (uint8_t*)&rx_char, 1, 100) == HAL_OK) {
 //		  processUserInput(rx_char);
 //	  }
@@ -540,6 +642,49 @@ static void MX_DAC1_Init(void)
 }
 
 /**
+  * @brief FDCAN1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_FDCAN1_Init(void)
+{
+
+  /* USER CODE BEGIN FDCAN1_Init 0 */
+
+  /* USER CODE END FDCAN1_Init 0 */
+
+  /* USER CODE BEGIN FDCAN1_Init 1 */
+
+  /* USER CODE END FDCAN1_Init 1 */
+  hfdcan1.Instance = FDCAN1;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV4;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
+  hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+  hfdcan1.Init.AutoRetransmission = ENABLE;
+  hfdcan1.Init.TransmitPause = DISABLE;
+  hfdcan1.Init.ProtocolException = DISABLE;
+  hfdcan1.Init.NominalPrescaler = 4;
+  hfdcan1.Init.NominalSyncJumpWidth = 3;
+  hfdcan1.Init.NominalTimeSeg1 = 16;
+  hfdcan1.Init.NominalTimeSeg2 = 3;
+  hfdcan1.Init.DataPrescaler = 1;
+  hfdcan1.Init.DataSyncJumpWidth = 16;
+  hfdcan1.Init.DataTimeSeg1 = 23;
+  hfdcan1.Init.DataTimeSeg2 = 16;
+  hfdcan1.Init.StdFiltersNbr = 1;
+  hfdcan1.Init.ExtFiltersNbr = 1;
+  hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
+  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN FDCAN1_Init 2 */
+
+  /* USER CODE END FDCAN1_Init 2 */
+
+}
+
+/**
   * @brief GPDMA1 Initialization Function
   * @param None
   * @retval None
@@ -579,27 +724,9 @@ static void MX_ICACHE_Init(void)
 
   /* USER CODE END ICACHE_Init 0 */
 
-  ICACHE_RegionConfigTypeDef pRegionConfig = {0};
-
   /* USER CODE BEGIN ICACHE_Init 1 */
 
   /* USER CODE END ICACHE_Init 1 */
-
-  /** Configure and enable a region for memory remapping.
-  */
-  if (HAL_ICACHE_Disable() != HAL_OK)
-  {
-    Error_Handler();
-  }
-  pRegionConfig.BaseAddress = 0x10000000;
-  pRegionConfig.RemapAddress = 0x60000000;
-  pRegionConfig.Size = ICACHE_REGIONSIZE_2MB;
-  pRegionConfig.TrafficRoute = ICACHE_MASTER1_PORT;
-  pRegionConfig.OutputBurstType = ICACHE_OUTPUT_BURST_WRAP;
-  if (HAL_ICACHE_EnableRemapRegion(_NULL, &pRegionConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
 
   /** Enable instruction cache in 1-way (direct mapped cache)
   */
@@ -799,8 +926,8 @@ static void MX_USB_OTG_FS_PCD_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -883,8 +1010,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LED_BLUE_GPIO_Port, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -898,7 +1025,77 @@ PUTCHAR_PROTOTYPE
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
-	PI_Motor(-30.0, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
+	PI_Motor(desiredRudderAngle, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
+}
+
+static uint8_t dlc_to_bytes(uint8_t dlc) {
+    static const uint8_t dlc_lut[16] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64
+    };
+    return dlc_lut[dlc & 0x0F];
+}
+
+static uint8_t byte_to_dlc(uint8_t len) {
+	if (len <= 8) return len;
+    else if (len == 12) return 9;
+    else if (len == 16) return 10;
+    else if (len == 20) return 11;
+    else if (len == 24) return 12;
+    else if (len == 32) return 13;
+    else if (len == 48) return 14;
+    else return 15;
+}
+
+uint32_t little_endian_bytes_to_uint32(uint8_t * bytes) {
+    return (uint32_t)bytes[0]
+         | ((uint32_t)bytes[1] << 8)
+         | ((uint32_t)bytes[2] << 16)
+         | ((uint32_t)bytes[3] << 24);
+}
+
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+{
+  if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+  {
+    /* Retrieve Rx messages from RX FIFO0 */
+    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
+    {
+		Error_Handler();
+//		HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_RESET);
+    }
+
+    /* For testing: To print to terminal */
+    uint8_t length = dlc_to_bytes(RxHeader1.DataLength);
+
+//    snprintf(uartBuffer, sizeof(uartBuffer),
+//			"\r\nReceived CAN Frame:\r\nID: 0x%X\r\nLength: %lu\r\nData: ",
+//			RxHeader1.Identifier, length);
+//
+//	HAL_UART_Transmit(&huart1, (uint8_t *)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
+//	for (uint8_t i = 0; i < length; i++) {
+//		snprintf(uartBuffer, sizeof(uartBuffer), "0x%X ", RxData1[i]);
+//		HAL_UART_Transmit(&huart1, (uint8_t *)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
+//	}
+
+//	HAL_UART_Transmit(&huart1, (uint8_t *)"\r\n", 2, HAL_MAX_DELAY);
+
+	if(RxHeader1.Identifier == 0x001 && length == 5){
+		if(RxData1[4] >> 7 == 1){
+			printf("Manual Mode\r\n");
+		} else
+			printf("Auto Mode\r\n");
+
+		uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
+		desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
+
+//		printf("Steering Direction: %f\r\n", desiredRudderAngle);
+
+	}
+	/* For testing: END*/
+
+  }
+
+//  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 }
 /* USER CODE END 4 */
 
@@ -917,8 +1114,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
