@@ -445,7 +445,8 @@ int main(void)
 	  uint32_to_little_endian_bytes(canRudderMSG, txMsg);
 
 	  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,txMsg)!=HAL_OK) {
-		  Error_Handler();
+//		  Error_Handler();
+		  printf("Error\r\n");
 	  }
 //	  if (HAL_UART_Receive(&huart1, (uint8_t*)&rx_char, 1, 100) == HAL_OK) {
 //		  processUserInput(rx_char);
