@@ -17,12 +17,9 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
-#include "stdio.h"
-#include "bord.h"
-#include "comp.h"
-#include "numb.h"
-#include "oprt.h"
+#include "board.h"
+#include "veml3328.h"
+#include "debug.h"
 #include "utest.h"
 
 
@@ -119,24 +116,34 @@ int main(void)
   MX_I2C3_Init();
   MX_I2C4_Init();
 
-#ifdef TEST_MODE
-  run_tests();
-#endif
+  #ifdef TEST_MODE
+  	  run_tests();
+  #endif
 
-  veml3328_start();
+  int key = 0;
+  uint16_t amb;
 
+  veml3328_init();
+  pwm1_init_ch1(5);
+  pwm3_init_ch1(5);
+  amb = veml3328_avg_amb();
 
   while(1){
-	  int key = 0;
 
-	  veml3328_oprt();
-	  gpio();
+	  /* GPIO */
 	  key = debug_key();
+	  if (gpio_rd_e2() == GPIO_PIN_SET) gpio_wr_e3(); else gpio_rs_e3();
+	  if (gpio_rd_e4() == GPIO_PIN_SET) gpio_wr_e5(); else gpio_rs_e5();
 
-	  if (key == 97) pwm3_set_ch1(90); // If keyboard input is a
-	  if (key == 98) pwm3_set_ch1(10); // If keyboard input is b
+	  /* Keyboard Mapping */
+	  if (key == 97) pwm3_set_ch1(100); // a = 97
+	  if (key == 98) pwm3_set_ch1(5); // b = 98
+
+	  /* I2C Sensor */
+	  pwm1_set_ch1(veml3328_run(amb));
+
+	  delay(5);
   }
-
 
   /* USER CODE END 3 */
 }
