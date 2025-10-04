@@ -49,6 +49,7 @@ typedef struct {
 	float derivativeFilterFactor;
 	float errorThreshold;
 	float headingTolerance;
+	float angVelTolerance;
 } PIDcoefficients;
 
 /* This struct contains scaling factors for rudder angle
