@@ -48,6 +48,7 @@ typedef struct {
 	float integralDecayFactor;
 	float derivativeFilterFactor;
 	float errorThreshold;
+	float headingTolerance;
 } PIDcoefficients;
 
 /* This struct contains scaling factors for rudder angle
@@ -94,6 +95,8 @@ typedef struct {
 	float tackingRotThreshold;
 	float gybingLinThreshold;
 	float gybingRotThreshold;
+	float ironsSpeed;
+	float stateironsRot;
 } StateThresholds;
 
 /* Enumerates the boat's possible states
