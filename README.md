@@ -75,7 +75,7 @@ README.md                                  - Relevant background info on COM Mod
 ## Where to Get Started
 If you are looking to write your own firmware for your team, then you have come to the right place. After looking over this page, navigate to ```projects -> base-library -> README.md``` for another README, this time with specific instructions on what you need to know. As you can see above, there are multiple other files that are worth looking at. 
 
-### Linking modules to controller-projects
+## Linking modules to controller-projects
 
 ```controller-projects``` is where whole projects are created, while ```drv-modules``` is where small modules are written.
 
@@ -94,7 +94,7 @@ To flash a controller project with a module, you must first link the projects to
 
 The module should now appear your controller project!
 
-#### IF ALL YOUR MODULES DISSAPEAR
+### IF ALL YOUR MODULES DISSAPEAR
 
 Don't fear. ```Run as``` will call ```make -j8``` which will make all the modules show up again.
 
