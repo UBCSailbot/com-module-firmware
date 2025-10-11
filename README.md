@@ -94,6 +94,11 @@ To flash a controller project with a module, you must first link the projects to
 
 The module should now appear your controller project!
 
+#### IF ALL YOUR MODULES DISSAPEAR
+
+Don't fear. ```Run as``` will call ```make -j8``` which will make all the modules show up again.
+
+
 ## Prerequisites
 
 List of tools required to get started:
