@@ -20,8 +20,9 @@
 #include "main.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "BRITER.h"
-#include "WINDSENSOR.h"
+//#include "BRITER.h"
+//#include "WINDSENSOR.h"
+#include "NMEA0183.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,7 +106,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-
+  NMEA0183* test = NMEA0183__create(&huart1);
   /* USER CODE END 2 */
 
   /* Infinite loop */

@@ -33,19 +33,14 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>CV7-windsensor</name>
-			<type>2</type>
-			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/CV7-windsensor</locationURI>
-		</link>
-		<link>
 			<name>briter-encoders</name>
 			<type>2</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
 		</link>
 		<link>
-			<name>servo-solenoid</name>
+			<name>nmea0183</name>
 			<type>2</type>
-			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/servo-solenoid</locationURI>
+			<location>/home/george-sleen/documents/design-team/sailbot/com-module-firmware/projects/drv-modules/nmea0183</location>
 		</link>
 	</linkedResources>
 </projectDescription>
