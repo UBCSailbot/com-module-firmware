@@ -1,0 +1,18 @@
+# Normalize common STM32 sources to LF
+*.c     text eol=lf
+*.h     text eol=lf
+*.cpp   text eol=lf
+*.hpp   text eol=lf
+*.ld    text eol=lf
+*.s     text eol=lf
+*.S     text eol=lf
+*.ioc   text eol=lf
+*.txt   text eol=lf
+*.md    text eol=lf
+# Project/Eclipse/CubeMX metadata that’s actually text
+*.project    text eol=lf
+*.cproject   text eol=lf
+*.mxproject  text eol=lf
+*.launch     text eol=lf
+*.properties text eol=lf
+
