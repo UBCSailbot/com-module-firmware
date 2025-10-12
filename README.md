@@ -4,80 +4,49 @@ The Communication Modules are microcontrollers with the specific purpose of prov
 
 This repository consists of multiple firmware projects from the electrical team working on the project Polaris at UBC Sailbot. All of the firmware is written for the [STM32U5 Nucleo-144](https://www.st.com/en/evaluation-tools/nucleo-u575zi-q.html) boards.
 
-Current projects include:
-
-1. Base communication module library
-2. Rudder controller firmware
-3. Wingsail controller firmware
-
-![High-level diagram of communication system](shared_docs/images/HL_COM_Diagram.png)
 
 ## COM Module High-level Design
 
 The COM Module is split into two parts: The Nucleo board and the breakout board (BOB). Each hardware device on the boat has it's own custom BOB designed specifically for it's needs, while the Nucleo board hardware is the same in all COM Modules.
 
-<!-- ![COM module high-level](shared_docs/images/COM_Internals_Diagram.png) -->
-
-![alt text](shared_docs/images/COM_Internals_Diagram2.png)
-
-## Firmware Design Diagram
-<img width="693" alt="image" src="https://github.com/UBCSailbot/com-module-firmware/assets/144284916/f6985165-35a1-43e2-b885-3d951ad07747">
-
-## Repository Structure
-
-<!--
+## Repository Overview
+The repositroy contains two main components, modules and projects. 
+### Projects
+Projects are entire STM32 projects for each physical controller on the boat. There should not be more of these then there are NUCLEO boards on the boat.
+### Modules
+Modules are individual pieces of code for controlling a specific aspect. Examples: CANBUS, a windsensor, motor control, etc. The majority of the code should be in modules, the project only serves to connect modules together and deal with high level tasks. The module should include a README file that at minimum explains the purpose of the code, the intended usage and how to configure the IOC file. For example if you are making a module to read from an encoder, anyone with experience in STM32 and context of sailbot should be able to use the module just from reading the README file (although they will need to figure out things like wiring or circuitry on their own).
+### Structure
 ```
 root/
     README.md
     .gitignore
+	.gitattributes
     LICENSE
-    tutorial/                              - Setup instructions and tutorials
-    shared docs/                           - Common/shared documents between projects
-    setup_instructions.md
-    scripts/                               - Automated testing and deployment scripts
-    projects/
-        project1/
-            project/                          - Main CubeIDE Project
-            tests/                            - Component level unit tests
-                COMPONENT1/
-                COMPONENT2/
-            docs/                             - Project technical documentation
-                architecture.md
-                testing_instructions.md
-                datasheets/
-                    component1.pdf
-        project2/
+    resources/                           	- Some useful datasheets / pdfs for easy access
+    code/
+        controller-projects/				- STM32 projects for each physical controller on the boat
+			wingsail-controller/
+			sense-controller/
+			...
+		drv-modules/ 						- Modules made by DRV for DRV related tasks
+			nmea0183/
+				nmea0183.h					- Module header file
+				nmea0183.c					- Module source file
+				README.md					- Module README. At minimum should explain purpose, usage and how to configure (especially the IOC file)
+			briter-encoders/
+			...
+		com-modules/ 						- Modules made by COM for COM related tasks				
+			can-library/
+			...
+		pwr-modules/ 						- Modules made by PWR for PWR related tasks
+			current-sensor/
+			...
+			
 ```
--->
-
-```
-projects/
-    base-library/
-        project/
-            Core/
-                Inc                        - Contains base library header files
-                Src                        - Contains base library source files
-        tests
-        README.md                          - Base library user instructions
-    rudder-controller
-    template                               - Template to be copied for teams writing their own code
-shared-docs
-tutorials/
-    STM32F407_demo/                        - Comprehensive demo project
-        README.md                          - Start here for the demo
-    setup.md                               - Tutorial for STM32CubeIDE setup
-    testing.md                             - Tutorial for how to create tests
-.gitignore
-LICENSE
-README.md                                  - Relevant background info on COM Modules (you're here right now)
-```
-
-## Where to Get Started
-If you are looking to write your own firmware for your team, then you have come to the right place. After looking over this page, navigate to ```projects -> base-library -> README.md``` for another README, this time with specific instructions on what you need to know. As you can see above, there are multiple other files that are worth looking at. 
 
 ## Linking modules to controller-projects
 
-```controller-projects``` is where whole projects are created, while ```drv-modules``` is where small modules are written.
+```controller-projects``` is where whole projects are created, while ```___-modules``` is where small modules are written.
 
 To flash a controller project with a module, you must first link the projects together:
 
@@ -107,8 +76,3 @@ List of tools required to get started:
 - [Visual Studio Code](https://code.visualstudio.com/) - Alternative IDE for editing code (rather than CubeIDE).
 - [Putty](https://putty.org/) - Used for serial communication between host and STM32U5 board.
 - [Git](https://git-scm.com/downloads) - For version control.
-
-If you have not setup your working environment yet, follow the [setup instructions](tutorials/setup.md).
-For information on working with GitHub, consult the [github instructions](tutorials/github.md).
-
-<!-- ## Resources -->
