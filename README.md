@@ -75,6 +75,30 @@ README.md                                  - Relevant background info on COM Mod
 ## Where to Get Started
 If you are looking to write your own firmware for your team, then you have come to the right place. After looking over this page, navigate to ```projects -> base-library -> README.md``` for another README, this time with specific instructions on what you need to know. As you can see above, there are multiple other files that are worth looking at. 
 
+## Linking modules to controller-projects
+
+```controller-projects``` is where whole projects are created, while ```drv-modules``` is where small modules are written.
+
+To flash a controller project with a module, you must first link the projects together:
+
+1. Open the desired project (for example rudder-controller)
+2. Right click on the project and go to ```properties```
+3. Inside properties, go to ```C/C++ General -> Paths and Symbols```
+4. First, go to ```Source Location```
+5. Hit ```Link Folder```
+6. Under ```Advanced``` choose ```Link to folder in the file system```
+7. Enter a **relative** path to the module (for example: ```../../drv-modules/nmea0183```)
+8. Navigate to ```Includes``` in ```Paths and Symbols```
+9. Choose ```Add...```
+10. Add another **relative** path to the same module (for example: ```../../drv-modules/nmea0183```)
+
+The module should now appear your controller project!
+
+### IF ALL YOUR MODULES DISSAPEAR
+
+Don't fear. ```Run as``` will call ```make -j8``` which will make all the modules show up again.
+
+
 ## Prerequisites
 
 List of tools required to get started:
