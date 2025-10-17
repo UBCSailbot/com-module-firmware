@@ -24,7 +24,7 @@ We do not require an in-depth understanding of version control and git, but you 
 
 **Working Branch:** For each physical COM module, there should be a working branch where code is being assembled and integrated. This can be rough code, but it should at least compile and be useful code. These branches should be named as the COM module description, followed by "working-branch". (Examples: windsail-working-branch, rudder-working-branch, sense-working-branch, PDB-working-branch)
 
-**Main Branch:** This is where our finalized, reviewed code goes. Only properly documented, clean, and functional code should be included in the main (the caveat being that some pre-existing code may not follow this standard). To get code in the main branch, you must make a PR with two people signing off on it, one of whom should be an ELEC lead.
+**Main Branch:** This is where our finalized, reviewed code goes. Only properly documented, clean, and functional code should be included in (the caveat being that some pre-existing code may not follow this standard). To get code in the main branch, you must make a PR with two people signing off on it, one of whom should be an ELEC lead.
 
 ## File Structure
 The repository contains two main components, modules and projects:
@@ -72,7 +72,7 @@ root/
 To flash a controller project with a module, you must first link the projects together:
 
 1. Open the desired project (for example, rudder-controller)
-2. Right click on the project and go to ```properties```
+2. Right-click on the project and go to ```properties```
 3. Inside properties, go to ```C/C++ General -> Paths and Symbols```
 4. First, go to ```Source Location```
 5. Hit ```Link Folder```
