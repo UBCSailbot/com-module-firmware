@@ -29,9 +29,22 @@ We do not require an in-depth understanding of version control and git, but you 
 ## File Structure
 The repository contains two main components, modules and projects:
 
+### firmware
+
+All firmware goes in the firmware folder.
+
 **Projects** are entire STM32 projects for each physical controller on the boat. There should not be more of these than there are NUCLEO boards on the boat.
 
 **Modules** are individual pieces of code for controlling a specific aspect. Examples: CANBUS, a windsensor, motor control, etc. The majority of the code should be in modules; the project only serves to connect modules and deal with high-level tasks. The module should include a README file that, at a minimum, explains the purpose of the code, the intended usage, and how to configure the IOC file. For example, if you are making a module to read from an encoder, anyone with experience in STM32 and the context of sailbot should be able to use the module just from reading the README file (although they will need to figure out things like wiring or circuitry on their own).
+
+### software-tools
+
+This is where all external diagnostics/software tools go. For example, we have a remote controller for the whole boat that runs on a diagnostic laptop over wifi. We also have bootloading scripts for uploading from the PI to NUCLEOs, and in the past have used simple Python scripts for testing. If a software tool is specific to a COM module, when it comes to version control, it should be treated the same as a feature branch. If it is boat-wide, then it should be treated the same way as a working branch.
+
+### resources
+
+Put any firmware resources here if they are small in file size; otherwise, they should go in Google Drive.
+
 ### Structure
 
 ```
@@ -41,7 +54,8 @@ root/
 	.gitattributes
     LICENSE
     resources/                           	- Some useful datasheets / PDFs for easy access
-    code/
+		...
+    firmware/
         controller-projects/				- STM32 projects for each physical controller on the boat
 			wingsail-controller/
 			sense-controller/
@@ -55,12 +69,17 @@ root/
 				...
 			...
 		com-modules/ 						- Modules made by COM for COM-related tasks				
-			can-library/
+			can-library/					- Example
 				...
 			...
 		pwr-modules/ 						- Modules made by PWR for PWR-related tasks
-			current-sensor/
+			current-sensor/					- Example
 				...
+			...
+	software-tools/							- All non-firmware diagnostic or control utilities.
+		remote-boat-controller/
+			...
+		bootloader/
 			...
 			
 ```
