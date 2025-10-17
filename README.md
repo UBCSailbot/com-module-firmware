@@ -10,42 +10,7 @@ This repository consists of multiple firmware projects from the electrical team 
 The COM Module is split into two parts: The Nucleo board and the breakout board (BOB). Each hardware device on the boat has its own custom BOB designed specifically for its needs, while the Nucleo board hardware is the same in all COM Modules.
 
 # Repository Overview
-
-We do not require an in-depth understanding of version control and git, but you do need to know the basics. There are plenty of sources online for how to use git; feel free to browse around. At the very least, you should have an understanding of:
-* Branches
-* Commits
-* Pull Requests / Merging
-* Merge Conflicts
-* The following commands ```pull```, ```fetch```, ```checkout```, ```push```, ```commit```, ```add```, ```restore```, ```branch```, ```init```, ```status```, ```clone``` and ```reset```
-
-## Version Control Methodology
-
-**Feature Branch:** For each high-level feature (AIS code, windsensor code, CANBUS code, etc.), while it is in development, it should have its own branch. The idea is that each person works in one or more of their own feature branche(s). This allows one to make code without having to worry about conflicts of working in the same branch. When code needs to be integrated, it can be merged into a working branch. Mainly, people should be doing the majority of their work in a feature branch, and when code needs to be merged to a working branch, it should be communicated to anyone else working on a feature for that working branch. The exception to this is if you know you are the only one working on a particular physical COM module, you may work directly in the working branch. This branch should be named something indicative of what it does. (Examples: AIS-firmware, CANBUS-library, PID-controller, ...)
-
-**Working Branch:** For each physical COM module, there should be a working branch where code is being assembled and integrated. This can be rough code, but it should at least compile and be useful code. These branches should be named as the COM module description, followed by "working-branch". (Examples: windsail-working-branch, rudder-working-branch, sense-working-branch, PDB-working-branch)
-
-**Main Branch:** This is where our finalized, reviewed code goes. Only properly documented, clean, and functional code should be included in (the caveat being that some pre-existing code may not follow this standard). To get code in the main branch, you must make a PR with two people signing off on it, one of whom should be an ELEC lead.
-
 ## File Structure
-The repository contains two main components, modules and projects:
-
-### firmware
-
-All firmware goes in the firmware folder.
-
-**Projects** are entire STM32 projects for each physical controller on the boat. There should not be more of these than there are NUCLEO boards on the boat.
-
-**Modules** are individual pieces of code for controlling a specific aspect. Examples: CANBUS, a windsensor, motor control, etc. The majority of the code should be in modules; the project only serves to connect modules and deal with high-level tasks. The module should include a README file that, at a minimum, explains the purpose of the code, the intended usage, and how to configure the IOC file. For example, if you are making a module to read from an encoder, anyone with experience in STM32 and the context of sailbot should be able to use the module just from reading the README file (although they will need to figure out things like wiring or circuitry on their own).
-
-### software-tools
-
-This is where all external diagnostics/software tools go. For example, we have a remote controller for the whole boat that runs on a diagnostic laptop over wifi. We also have bootloading scripts for uploading from the PI to NUCLEOs, and in the past have used simple Python scripts for testing. If a software tool is specific to a COM module, when it comes to version control, it should be treated the same as a feature branch. If it is boat-wide, then it should be treated the same way as a working branch.
-
-### resources
-
-Put any firmware resources here if they are small in file size; otherwise, they should go in Google Drive.
-
-### Structure
 
 ```
 root/
@@ -77,12 +42,43 @@ root/
 				...
 			...
 	software-tools/							- All non-firmware diagnostic or control utilities.
-		remote-boat-controller/
+		remote-boat-controller/				- Example
 			...
-		bootloader/
+		bootloader/							- Example
 			...
-			
+	...
 ```
+
+### `firmware`
+
+All firmware goes in the firmware folder. The firmware contains two main components: modules and projects:
+
+**Projects** are entire STM32 projects for each physical controller on the boat. There should not be more of these than there are NUCLEO boards on the boat. These will then link to modules.
+
+**Modules** are individual pieces of code for controlling a specific aspect. Examples: CANBUS, a windsensor, motor control, etc. The majority of the code should be in modules; the project only serves to connect modules and deal with high-level tasks. The module should include a README file that, at a minimum, explains the purpose of the code, the intended usage, and how to configure the IOC file. For example, if you are making a module to read from an encoder, anyone with experience in STM32 and the context of sailbot should be able to use the module just from reading the README file (although they will need to figure out things like wiring or circuitry on their own).
+
+### `software-tools`
+
+This is where all external diagnostics/software tools go. For example, we have a remote controller for the whole boat that runs on a diagnostic laptop over wifi. We also have bootloading scripts for uploading from the PI to NUCLEOs, and in the past have used simple Python scripts for testing. If a software tool is specific to a COM module, when it comes to version control, it should be treated the same as a feature branch. If it is boat-wide, then it should be treated the same way as a working branch.
+
+### `resources`
+
+Put any firmware resources here if they are small in file size; otherwise, they should go in Google Drive.
+
+## Version Control Methodology
+
+We do not require an in-depth understanding of version control and git, but you do need to know the basics. There are plenty of sources online for how to use git; feel free to browse around. At the very least, you should have an understanding of:
+* Branches
+* Commits
+* Pull Requests / Merging
+* Merge Conflicts
+* The following commands ```pull```, ```fetch```, ```checkout```, ```push```, ```commit```, ```add```, ```restore```, ```branch```, ```init```, ```status```, ```clone``` and ```reset```
+  
+**Feature Branch:** For each high-level feature (AIS code, windsensor code, CANBUS code, etc.), while it is in development, it should have its own branch. The idea is that each person works in one or more of their own feature branche(s). This allows one to make code without having to worry about conflicts of working in the same branch. When code needs to be integrated, it can be merged into a working branch. Mainly, people should be doing the majority of their work in a feature branch, and when code needs to be merged to a working branch, it should be communicated to anyone else working on a feature for that working branch. The exception to this is if you know you are the only one working on a particular physical COM module, you may work directly in the working branch. This branch should be named something indicative of what it does. (Examples: AIS-firmware, CANBUS-library, PID-controller, ...)
+
+**Working Branch:** For each physical COM module, there should be a working branch where code is being assembled and integrated. This can be rough code, but it should at least compile and be useful code. These branches should be named as the COM module description, followed by "working-branch". (Examples: windsail-working-branch, rudder-working-branch, sense-working-branch, PDB-working-branch)
+
+**Main Branch:** This is where our finalized, reviewed code goes. Only properly documented, clean, and functional code should be included in (the caveat being that some pre-existing code may not follow this standard). To get code in the main branch, you must make a PR with two people signing off on it, one of whom should be an ELEC lead.
 
 ## Linking modules to controller-projects
 
