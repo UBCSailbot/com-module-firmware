@@ -16,7 +16,7 @@
  *  Each mode has its own set of PID coefficients and scaling factors to adapt to the specific dynamics of that state.
  *  The controller continuously updates its state based on real-time data from wind sensors and IMU readings.
  *
- *  Functions:
+ *  Key Functions:
  *  - initPID: Initializes the PID controller with fixed parameters.
  *  - updateControllerVariables: Updates the controller's live variables with current sensor data.
  *  - getRudderAngle: Computes the new rudder angle based on the current error and PID calculations.
@@ -37,9 +37,13 @@
 
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include "RUDDER.h"
+#include "RUDDER_PARAMS.h"
+
+PIDController controller;
 
 /* This struct represents the live state of the PID controller
  * including all values that change dynamically while under sail
@@ -50,7 +54,7 @@
  * @param tackingState - state variables for tacking maneuvers
  * @param gybingState - state variables for gybing maneuvers
  */
-typedef struct {
+typedef struct PIDControllerLive_tag {
 	ControllerState controllerState;
 	WindState windState;
 	SailingState sailingState;
@@ -67,7 +71,7 @@ typedef struct {
  * @param lastTime - timestamp of last update (milliseconds)
  * @param currentTime - current timestamp (milliseconds)
  */
-typedef struct {
+typedef struct ControllerState_tag {
 	float integralError;
 	float previousError;
 	float filteredError;
@@ -81,7 +85,7 @@ typedef struct {
  * @param windSpeed - current wind speed (m/s)
  * @param windDirection - current wind direction (degrees from North CCW)
  */
-typedef struct {
+typedef struct WindState_tag {
 	float windSpeed;
 	float windDirection;
 } WindState;
@@ -93,7 +97,7 @@ typedef struct {
  * @param desiredHeading - desired heading (degrees from North CCW)
  * @param currentHeading - current heading (degrees from North CCW)
  */
-typedef struct {
+typedef struct SailingState_tag {
 	float linearVelocity;
 	float angularVelocity;
 	float heelAngle;
@@ -111,10 +115,9 @@ typedef struct {
  * @param initialHeading - heading at the start of the tack (degrees from North CCW)
  * @param targetHeading - desired heading after the tack (degrees from North CCW)
  */
-typedef struct {
+typedef struct TackingState_tag {
     bool isTacking;
     float tackingStartTime;
-    float tackingDuration;
     float initialHeading;
     float targetHeading;
 } TackingState;
@@ -126,10 +129,9 @@ typedef struct {
  * @param initialHeading - heading at the start of the gybe (degrees from North CCW)
  * @param targetHeading - desired heading after the gybe (degrees from North CCW)
  */
-typedef struct {
+typedef struct GybingState_tag {
     bool isGybing;
     float gybingStartTime;
-    float gybingDuration;
     float initialHeading;
     float targetHeading;
 } GybingState;
@@ -138,29 +140,17 @@ typedef struct {
  * @param live - the live state of the controller
  * @param fixed - the fixed parameters of the controller
  */
-typedef struct {
+typedef struct PIDController_tag {
     PIDControllerLive live;
     PIDControllerFixed fixed;
 } PIDController;
 
-// Initializes the PID controller with fixed and live parameters
-PIDController initController(PIDControllerFixed fixed, PIDControllerLive live) {
-    PIDController controller;
-    controller.fixed = fixed;
-    controller.live = live;
-    controller.live.activeCoeffs = fixed.standardCoeffs; // Start with standard coefficients
-    return controller;
-}
-
 // Initializes the live state of the PID controller
 PIDControllerLive initLiveController() {
     PIDControllerLive live;
+    memset(&live, 0, sizeof(PIDControllerLive)); // Zero out the struct
     // initialize controller state - time, integral, etc
     ControllerState cState;
-    cState.integralError = 0;
-    cState.previousError = 0;
-    cState.filteredError = 0;
-    cState.previousFilteredError = 0;
     cState.lastTime  = HAL_GetTick();
     cState.currentTime = cState.lastTime;
     // get wind data and initialize wind state
@@ -180,18 +170,10 @@ PIDControllerLive initLiveController() {
     // initialize tacking state
     TackingState tState;
     tState.isTacking = false;
-    tState.tackingStartTime = 0;
-    tState.tackingDuration = 0;
-    tState.initialHeading = 0;
-    tState.targetHeading = 0;
     live.tackingState = tState;
     // initialize gybing state
     GybingState gState;
     gState.isGybing = false;
-    gState.gybingStartTime = 0;
-    gState.gybingDuration = 0;
-    gState.initialHeading = 0;
-    gState.targetHeading = 0;
     live.gybingState = gState;
     // assign states to live controller
 
@@ -208,12 +190,14 @@ PIDControllerLive initLiveController() {
 }
 
 // Initializes PID controller parameters
-PIDController initPID(PIDControllerFixed fixedController) {
+void initController(PIDControllerFixed fixedController) {
     PIDControllerLive liveController = initLiveController();
-    PIDController controller = initController(fixedController, liveController);
+    controller.live = liveController;
+    controller.fixed = fixedController;
+    return controller;
 }
 
-void updateControllerVariables (PIDController controller) {
+void updateControllerVariables () {
     // Update the sailing and sea state in the controller
     controller.live.windState.windSpeed = getWindSpeed();
     controller.live.windState.windDirection = getWindDirection();
@@ -225,62 +209,47 @@ void updateControllerVariables (PIDController controller) {
     updateAverages(controller);
 }
 
-void updateAverages(PIDController controller) {
+void updateAverages() {
     // Simple moving average for linear velocity, angular velocity, and heading
-    static linVelocityBuffer[10] = {0};
-    static angVelocityBuffer[10] = {0};
-    static headingBuffer[10] = {0};
-    static index = 0;
-    static count = 0;
-    linVelocityBuffer[index] = controller.live.sailingState.linearVelocity;
-    angVelocityBuffer[index] = controller.live.sailingState.angularVelocity;
-    headingBuffer[index] = controller.live.sailingState.currentHeading;
+    static float linVelocityBuffer[controller.fixed.scalingCoeffs.averageWindowSize] = {0.0f};
+    static float angVelocityBuffer[controller.fixed.scalingCoeffs.averageWindowSize] = {0.0f};
+    static float headingBuffer[controller.fixed.scalingCoeffs.averageWindowSize] = {0.0f};
+    static int index = 0;
+    static int count = 0;
     index = (index + 1) % 10;
-    if(count < 10) count++;
-    float linSum = 0;
-    float angSum = 0;
-    float headingSum = 0;
-    for(int i = 0; i < count; i++) {
-        linSum += linVelocityBuffer[i];
-        angSum += angVelocityBuffer[i];
-        headingSum += headingBuffer[i];
+    if(count < 10) {
+        count++;
     }
-    controller.live.sailingState.averageLinVelocity = linSum / count;
-    controller.live.sailingState.averageAngVelocity = angSum / count;
-    controller.live.sailingState.averageHeading = headingSum / count;
+    controller.live.sailingState.averageLinVelocity = movingAverage(linVelocityBuffer, index, count, controller.live.sailingState.linearVelocity);
+    controller.live.sailingState.averageAngVelocity = movingAverage(angVelocityBuffer, index, count, controller.live.sailingState.angularVelocity);
+    controller.live.sailingState.averageHeading = movingAverage(headingBuffer, index, count, controller.live.sailingState.currentHeading);
 }
 
-void resetController(PIDController controller) {
-    // Reset the controller state
-    controller.live.controllerState.integralError = 0;
-    controller.live.controllerState.previousError = 0;
-    controller.live.controllerState.filteredError = 0;
-    controller.live.controllerState.previousFilteredError = 0;
+float movingAverage(float array[], int index, int size, float value) {
+    array[index] = value;
+    float sum = 0;
+    for(int i = 0; i < size; i++) {
+        sum += array[i];
+    }
+    return sum / size;
+}
+
+void resetController() {
+    memset(&controller.live, 0, sizeof(PIDControllerLive));
+    // Reset the controller time
     controller.live.controllerState.lastTime  = HAL_GetTick();
     controller.live.controllerState.currentTime = controller.live.controllerState.lastTime;
-    // Reset tacking and gybing states
-    controller.live.tackingState.isTacking = false;
-    controller.live.tackingState.tackingStartTime = 0;
-    controller.live.tackingState.tackingDuration = 0;
-    controller.live.tackingState.initialHeading = 0;
-    controller.live.tackingState.targetHeading = 0;
-
-    controller.live.gybingState.isGybing = false;
-    controller.live.gybingState.gybingStartTime = 0;
-    controller.live.gybingState.gybingDuration = 0;
-    controller.live.gybingState.initialHeading = 0;
-    controller.live.gybingState.targetHeading = 0;
-
     // Reset active coefficients to standard
     controller.live.activeCoeffs = controller.fixed.standardCoeffs;
 }
 
 // Gets a new rudder angle based on the current error
-float getRudderAngle(PIDController controller, float currentError) {
+float getRudderAngle(float currentError) {
     PIDcoefficients PID = controller.live.activeCoeffs;
     ControllerState cState = controller.live.controllerState;
     ScalingCoefficients scaling = controller.fixed.scalingCoeffs;
     PhysicalParams params = controller.fixed.physicalParams;
+    SailingState sailing = controller.live.sailingState;
 
 	cState.currentTime = HAL_GetTick();
 	float dt = cState.currentTime -  cState.lastTime;
@@ -295,12 +264,15 @@ float getRudderAngle(PIDController controller, float currentError) {
     // Saving error
     cState.previousFilteredError = cState.filteredError;
     // Clamping output and integral to prevent windup
-    if (outputAngle > params.outputMax) {
+    outputAngle = (scaling.velocityFactor/pow(sailing.linearVelocity, 2.0))*(1-scaling.heelFactor*sailing.heelAngle)*outputAngle;
+        // limit to max rudder angle
+    if(outputAngle > params.outputMax) {
         outputAngle = params.outputMax;
         if(currentError < 0) {
             cState.integralError += currentError * dt; 
-        }
-    } else if (outputAngle < params.outputMin) {
+         }
+
+    } else if(outputAngle < params.outputMin) {
         outputAngle = params.outputMin;
         if(currentError > 0) {
             cState.integralError += currentError * dt; 
@@ -316,18 +288,17 @@ float getRudderAngle(PIDController controller, float currentError) {
 }
 
 // Updates the controller state without generating new output
-void updateControllerTime(PIDController controller, float currentError) {
+void updateControllerTime(float currentError) {
     PIDcoefficients PID = controller.live.activeCoeffs;
     ControllerState cState = controller.live.controllerState;
-
-	cState.currentTime = HAL_GetTick();
-    cState.previousError = currentError;
     cState.lastTime = cState.currentTime;
+	cState.currentTime = HAL_GetTick();
+    cState.previousError = currentError;    
     cState.integralError = cState.integralError * PID.integralDecayFactor;
 }
 
 // Runs control model based on current sailing state
-void runPID(PIDController controller, float *rudderAngle) {
+void runPID(float *rudderAngle) {
     WindState wind = controller.live.windState;
     SailingState sailing = controller.live.sailingState;
 
@@ -346,24 +317,24 @@ void runPID(PIDController controller, float *rudderAngle) {
 
 	switch(state){
 	case STRAIGHT:
-		*rudderAngle = straightLine(controller, error);
+		*rudderAngle = straightLine(error);
         break;
 	case TACKING:
-		*rudderAngle = tacking(controller, error);
+		*rudderAngle = tacking();
 		break;
 	case GYBING:
-		*rudderAngle = gybing(controller, error);
+		*rudderAngle = gybing();
 		break;
 	case LOWWIND:
-		*rudderAngle = lowwind(controller, error);
+		*rudderAngle = lowwind(error);
 		break;
 	case IRONS:
-		*rudderAngle = irons(controller, error);
+		*rudderAngle = irons(error);
 		break;
 	}    
 }
 
-State getState(float error, PIDController controller) {
+State getState(float error) {
     PIDcoefficients PID = controller.live.activeCoeffs;
     PhysicalParams params = controller.fixed.physicalParams;    
     SailingState sailing = controller.live.sailingState;
@@ -384,7 +355,7 @@ State getState(float error, PIDController controller) {
 }
 
 //To do, check if these conditions are correct - sign conventions, etc.
-bool isTackingCondition(PIDController controller, float error) {
+bool isTackingCondition(float error) {
     WindState wind = controller.live.windState;
     SailingState sailing = controller.live.sailingState;
 
@@ -393,7 +364,7 @@ bool isTackingCondition(PIDController controller, float error) {
 
     if(controller.live.tackingState.isTacking) {
         // If already tacking, continue until duration is over
-        if(HAL_GetTick() - controller.live.tackingState.tackingStartTime < controller.live.tackingState.tackingDuration) {
+        if(HAL_GetTick() - controller.live.tackingState.tackingStartTime < controller.fixed.scalingCoeffs.tackTime) {
             return true;
         } else {
             controller.live.tackingState.isTacking = false;
@@ -409,13 +380,22 @@ bool isTackingCondition(PIDController controller, float error) {
 }
 
 //To do, check if these conditions are correct - sign conventions, etc.
-bool isGybingCondition(PIDController controller, float error) {
+bool isGybingCondition(float error) {
     WindState wind = controller.live.windState;
     SailingState sailing = controller.live.sailingState;
 
     float relativeWind = wind.windDirection - sailing.desiredHeading;
     float boatWindAngle = wind.windDirection - sailing.currentHeading;
 
+    if(controller.live.gybingState.isGybing) {
+        // If already gybing, continue until duration is over
+        if(HAL_GetTick() - controller.live.gybingState.gybingStartTime < controller.fixed.scalingCoeffs.gybeTime) {
+            return true;
+        } else {
+            controller.live.gybingState.isGybing = false;
+            return false;
+        }
+    } else
     if(abs(boatWindAngle) > 90 && abs(boatWindAngle) < 270) {
         if((relativeWind > 0 && boatWindAngle < 0) || (relativeWind < 0 && boatWindAngle > 0)){
             return true;
@@ -426,7 +406,7 @@ bool isGybingCondition(PIDController controller, float error) {
 
 // Control model for straight line sailing
 //TODO: Change so that the model returns to below our heading tolerance versus oscillating around the error threshold
-float straightLine(PIDController controller, float error) {
+float straightLine(float error) {
     PIDcoefficients PID = controller.live.activeCoeffs;
     ScalingCoefficients scaling = controller.fixed.scalingCoeffs;
     PhysicalParams params = controller.fixed.physicalParams;
@@ -447,14 +427,7 @@ float straightLine(PIDController controller, float error) {
 	else {
         cState.isActive = true;
         // compute scaled angle from PID output
-        rudderAngle = (scaling.velocityFactor/pow(sailing.linearVelocity, 2.0))*(1-scaling.heelFactor*sailing.heelAngle)*getRudderAngle(controller, error);
-        // limit to max rudder angle
-        if(rudderAngle > params.outputMax) {
-            rudderAngle = params.outputMax;
-        }
-        else if(rudderAngle < params.outputMin) {
-            rudderAngle = params.outputMin;
-        }
+        rudderAngle = getRudderAngle(controller, error);
         // if within heading tolerance, stop adjusting rudder angle
         if(abs(sailing.averageHeading - sailing.desiredHeading) < PID.headingTolerance && abs(sailing.averageAngVelocity) < PID.angVelTolerance) {
             cState.isActive = false;
@@ -464,7 +437,7 @@ float straightLine(PIDController controller, float error) {
 }
 
 //Control model for tacking maneuvers
-float tacking(PIDController controller, float error) {
+float tacking() {
     PIDcoefficients PID = controller.live.activeCoeffs;
     SailingState sailing = controller.live.sailingState;
     WindState wind = controller.live.windState;
@@ -477,7 +450,6 @@ float tacking(PIDController controller, float error) {
     if(!tacking.isTacking) {
         tacking.isTacking = true;
         tacking.tackingStartTime = HAL_GetTick();
-        tacking.tackingDuration = 5000 * scaling.tackTimeFactor; // Placeholder duration, should be tuned
         tacking.initialHeading = sailing.currentHeading;
 
         if(tacking.initialHeading - sailing.desiredHeading > 0) {
@@ -500,15 +472,15 @@ float tacking(PIDController controller, float error) {
         // If already tacking, check if conditions to end tack are met (tacking duration over or close to target heading)
         if(sailing.averageHeading > PID.headingTolerance && sailing.averageAngVelocity > thresholds.tackingRotThreshold) {
             controller.live.activeCoeffs = PID;
-            float rudderAngle = (scaling.velocityFactor/pow(sailing.linearVelocity, 2.0))*(1-scaling.heelFactor*sailing.heelAngle)*getRudderAngle(controller, error);
-            // limit to max rudder angle
-            if(rudderAngle > params.outputMax) {
-                rudderAngle = params.outputMax;
+            float error = sailing.currentHeading - tacking.targetHeading;
+            // Normalize error to be within -180 to 180 degrees
+            if(error > 180){
+                error -= 360;
             }
-            else if(rudderAngle < params.outputMin) {
-                rudderAngle = params.outputMin;
-            }
-            return rudderAngle;
+            else if(error < -180){
+                error += 360;
+    }
+            return getRudderAngle(controller, error);
         } else {
             tacking.isTacking = false;
             PID = controller.fixed.standardCoeffs;
@@ -517,7 +489,7 @@ float tacking(PIDController controller, float error) {
     }
 }
 
-float gybing(PIDController controller, float error) {
+float gybing() {
     PIDcoefficients PID = controller.live.activeCoeffs;
     SailingState sailing = controller.live.sailingState;
     WindState wind = controller.live.windState;
@@ -530,7 +502,6 @@ float gybing(PIDController controller, float error) {
     if(!gybing.isGybing) {
         gybing.isGybing = true;
         gybing.gybingStartTime = HAL_GetTick();
-        gybing.gybingDuration = 5000 * scaling.gybeTimeFactor; // Placeholder duration, should be tuned
         gybing.initialHeading = sailing.currentHeading;
 
         if(gybing.initialHeading - sailing.desiredHeading > 0) {
@@ -551,15 +522,16 @@ float gybing(PIDController controller, float error) {
     } else {
         // If already gybing, check if conditions to end gybe are met (gybing
         if(sailing.averageHeading > PID.headingTolerance && sailing.averageAngVelocity > thresholds.gybingRotThreshold) {
-            float rudderAngle = (scaling.velocityFactor/pow(sailing.linearVelocity, 2.0))*(1-scaling.heelFactor*sailing.heelAngle)*getRudderAngle(controller, error);
-            // limit to max rudder angle
-            if(rudderAngle > params.outputMax) {
-                rudderAngle = params.outputMax;
+            controller.live.activeCoeffs = PID;
+            float error = sailing.currentHeading - gybing.targetHeading;
+            // Normalize error to be within -180 to 180 degrees
+            if(error > 180){
+                error -= 360;
             }
-            else if(rudderAngle < params.outputMin) {
-                rudderAngle = params.outputMin;
+            else if(error < -180){
+                error += 360;
             }
-            return rudderAngle;
+            return getRudderAngle(controller, error);
         } else {
             gybing.isGybing = false;
             PID = controller.fixed.standardCoeffs;
@@ -570,7 +542,7 @@ float gybing(PIDController controller, float error) {
 
 //low wind control model
 //TODO: Change so that the model returns to below our heading tolerance versus oscillating around the error threshold
-float lowwind(PIDController controller, float error) {
+float lowwind(float error) {
     PIDcoefficients PID = controller.live.activeCoeffs;
     PhysicalParams params = controller.fixed.physicalParams;    
     SailingState sailing = controller.live.sailingState;
@@ -589,15 +561,7 @@ float lowwind(PIDController controller, float error) {
     }
     else {
         cState.isActive = true;
-        // compute scaled angle from PID output
         rudderAngle = getRudderAngle(controller, error);
-        // limit to max rudder angle
-        if(rudderAngle > params.outputMax) {
-            rudderAngle = params.outputMax;
-        }
-        else if(rudderAngle < params.outputMin) {
-            rudderAngle = params.outputMin;
-        }
         // if within heading tolerance, stop adjusting rudder angle
         if(abs(sailing.averageHeading - sailing.desiredHeading) < PID.headingTolerance && abs(sailing.averageAngVelocity) < PID.angVelTolerance) {
             cState.isActive = false;
@@ -607,7 +571,7 @@ float lowwind(PIDController controller, float error) {
 }
 
 //TODO: Implement this - kind of error handling for entire model
-float irons(PIDController controller, float error) {
+float irons(float error) {
 }
 
 

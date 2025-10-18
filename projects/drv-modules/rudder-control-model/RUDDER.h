@@ -1,16 +1,21 @@
-/*
- * This library implements a PID model with various extra functionality to account for dynamic sailing conditions
- * It currently has the following functionality:
- *		-TBD
- *
- *  Created on: Mar 26, 2025
+/* RUDDER.h
+ *	Created on: Mar 26, 2025
  *      Author: Emma Duong
+
+ * This library implements a PID model with various extra functionality to account for dynamic sailing conditions
+ * It currently has the following functions: 
+ * 	- initController - initializes the PID controller with fixed and live parameters
+ * 	- runPID - runs the PID controller and generates rudder angles to sail according to the desired heading
+ * 	- updateControllerVariables - updates the live controller variables with current sensor readings
+ * 	- resetController - resets live controller state variables
  */
 
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
+
+extern PIDController PIDController;
 
 /* This struct represents the overall PID controller fixed coefficients
  * These coeffs are fixed as they do not change while the boat is under sail
@@ -21,7 +26,7 @@
  * @param scalingCoeffs - scale factors for velocity, roll, etc
  * @param stateThresholds - thresholding values for determining sailing state
  */
-typedef struct {
+typedef struct PIDControllerFixed_tag {
 	PIDcoefficients standardCoeffs;
 	PIDcoefficients tackingCoeffs;
 	PIDcoefficients gybingCoeffs;
@@ -40,7 +45,7 @@ typedef struct {
  * @param derivativeFilterFactor - determine show sensitive derivative term is (0-1, unitless)
  * @param errorThreshold - when PID controller sets new angle (degrees)
  */
-typedef struct {
+typedef struct PIDcoefficients_tag {
 	float Kp;
 	float Kd;
 	float Ki;
@@ -55,18 +60,20 @@ typedef struct {
 /* This struct contains scaling factors for rudder angle
  * @param velocityFactor - scaling factor based on over-water velocity (degrees s^2 / m^2), should be proportional to v^2
  * @param heelFactor - scaling factor based on heel angle (unitless)
- * @param tackTimeFactor - scaling factor based on time since start of tack (seconds)
- * @param gybeTimeFactor - scaling factor based on time since start of gybe (seconds)
+ * @param tackTime - tacking max duration (seconds)
+ * @param gybeTime - gybing max duration (seconds)
  * @param tackHeadingPadding - additional heading change to add to tacking maneuvers (degrees)
  * @param gybeHeadingPadding - additional heading change to add to gybing maneuvers (degrees)
+ * @param averageWindowSize - size of the moving average window for velocity and heading (number of samples)
  */
-typedef struct {
+typedef struct ScalingCoefficients_tag {
 	float velocityFactor;
 	float heelFactor;
-	float tackTimeFactor;
-	float gybeTimeFactor;
+	float tackTime;
+	float gybeTime;
 	float tackHeadingPadding; 
 	float gybeHeadingPadding;
+	int averageWindowSize;
 } ScalingCoefficients;
 
 /* This struct contains physical system parameters
@@ -75,7 +82,7 @@ typedef struct {
  * @param upwindIronsAngle - the angle to the wind that corresponds to irons (0-90 degrees)
  * @param downwindIronsAngle - angle corresponding to downwind irons (90-180 degrees)
  */
-typedef struct {
+typedef struct PhysicalParams_tag {
 	float outputMax;
 	float outputMin;
 	float upwindIronsAngle;
@@ -90,7 +97,7 @@ typedef struct {
  * @param gybingLinThreshold - linear velo threshold to be gybing (m/s)
  * @param gybingRotThreshold - min rotational velo to be gybing (rad/s)
  */
-typedef struct {
+typedef struct StateThresholds_tag {
 	float lowWindThreshold;
 	float tackingLinThreshold;
 	float tackingRotThreshold;
@@ -111,5 +118,15 @@ typedef enum {
 	LOWWIND,
 	IRONS
 } State;
-// runs the PID controller and generates rudder angles to sail according to the desired heading
 
+// Initializes the PID controller with fixed and live parameters from given fixed params
+void initController(PIDControllerFixed fixed);
+
+// runs the PID controller and generates rudder angles to sail according to the desired heading
+void runPID(float *rudderAngle);
+
+// Updates the live controller variables with current sensor readings
+void updateControllerVariables();
+
+// resets live controller state variables
+void resetController();
