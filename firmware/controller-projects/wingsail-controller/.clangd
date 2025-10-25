@@ -1,0 +1,9 @@
+CompileFlags:
+  Add: [
+    "--target=arm-none-eabi",
+    "--sysroot=/usr/lib/arm-none-eabi",
+    "-I./Core/Inc",
+    "-I./Drivers/STM32U5xx_HAL_Driver/Inc",
+    "-I./Drivers/CMSIS/Include",
+    "-I./Drivers/CMSIS/Device/ST/STM32U5xx/Include"
+  ]
