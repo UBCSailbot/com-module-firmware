@@ -16,4 +16,7 @@
 *Release/
 *release
 
+# Code editors
 *.vscode
+*.idea
+*.cache

@@ -20,8 +20,11 @@
 #include "main.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "BRITER.h"
-#include "WINDSENSOR.h"
+#include <stdio.h>
+//#include "BRITER.h"
+//#include "WINDSENSOR.h"
+#include "NMEA0183.h"
+#include "stm32u5xx_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +63,13 @@ static void MX_UCPD1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 /* USER CODE BEGIN PFP */
-
+#ifdef __GNUC__
+/* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+   set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -105,13 +114,15 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-
+  NMEA0183* test = NMEA0183__create(&huart1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    HAL_Delay(1000);
+    printf("This is a test print\r\n");
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -487,7 +498,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+PUTCHAR_PROTOTYPE
+{
+  /* Place your implementation of fputc here */
+  /* e.g. write a character to the USART1 and Loop until the end of transmission */
+  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
 
+  return ch;
+}
 /* USER CODE END 4 */
 
 /**
