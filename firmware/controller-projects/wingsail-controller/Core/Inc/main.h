@@ -76,6 +76,8 @@ void Error_Handler(void);
 #define UCPD_FLT_GPIO_Port GPIOB
 #define UCPD1_CC2_Pin GPIO_PIN_15
 #define UCPD1_CC2_GPIO_Port GPIOB
+#define CAN_CS_Pin GPIO_PIN_14
+#define CAN_CS_GPIO_Port GPIOD
 #define LED_RED_Pin GPIO_PIN_2
 #define LED_RED_GPIO_Port GPIOG
 #define LED_GREEN_Pin GPIO_PIN_7
