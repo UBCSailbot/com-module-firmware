@@ -19,11 +19,9 @@ Here is what you need to know about which features/functions you can find, and w
 
 ```error.h``` - provides functions that properly handle errors in operations such as CAN communication or issues with receiving sensor data
 
-```config.h``` - specifies CAN/I2C frames, PWM rates, and defines what is being used, so that the rest can be excluded - NOTE: this file is to be edited by the user
-
 As you probably notice, the location of each feature is quite intuitive, especially once you've seen the diagram above.
 
-To find these files, navigate through the repository as follows: ```base-library inc -> xxxxx.h```
+To find these files, navigate through the repository as follows: ```CANFD -> can.h``` for CANFD, ```base-library inc -> xxxxx.h``` otherwise
 
 ## User Manual
 Before continuing, please read the "What is the Base Library" paragraph above if you haven't already.
