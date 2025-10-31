@@ -25,6 +25,9 @@
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
 //#include "NMEA0183.h"
+#include "can.h"
+#include "CANSPI.h"
+#include "CANSERVO.h"
 #include "stm32u5xx_hal.h"
 /* USER CODE END Includes */
 
@@ -124,15 +127,30 @@ int main(void)
   MX_FDCAN1_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+  CANSPI_Initialize();
+  CAN_Init(&hfdcan1);
 //  NMEA0183* test = NMEA0183__create(&huart1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  float angle = 0;
+  uint8_t * canBuffer;
+  canBuffer = (uint8_t *) malloc(9);
   while (1)
   {
-    HAL_Delay(1000);
-    printf("This is a test print\r\n");
+    HAL_Delay(500);
+    if (CAN_Receive(canBuffer) == HAL_OK){
+    	printf("Rec");
+    	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
+    	if (id == 0x002 && canBuffer[4] == 4){
+    		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
+    		angle = ((float) value) / 1000.0 - 90.0;
+    	}
+    }
+
+    set_servo_angle(angle);
+    printf("This is a test print %f\r\n", angle);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
