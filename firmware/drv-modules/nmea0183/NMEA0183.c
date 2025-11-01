@@ -6,6 +6,7 @@
  */
 
 #include "NMEA0183.h"
+#include "main.h"
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -108,8 +109,22 @@ void NMEA0183__IRQHandler(UART_HandleTypeDef *huart){
 				    //Set the next write index
 				    nmea->dataBufferWriteIndex = next;
 				} else {
-					//Buffer full dropping message
-					Error_Handler();
+				  // If the buffer is full and another message is recieved
+				  // Overwrite the oldest message in the circular buffer
+
+          // Copy the raw message to the buffer
+          memcpy(nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceData,
+              nmea->receiveBuffers[1 - nmea->receiveBufferPosition],
+              receivedLength);
+
+          // Copy message length to the data buffer
+          nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceLength = receivedLength;
+
+          // Update write index
+				  nmea->dataBufferWriteIndex = next;
+
+				  // Update read index
+				  nmea->dataBufferReadIndex = (nmea->dataBufferReadIndex + 1) % MAX_DATA_BUFFER_SIZE;
 				}
 
 			} else {
