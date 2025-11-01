@@ -132,7 +132,30 @@ int main(void)
   while (1)
   {
     HAL_Delay(1000);
-    printf("%s", windSensor->dataBuffer);
+
+    // See if a message is available
+    NMEA0183Raw *msg = NMEA0183__getTopBufferItem(windSensor);
+
+    if (msg != NULL)
+    {
+        // validate and null-terminate fields
+        if (NMEA0183__checkMessage(msg) == GOOD_MESSAGE)
+        {
+            printf("%.*s\r\n", msg->scentenceLength, msg->scentenceData);
+        }
+        else
+        {
+            printf("BAD MESSAGE\r\n");
+        }
+
+        // IMPORTANT: advance the ring buffer
+        NMEA0183__incrementReadIndex(windSensor);
+    }
+    else
+    {
+        printf("no new data\r\n");
+    }
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
