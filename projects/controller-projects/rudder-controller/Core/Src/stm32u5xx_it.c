@@ -55,6 +55,9 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern FDCAN_HandleTypeDef hfdcan1;
+extern DMA_HandleTypeDef handle_GPDMA1_Channel15;
+extern UART_HandleTypeDef huart3;
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 /* USER CODE BEGIN EV */
 
@@ -199,6 +202,48 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles FDCAN1 interrupt 0.
+  */
+void FDCAN1_IT0_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN1_IT0_IRQn 0 */
+
+  /* USER CODE END FDCAN1_IT0_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan1);
+  /* USER CODE BEGIN FDCAN1_IT0_IRQn 1 */
+
+  /* USER CODE END FDCAN1_IT0_IRQn 1 */
+}
+
+/**
+  * @brief This function handles FDCAN1 interrupt 1.
+  */
+void FDCAN1_IT1_IRQHandler(void)
+{
+  /* USER CODE BEGIN FDCAN1_IT1_IRQn 0 */
+
+  /* USER CODE END FDCAN1_IT1_IRQn 0 */
+  HAL_FDCAN_IRQHandler(&hfdcan1);
+  /* USER CODE BEGIN FDCAN1_IT1_IRQn 1 */
+
+  /* USER CODE END FDCAN1_IT1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART3 global interrupt.
+  */
+void USART3_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART3_IRQn 0 */
+
+  /* USER CODE END USART3_IRQn 0 */
+  HAL_UART_IRQHandler(&huart3);
+  /* USER CODE BEGIN USART3_IRQn 1 */
+
+  /* USER CODE END USART3_IRQn 1 */
+}
+
+/**
   * @brief This function handles USB OTG FS global interrupt.
   */
 void OTG_FS_IRQHandler(void)
@@ -210,6 +255,20 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
 
   /* USER CODE END OTG_FS_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA1 Channel 15 global interrupt.
+  */
+void GPDMA1_Channel15_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA1_Channel15_IRQn 0 */
+
+  /* USER CODE END GPDMA1_Channel15_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA1_Channel15);
+  /* USER CODE BEGIN GPDMA1_Channel15_IRQn 1 */
+
+  /* USER CODE END GPDMA1_Channel15_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
