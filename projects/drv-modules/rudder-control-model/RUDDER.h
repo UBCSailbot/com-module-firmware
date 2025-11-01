@@ -30,7 +30,7 @@
  * @param derivativeFilterFactor - determine show sensitive derivative term is (0-1, unitless)
  * @param errorThreshold - when PID controller sets new angle (degrees)
  */
-typedef struct PIDcoefficients_tag {
+typedef struct{
 	float Kp;
 	float Kd;
 	float Ki;
@@ -51,7 +51,7 @@ typedef struct PIDcoefficients_tag {
  * @param gybeHeadingPadding - additional heading change to add to gybing maneuvers (degrees)
  * @param averageWindowSize - size of the moving average window for velocity and heading (number of samples)
  */
-typedef struct ScalingCoefficients_tag {
+typedef struct {
 	float velocityFactor;
 	float heelFactor;
 	float tackTime;
@@ -67,7 +67,7 @@ typedef struct ScalingCoefficients_tag {
  * @param upwindIronsAngle - the angle to the wind that corresponds to irons (0-90 degrees)
  * @param downwindIronsAngle - angle corresponding to downwind irons (90-180 degrees)
  */
-typedef struct PhysicalParams_tag {
+typedef struct {
 	float outputMax;
 	float outputMin;
 	float upwindIronsAngle;
@@ -82,7 +82,7 @@ typedef struct PhysicalParams_tag {
  * @param gybingLinThreshold - linear velo threshold to be gybing (m/s)
  * @param gybingRotThreshold - min rotational velo to be gybing (rad/s)
  */
-typedef struct StateThresholds_tag {
+typedef struct {
 	float lowWindThreshold;
 	float tackingLinThreshold;
 	float tackingRotThreshold;
@@ -100,7 +100,7 @@ typedef struct StateThresholds_tag {
  * @param lastTime - timestamp of last update (milliseconds)
  * @param currentTime - current timestamp (milliseconds)
  */
-typedef struct ControllerState_tag {
+typedef struct {
 	float integralError;
 	float previousError;
 	float filteredError;
@@ -114,7 +114,7 @@ typedef struct ControllerState_tag {
  * @param windSpeed - current wind speed (m/s)
  * @param windDirection - current wind direction (degrees from North CCW)
  */
-typedef struct WindState_tag {
+typedef struct {
 	float windSpeed;
 	float windDirection;
 } WindState;
@@ -126,7 +126,7 @@ typedef struct WindState_tag {
  * @param desiredHeading - desired heading (degrees from North CCW)
  * @param currentHeading - current heading (degrees from North CCW)
  */
-typedef struct SailingState_tag {
+typedef struct {
 	float linearVelocity;
 	float angularVelocity;
 	float heelAngle;
@@ -144,7 +144,7 @@ typedef struct SailingState_tag {
  * @param initialHeading - heading at the start of the tack (degrees from North CCW)
  * @param targetHeading - desired heading after the tack (degrees from North CCW)
  */
-typedef struct TackingState_tag {
+typedef struct {
     bool isTacking;
     float tackingStartTime;
     float initialHeading;
@@ -158,7 +158,7 @@ typedef struct TackingState_tag {
  * @param initialHeading - heading at the start of the gybe (degrees from North CCW)
  * @param targetHeading - desired heading after the gybe (degrees from North CCW)
  */
-typedef struct GybingState_tag {
+typedef struct {
     bool isGybing;
     float gybingStartTime;
     float initialHeading;
@@ -174,7 +174,7 @@ typedef struct GybingState_tag {
  * @param scalingCoeffs - scale factors for velocity, roll, etc
  * @param stateThresholds - thresholding values for determining sailing state
  */
-typedef struct PIDControllerFixed_tag {
+typedef struct {
 	PIDcoefficients standardCoeffs;
 	PIDcoefficients tackingCoeffs;
 	PIDcoefficients gybingCoeffs;
@@ -193,7 +193,7 @@ typedef struct PIDControllerFixed_tag {
  * @param tackingState - state variables for tacking maneuvers
  * @param gybingState - state variables for gybing maneuvers
  */
-typedef struct PIDControllerLive_tag {
+typedef struct {
 	ControllerState controllerState;
 	WindState windState;
 	volatile SailingState sailingState;
@@ -206,7 +206,7 @@ typedef struct PIDControllerLive_tag {
  * @param live - the live state of the controller
  * @param fixed - the fixed parameters of the controller
  */
-typedef struct PIDController_tag {
+typedef struct {
     PIDControllerLive live;
     PIDControllerFixed fixed;
 } PIDController;
@@ -217,7 +217,7 @@ extern PIDController controller;
  * States should be self explanatory to those familiar with the model
  * Or sailing in general
  * Or the project - boats, idk*/
-typedef enum State_tag {
+typedef enum {
 	STRAIGHT,
 	TACKING,
 	GYBING,
@@ -236,5 +236,8 @@ void updateControllerVariables();
 
 // resets live controller state variables
 void resetController();
+
+// Determines the current state of the boat based on sailing conditions
+State getState(float error);
 
 #endif /* RUDDER_H_ */

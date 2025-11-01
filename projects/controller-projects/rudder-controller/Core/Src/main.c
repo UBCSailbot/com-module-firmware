@@ -76,7 +76,6 @@ static void MX_UCPD1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_FDCAN1_Init(void);
 
@@ -196,7 +195,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    SailingState currentSailingState = controller.live.sailingState;
     runPID(&rudderAngle);
     /* USER CODE END WHILE */
 
@@ -603,7 +601,7 @@ void unpackGPSData(uint8_t * rxData) {
     controller.live.sailingState.linearVelocity = raw_speed / 3600; // speed in m/s
 }
 
-void unpackWindData(unit8_t * rxData) {
+void unpackWindData(uint8_t * rxData) {
     uint32_t raw_wind_direction = little_endian_bytes_to_uint32(&rxData[0]);
     uint32_t raw_wind_speed = little_endian_bytes_to_uint32(&rxData[4]);
     controller.live.windState.windDirection = raw_wind_direction; // wind direction in degrees

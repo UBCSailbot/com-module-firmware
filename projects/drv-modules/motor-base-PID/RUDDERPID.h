@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
-#include "stm32u5xx_hal.h  
+#include "stm32u5xx_hal.h"
 
 // Constants
 #define PROPORTIONAL_GAIN 0.0017f
