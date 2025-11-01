@@ -26,6 +26,7 @@
 //#include "WINDSENSOR.h"
 #include "NMEA0183.h"
 #include "stm32u5xx_hal.h"
+#include "stm32u5xx_hal_uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -122,7 +123,15 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-  NMEA0183* test = NMEA0183__create(&huart2);
+  NMEA0183* windSensor = NMEA0183__create(&huart2);
+
+  // DMA will write to the recieve buffer in the NMEA0183 object
+  HAL_UART_Receive_DMA(&huart2,
+    windSensor->receiveBuffers[windSensor->receiveBufferPosition],
+    BUFFER_SIZE);
+
+  // Interrupt when line goes idle (end of message)
+  __HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,7 +139,13 @@ int main(void)
   while (1)
   {
     HAL_Delay(1000);
-    printf("This is a test print\r\n");
+    if (windSensor->dataReady) {
+      printf(windSensor->dataBuffer);
+      printf("\n\r");
+    } else {
+      printf("wind sensor data not ready");
+      printf("\n\r");
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

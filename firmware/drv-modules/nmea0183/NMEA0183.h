@@ -48,14 +48,14 @@ typedef enum {
 	BAD_START_CHARACTER = 1,
 	BAD_TERMINATION_SEQUENCE = 2,
 	BAD_CHECK_SUM = 3
-}MESSAGE_STATUS;
+} MESSAGE_STATUS;
 
 
 //The NMEA0183Raw data type
 typedef struct {
 	uint8_t scentenceData[MAX_SENTENCE_LENGTH];
 	uint8_t scentenceLength;
-}NMEA0183Raw;
+} NMEA0183Raw;
 
 //The NMEA0183 data type
 typedef struct {
