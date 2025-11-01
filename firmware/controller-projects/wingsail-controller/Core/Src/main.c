@@ -132,13 +132,7 @@ int main(void)
   while (1)
   {
     HAL_Delay(1000);
-    if (windSensor->dataReady) {
-      printf(windSensor->dataBuffer);
-      printf("\n\r");
-    } else {
-      printf("wind sensor data not ready");
-      printf("\n\r");
-    }
+    printf("%s", windSensor->dataBuffer);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
