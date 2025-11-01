@@ -1,11 +1,21 @@
 CompileFlags:
   Add: [
     "--target=arm-none-eabi",
-    "--sysroot=/opt/arm-toolchain/arm-none-eabi",
+
+    # NEWLIB (needed for math.h, stdio, etc.)
     "-isystem", "/opt/arm-toolchain/arm-none-eabi/include",
     "-isystem", "/opt/arm-toolchain/lib/gcc/arm-none-eabi/13.2.1/include",
-    "-I./Core/Inc",
-    "-I./Drivers/STM32U5xx_HAL_Driver/Inc",
-    "-I./Drivers/CMSIS/Include",
-    "-I./Drivers/CMSIS/Device/ST/STM32U5xx/Include"
+
+    # HAL + CMSIS — use project-root, not relative-to-file
+    "-I${workspaceFolder}/Core/Inc",
+    "-I${workspaceFolder}/Drivers/STM32U5xx_HAL_Driver/Inc",
+    "-I${workspaceFolder}/Drivers/CMSIS/Include",
+    "-I${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32U5xx/Include",
+
+    # Shared driver modules (resolved relative to project root)
+    "-I${workspaceFolder}/../drv-modules/nmea0183",
+    "-I${workspaceFolder}/../drv-modules/CV7-windsensor",
+    "-I${workspaceFolder}/../drv-modules/briter-encoders",
+    "-I${workspaceFolder}/../drv-modules/motor-base-PID",
+    "-I${workspaceFolder}/../drv-modules/servo-solenoid"
   ]
