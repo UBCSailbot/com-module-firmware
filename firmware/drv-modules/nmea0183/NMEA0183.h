@@ -41,6 +41,8 @@
 #define MESSAGE_VDM 0x4D4456
 #define MESSAGE_MWV 0x56574D
 #define MESSAGE_XDR 0x524458
+#define MESSAGE_SHR 0x524853
+#define MESSAGE_HDT 0x544448
 
 //enum for the result of the checks conducted on a message
 typedef enum {
