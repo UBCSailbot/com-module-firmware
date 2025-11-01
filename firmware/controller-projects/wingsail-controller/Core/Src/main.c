@@ -130,8 +130,7 @@ int main(void)
     windSensor->receiveBuffers[windSensor->receiveBufferPosition],
     BUFFER_SIZE);
 
-  // Interrupt when line goes idle (end of message)
-  __HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);
+  __HAL_UART_ENABLE_IT(&huart2, UART_IT_CM);
   /* USER CODE END 2 */
 
   /* Infinite loop */
