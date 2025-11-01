@@ -25,6 +25,7 @@
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
 #include "NMEA0183.h"
+#include "stm32u5xx.h"
 #include "stm32u5xx_hal.h"
 #include "stm32u5xx_hal_uart.h"
 /* USER CODE END Includes */
@@ -124,13 +125,6 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
   NMEA0183* windSensor = NMEA0183__create(&huart2);
-
-  // DMA will write to the recieve buffer in the NMEA0183 object
-  HAL_UART_Receive_DMA(&huart2,
-    windSensor->receiveBuffers[windSensor->receiveBufferPosition],
-    BUFFER_SIZE);
-
-  __HAL_UART_ENABLE_IT(&huart2, UART_IT_CM);
   /* USER CODE END 2 */
 
   /* Infinite loop */
