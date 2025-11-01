@@ -31,4 +31,16 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>motor-base-PID</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/motor-base-PID</locationURI>
+		</link>
+		<link>
+			<name>rudder-control-model</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/rudder-control-model</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>

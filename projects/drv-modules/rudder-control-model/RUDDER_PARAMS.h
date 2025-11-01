@@ -16,7 +16,14 @@
 #ifndef RUDDER_PARAMS_H_
 #define RUDDER_PARAMS_H_
 #include "RUDDER.h"
-#include "RUDDER_PARAMS.c"
+
+/* Enum for different PID modes corresponding to sailing states */
+typedef enum {
+    STANDARD_COEFFS,
+    TACKING_COEFFS,
+    GYBING_COEFFS,
+    LOW_WIND_COEFFS
+} PIDMode;
 
 /* Getter for the fixed PID controller parameters */
 PIDControllerFixed getRudderFixedParams();
@@ -32,7 +39,7 @@ void updateRudderFixedParams(PIDcoefficients PIDCoeffs, PIDMode mode);
     * @param scalingCoeffs - pointer to the new ScalingCoefficients struct
     */
 
-void updateRudderScalingParams(const ScalingCoefficients *scalingCoeffs);
+void updateRudderScalingParams(ScalingCoefficients scalingCoeffs);
 
 /* Getter for pid coefficients
     * @param mode - desired set of coeffs
@@ -41,13 +48,5 @@ PIDcoefficients getPIDCoeffs(PIDMode mode);
 
 /* Getter for scaling coefficients */
 ScalingCoefficients getScalingCoeffs();
-
-/* Enum for different PID modes corresponding to sailing states */
-typedef enum {
-    STANDARD,
-    TACKING,
-    GYBING,
-    LOW_WIND
-} PIDMode;
 
 #endif /* RUDDER_PARAMS_H_ */

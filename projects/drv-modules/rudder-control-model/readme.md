@@ -1,25 +1,30 @@
 # Overview
-Feel free to add things to this readme if they do not fit well in either the .c or .h file.
+[comment]: #(Feel free to add things to this readme if they do not fit well in either the .c or .h file.
 Some examples of what might be good to include:
 * Setup if things need to be initialized (ex: DMA channels, Timers, Interrupts, etc.)
 * Example of how to implement things
-* etc.
-
+* etc.)
 
 # Structure of the Control Model
-Probably delete this section in the readme once you have implemented things. These are my thoughts only on the high level structure, feel free to ignore this as you see fit. One thing that is critical is that nothing in here should take a "long" time to execute. What I mean is no delays in the code or infinite loops. Otherwise there might be sensor data or something that we miss.
-## Initialization
-Some function for initializing things as needed
-## Cycle through the PID
-Probably have a function that runs one iteration on the PID model. 
-* We'll probably set this up so that it get's called on a defined period (e.i every 5ms)
-* I would recommend updating the integral and derivative terms assuming that it is not called on this regular period (in case an interrupt or something delays execution), use some kind of a timer
-* This function would then call the motor to move as needed (feel free to look at Joshua's code on how to call his functions, or just put in a placeholder function)
-## Input Data
-Have functions for each sensor to input data.
-* These functions would be called whenever there is new input data, and not nessacrily on a regular period
-* You would want a function for: IMU data, Wind sensor 1 data, Wind sensor 2 data, linear velocity, desired heading, and possibly others I am forgetting
-* Feel free to look at the `CAN Frames` confluence page for what the input to these functions might look like (it can easily be changed though)
+The control model is essentially a very simple state machine that determines the boat's sailing state and cycles through accordingly.
 
+There is one key function, runPID, that is intended to be called in the main loop once per cycle. This is the function that contains the state machine and will execute everything accordingly.
+
+There are currently four states implemented - straight line, tacking, gybing, and low winds. Irons has yet to be implemented. Each of these states has it's own coefficients that must be initialised and tuned separately.
+
+The control model functionality is contained in RUDDER.c, while the external fixed parameters are to be stored in RUDDER_PARAMS.c. RUDDER_PARAMS.h contains functions to get, set, and edit PID paramters and the like.
+
+# Variables and Such
+
+The control model contains an PIDController struct "controller" that consists of a live and a fixed struct. The live struct has all of the changing info for the controller - PID integral and time info, wind, heading, etc. The fixed struct is the parameteres that we must tune/ set - physical limits, PID coefficients, scaling factors, etc. 
+
+The functions within RUDDER.c work by updating and retrieving info from this struct. This struct can be initialised through the initController function. You must pass in a PIDControllerFixed struct to this function - this should be the struct from RUDDER_PARAMS.
+
+Once this has been initialized, pretty well the only function needed should be run_PID and updateControllerVariables, which should each be called once per loop. The resetController function can be used to reset the controller (as it says on the tin).
+
+## Sensors
+Currently there are just placeholder functions for sensor values. These need to be implemented in the near future/ as things get finalised.
+
+We are considering how various updates at different times should be handled. This is not currently being handled.
 
 

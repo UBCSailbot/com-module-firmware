@@ -60,16 +60,16 @@ PIDControllerFixed getRudderFixedParams() {
 void updateRudderFixedParams(PIDcoefficients PIDCoeffs, PIDMode mode) {
     switch (mode)
     {
-    case STANDARD:
+    case STANDARD_COEFFS:
         rudderFixedParams.standardCoeffs = PIDCoeffs;
         break;
-    case TACKING:
+    case TACKING_COEFFS:
         rudderFixedParams.tackingCoeffs = PIDCoeffs;
         break;
-    case GYBING:
+    case GYBING_COEFFS:
         rudderFixedParams.gybingCoeffs = PIDCoeffs;
         break;
-    case LOW_WIND:
+    case LOW_WIND_COEFFS:
         rudderFixedParams.lowWindCoeffs = PIDCoeffs;    
     default:
         break;
@@ -79,13 +79,13 @@ void updateRudderFixedParams(PIDcoefficients PIDCoeffs, PIDMode mode) {
 PIDcoefficients getPIDCoeffs(PIDMode mode) {
     switch (mode)
     {
-    case STANDARD:
+    case STANDARD_COEFFS:
         return rudderFixedParams.standardCoeffs;
-    case TACKING:
+    case TACKING_COEFFS:
         return rudderFixedParams.tackingCoeffs;
-    case GYBING:
+    case GYBING_COEFFS:
         return rudderFixedParams.gybingCoeffs;
-    case LOW_WIND:
+    case LOW_WIND_COEFFS:
         return rudderFixedParams.lowWindCoeffs;    
     default:
         return rudderFixedParams.standardCoeffs;

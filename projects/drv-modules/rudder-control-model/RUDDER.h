@@ -10,31 +10,16 @@
  * 	- resetController - resets live controller state variables
  */
 
+#ifndef RUDDER_H_
+#define RUDDER_H_
+
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "MOCK_HARDWARE_FUNCTIONS.h"
 
-extern PIDController PIDController;
-
-/* This struct represents the overall PID controller fixed coefficients
- * These coeffs are fixed as they do not change while the boat is under sail
- * @param standardCoeffs - a series of PID coefficients and related factors that correspond to straight line sailing
- * @param tackingCoeffs - PID coeffs and the like for tacking
- * @param gybingCoeffs - PID coeffs and the like for gybing
- * @param lowWindCoeffs - PID coeffs etc for low wind sailing
- * @param scalingCoeffs - scale factors for velocity, roll, etc
- * @param stateThresholds - thresholding values for determining sailing state
- */
-typedef struct PIDControllerFixed_tag {
-	PIDcoefficients standardCoeffs;
-	PIDcoefficients tackingCoeffs;
-	PIDcoefficients gybingCoeffs;
-	PIDcoefficients lowWindCoeffs;
-	ScalingCoefficients scalingCoeffs;
-	PhysicalParams physicalParams;
-	StateThresholds stateThresholds;
-} PIDControllerFixed;
+#define STRAIGHT_ONLY
 
 /* This struct gives coefficients for a PID controller
  * @param Kp - proportional gain (unitless)
@@ -107,11 +92,132 @@ typedef struct StateThresholds_tag {
 	float stateironsRot;
 } StateThresholds;
 
+/* This struct contains the dynamic state of the controller
+ * @param integralError - accumulated integral error (degrees * seconds)
+ * @param previousError - last error value (degrees)
+ * @param filteredError - low-pass filtered error for derivative calculation (degrees)
+ * @param previousFilteredError - last filtered error (degrees)
+ * @param lastTime - timestamp of last update (milliseconds)
+ * @param currentTime - current timestamp (milliseconds)
+ */
+typedef struct ControllerState_tag {
+	float integralError;
+	float previousError;
+	float filteredError;
+	float previousFilteredError;
+    bool isActive;
+	uint32_t lastTime;
+	uint32_t currentTime;
+} ControllerState;
+
+/* This struct contains the current wind state
+ * @param windSpeed - current wind speed (m/s)
+ * @param windDirection - current wind direction (degrees from North CCW)
+ */
+typedef struct WindState_tag {
+	float windSpeed;
+	float windDirection;
+} WindState;
+
+/* This struct contains the current sailing state
+ * @param linearVelocity - current over-water velocity (m/s)
+ * @param angularVelocity - current rotational velocity (rad/s)
+ * @param heelAngle - current heel angle (degrees from vertical, windward side positive)
+ * @param desiredHeading - desired heading (degrees from North CCW)
+ * @param currentHeading - current heading (degrees from North CCW)
+ */
+typedef struct SailingState_tag {
+	float linearVelocity;
+	float angularVelocity;
+	float heelAngle;
+	float desiredHeading;
+	float currentHeading;
+    float averageLinVelocity;
+    float averageAngVelocity;
+    float averageHeading;
+} SailingState;
+
+/* This struct contains state variables for tacking maneuvers
+ * @param isTacking - whether the boat is currently tacking
+ * @param tackingStartTime - timestamp when tacking started (milliseconds)
+ * @param tackingDuration - expected duration of the tack (milliseconds)
+ * @param initialHeading - heading at the start of the tack (degrees from North CCW)
+ * @param targetHeading - desired heading after the tack (degrees from North CCW)
+ */
+typedef struct TackingState_tag {
+    bool isTacking;
+    float tackingStartTime;
+    float initialHeading;
+    float targetHeading;
+} TackingState;
+
+/* This struct contains state variables for gybing maneuvers
+ * @param isGybing - whether the boat is currently gybing
+ * @param gybingStartTime - timestamp when gybing started (milliseconds)
+ * @param gybingDuration - expected duration of the gybe (milliseconds)
+ * @param initialHeading - heading at the start of the gybe (degrees from North CCW)
+ * @param targetHeading - desired heading after the gybe (degrees from North CCW)
+ */
+typedef struct GybingState_tag {
+    bool isGybing;
+    float gybingStartTime;
+    float initialHeading;
+    float targetHeading;
+} GybingState;
+
+/* This struct represents the overall PID controller fixed coefficients
+ * These coeffs are fixed as they do not change while the boat is under sail
+ * @param standardCoeffs - a series of PID coefficients and related factors that correspond to straight line sailing
+ * @param tackingCoeffs - PID coeffs and the like for tacking
+ * @param gybingCoeffs - PID coeffs and the like for gybing
+ * @param lowWindCoeffs - PID coeffs etc for low wind sailing
+ * @param scalingCoeffs - scale factors for velocity, roll, etc
+ * @param stateThresholds - thresholding values for determining sailing state
+ */
+typedef struct PIDControllerFixed_tag {
+	PIDcoefficients standardCoeffs;
+	PIDcoefficients tackingCoeffs;
+	PIDcoefficients gybingCoeffs;
+	PIDcoefficients lowWindCoeffs;
+	ScalingCoefficients scalingCoeffs;
+	PhysicalParams physicalParams;
+	StateThresholds stateThresholds;
+} PIDControllerFixed;
+
+/* This struct represents the live state of the PID controller
+ * including all values that change dynamically while under sail
+ * @param controllerState - contains time, integral, previous error, etc
+ * @param windState - current wind speed and direction
+ * @param sailingState - current velocity, heading, heel angle, etc
+ * @param activeCoeffs - the currently active PID coefficients based on sailing state
+ * @param tackingState - state variables for tacking maneuvers
+ * @param gybingState - state variables for gybing maneuvers
+ */
+typedef struct PIDControllerLive_tag {
+	ControllerState controllerState;
+	WindState windState;
+	volatile SailingState sailingState;
+    PIDcoefficients activeCoeffs;
+    TackingState tackingState;
+    GybingState gybingState;
+} PIDControllerLive;
+
+/* This struct encapsulates the entire PID controller
+ * @param live - the live state of the controller
+ * @param fixed - the fixed parameters of the controller
+ */
+typedef struct PIDController_tag {
+    PIDControllerLive live;
+    PIDControllerFixed fixed;
+} PIDController;
+
+extern PIDController controller;
+
 /* Enumerates the boat's possible states
  * States should be self explanatory to those familiar with the model
  * Or sailing in general
  * Or the project - boats, idk*/
-typedef enum {
+typedef enum State_tag {
 	STRAIGHT,
 	TACKING,
 	GYBING,
@@ -130,3 +236,5 @@ void updateControllerVariables();
 
 // resets live controller state variables
 void resetController();
+
+#endif /* RUDDER_H_ */
