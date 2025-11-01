@@ -109,22 +109,25 @@ void NMEA0183__IRQHandler(UART_HandleTypeDef *huart){
 				    //Set the next write index
 				    nmea->dataBufferWriteIndex = next;
 				} else {
-				  // If the buffer is full and another message is recieved
-				  // Overwrite the oldest message in the circular buffer
+				   // If the buffer is full and another message is recieved
+				   // Overwrite the oldest message in the circular buffer
 
-          // Copy the raw message to the buffer
-          memcpy(nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceData,
-              nmea->receiveBuffers[1 - nmea->receiveBufferPosition],
-              receivedLength);
+					printf("Overflow!\n\r");
 
-          // Copy message length to the data buffer
-          nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceLength = receivedLength;
+           // Copy the raw message to the buffer
+           memcpy(nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceData,
+               nmea->receiveBuffers[1 - nmea->receiveBufferPosition],
+               receivedLength);
 
-          // Update write index
-				  nmea->dataBufferWriteIndex = next;
+           // Copy message length to the data buffer
+           nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceLength = receivedLength;
 
-				  // Update read index
-				  nmea->dataBufferReadIndex = (nmea->dataBufferReadIndex + 1) % MAX_DATA_BUFFER_SIZE;
+           // Update write index
+				   nmea->dataBufferWriteIndex = next;
+
+				   // Update read index (since it's now outdated)
+				   nmea->dataBufferReadIndex = (nmea->dataBufferReadIndex + 1) % MAX_DATA_BUFFER_SIZE;
+				  
 				}
 
 			} else {
