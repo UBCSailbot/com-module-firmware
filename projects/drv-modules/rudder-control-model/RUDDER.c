@@ -71,18 +71,21 @@ PIDControllerLive initLiveController() {
     cState.currentTime = cState.lastTime;
     // get wind data and initialize wind state
     volatile WindState wState;
-    wState.windSpeed = getWindSpeed();
-    wState.windDirection = getWindDirection();
+    // wState.windSpeed = getWindSpeed();
+    // wState.windDirection = getWindDirection();
     // initialize sailing state and get IMU data
     volatile SailingState sState;
-    sState.linearVelocity = getLinearVelocity();
-    sState.angularVelocity = getAngularVelocity();
-    sState.heelAngle = getHeelAngle();
-    sState.currentHeading = getCurrentHeading();
-    sState.desiredHeading = getDesiredHeading();
+    #ifdef STRAIGHT_ONLY
+    sState.angularVelocity = 0.0f;
+    #endif
+    // sState.linearVelocity = getLinearVelocity();
+    // sState.angularVelocity = getAngularVelocity();
+    // sState.heelAngle = getHeelAngle();
+    // sState.currentHeading = getCurrentHeading();
+    // sState.desiredHeading = getDesiredHeading();
     sState.averageLinVelocity = sState.linearVelocity;
     sState.averageAngVelocity = sState.angularVelocity;
-    sState.averageHeading = sState.currentHeading;
+    // sState.averageHeading = sState.currentHeading;
     // initialize tacking state
     TackingState tState;
     tState.isTacking = false;
@@ -160,7 +163,12 @@ void resetController() {
 
 // Gets a new rudder angle based on the current error
 float getRudderAngle(float currentError) {
+
+    #ifdef TUNING_MODE
+    volatile PIDcoefficients *PID = &controller.fixed.standardCoeffs;
+    #else
     PIDcoefficients *PID = &controller.live.activeCoeffs;
+    #endif
     ControllerState *cState = &controller.live.controllerState;
     ScalingCoefficients *scaling = &controller.fixed.scalingCoeffs;
     PhysicalParams *params = &controller.fixed.physicalParams;
@@ -194,10 +202,14 @@ float getRudderAngle(float currentError) {
     float outputAngle = PID->Kp * currentError + PID->Ki * integral + PID->Kd * derivative;
     // Saving error
     cState->previousFilteredError = cState->filteredError;
-    // Scaling and clamping output and integral    
+    // Scaling and clamping output and integral  
+    
+    #ifdef TUNING_MODE
+    #else
     if(sailing->averageLinVelocity > 0) {
         outputAngle = (scaling->velocityFactor/pow(sailing->averageLinVelocity, 2.0))*(1-scaling->heelFactor*sailing->heelAngle)*outputAngle;
     }
+    #endif
         // limit to max rudder angle
     if(outputAngle > params->outputMax) {
         outputAngle = params->outputMax;
@@ -232,6 +244,7 @@ void updateControllerTime(float currentError) {
 
 // Runs control model based on current sailing state
 void runPID(float *rudderAngle) {
+
     volatile SailingState *sailing = &controller.live.sailingState;
 
     updateControllerVariables();

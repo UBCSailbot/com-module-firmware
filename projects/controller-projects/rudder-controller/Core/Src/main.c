@@ -247,6 +247,9 @@ int main(void)
 	  			  uint32_t pitch = (atof(pitch_data)+180)*1000; //32 bits
 	  			  uint32_t roll = (atof(roll_data)+180)*1000; //32 bits
 
+            controller.live.sailingState.currentHeading = heading / 1000.0f;
+            controller.live.sailingState.heelAngle = (roll / 1000.0f) - 180.0f;          
+
 	  			  printf("Euler Data: %u, %u, %u \x0D\x0A", heading, roll, pitch);
 
 	  			  uint32_t euler[] = {heading, pitch, roll};
@@ -877,11 +880,24 @@ static uint8_t byte_to_dlc(uint8_t len) {
     else return 15;
 }
 
-uint32_t little_endian_bytes_to_uint32(uint8_t * bytes) {
-    return (uint32_t)bytes[0]
-         | ((uint32_t)bytes[1] << 8)
-         | ((uint32_t)bytes[2] << 16)
-         | ((uint32_t)bytes[3] << 24);
+uint32_t little_endian_bytes_to_uint(const uint8_t *bytes, uint8_t length) {
+    uint32_t value = 0;
+    for (uint8_t i = 0; i < length; i++) {
+        value |= ((uint32_t)bytes[i]) << (8 * i);
+    }
+    return value;
+}
+
+uint32_t little_endian_bytes_to_uint32(const uint8_t *bytes) {
+    return little_endian_bytes_to_uint(bytes, 4);
+}
+
+uint16_t little_endian_bytes_to_uint16(const uint8_t *bytes) {
+    return (uint16_t)little_endian_bytes_to_uint(bytes, 2);
+}
+
+uint8_t little_endian_bytes_to_uint8(const uint8_t *bytes) {
+    return (uint8_t)little_endian_bytes_to_uint(bytes, 1);
 }
 
 void unpackGPSData(uint8_t * rxData) {
@@ -890,9 +906,9 @@ void unpackGPSData(uint8_t * rxData) {
 }
 
 void unpackWindData(uint8_t * rxData) {
-    uint32_t raw_wind_direction = little_endian_bytes_to_uint32(&rxData[0]);
-    uint32_t raw_wind_speed = little_endian_bytes_to_uint32(&rxData[4]);
-    controller.live.windState.windDirection = raw_wind_direction; // wind direction in degrees
+    uint16_t raw_wind_direction = little_endian_bytes_to_uint16(&rxData[0]);
+    uint16_t raw_wind_speed = little_endian_bytes_to_uint16(&rxData[4]);
+    controller.live.windState.windDirection = 360 - raw_wind_direction; // wind direction in degrees
     controller.live.windState.windSpeed = raw_wind_speed / 0.194384f; // wind speed in m/s
 }
 
@@ -901,11 +917,16 @@ void unpackHeadingData(uint8_t * rxData) {
     controller.live.sailingState.desiredHeading = raw_heading / 1000; // heading in degrees
 }
 
-void unpackIMUData(uint8_t * rxData) {
-    uint32_t raw_angular_velocity = little_endian_bytes_to_uint32(&rxData[0]);
-    controller.live.sailingState.angularVelocity = raw_angular_velocity / 1000; // angular velocity in rad/s
-}
+void unpackCoefficients(uint8_t * rxData) {
+    // Unpack PID coefficients from rxData and set them in controller settings
+    uint32_t raw_kp = little_endian_bytes_to_uint32(&rxData[0]);
+    uint32_t raw_ki = little_endian_bytes_to_uint32(&rxData[8]);
+    uint32_t raw_kd = little_endian_bytes_to_uint32(&rxData[16]);
 
+    controller.fixed.standardCoeffs.Kp = raw_kp / 1000000.0f;
+    controller.fixed.standardCoeffs.Ki = raw_ki / 1000000.0f;
+    controller.fixed.standardCoeffs.Kd = raw_kd / 1000000.0f;
+}
 void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
   // Need a switch based on rxHeader->Identifier
   // WITHIN EACH CASE, extract data from rxData and set variable in sailing state
@@ -918,7 +939,7 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     // case 0x040: {
     //     // Wind data 1
-    //     void unpackWinData(uint8_t * rxData) {
+    //     void unpackWindData(rxData) {
     // }
 
     case 0x041:
@@ -930,6 +951,11 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
       //GPS Data
       unpackGPSData(rxData);
       break;
+
+    case 0x200:
+        // PID Coefficients
+        unpackCoefficients(rxData);
+        break;
 
     default:
     	break;

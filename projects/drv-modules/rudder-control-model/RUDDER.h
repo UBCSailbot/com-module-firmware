@@ -20,6 +20,7 @@
 #include "MOCK_HARDWARE_FUNCTIONS.h"
 
 #define STRAIGHT_ONLY
+#define TUNING_MODE
 
 /* This struct gives coefficients for a PID controller
  * @param Kp - proportional gain (unitless)
