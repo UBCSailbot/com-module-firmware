@@ -25,6 +25,7 @@
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
 #include "RUDDERPID.h"
+#include "NMEA0183.h"
 #include <stdio.h>
 
 /* USER CODE END Includes */
@@ -93,6 +94,11 @@ static uint8_t dlc_to_bytes(uint8_t len);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+NMEA0183 *ecompass;
+const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,10\x0D\x0A"; //enables PASHR sentence type
+const char GPHDT_FREQ[] = "$JASC,GPHDT,1\x0D\x0A"; //allows heading data received at 10Hz
+
 void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) {
     bytes[0] = (uint8_t)(value & 0xFF);
     bytes[1] = (uint8_t)((value >> 8) & 0xFF);
@@ -149,6 +155,20 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_DAC1_Init();
   /* USER CODE BEGIN 2 */
+
+  ecompass = NMEA0183__create(&huart2);
+
+    //signal sent to initialize PASHR sentence type
+    if(HAL_UART_Transmit(&huart2, (uint8_t *)PASHR_ENABLE_CMD, 15, HAL_MAX_DELAY) != HAL_OK){
+  	  printf("PASHR enable error \x0D\x0A");
+    }
+
+    //signal sent to set the transmission frequency for GPHDT sentence type
+    if(HAL_UART_Transmit(&huart2, (uint8_t*)GPHDT_FREQ, 16, HAL_MAX_DELAY) != HAL_OK){
+  	  printf("GPHDT frequency set error \x0D\x0A");
+    }
+
+
   //CAN Setup
     /* Configure standard ID reception filter to Rx buffer 0 */
     sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -208,13 +228,59 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  while (NMEA0183__itemsInBuffer(ecompass) > 0) {
+	  		  NMEA0183Raw *data = NMEA0183__getTopBufferItem(ecompass);
+	  		  data->scentenceData[data->scentenceLength] = '\0';
+	  		  //testing
+	  		  printf("Message: %s", data->scentenceData);
+
+	  		  printf("Data integrity test: %d\x0D\x0A", NMEA0183__checkMessage(data));
+	  //		  printf("Message type: %s\x0D\x0A", NMEA0183__getField(data, 0));
+
+	  		  if(NMEA0183__getScentenceType(data) == MESSAGE_SHR){
+
+	  			  int8_t *heading_data = NMEA0183__getField(data, 2);
+	  			  int8_t *roll_data = NMEA0183__getField(data, 4);
+	  			  int8_t *pitch_data = NMEA0183__getField(data, 5);
+
+	  			  uint32_t heading = (atof(heading_data)+180)*1000; //32 bits
+	  			  uint32_t pitch = (atof(pitch_data)+180)*1000; //32 bits
+	  			  uint32_t roll = (atof(roll_data)+180)*1000; //32 bits
+
+	  			  printf("Euler Data: %u, %u, %u \x0D\x0A", heading, roll, pitch);
+
+	  			  uint32_t euler[] = {heading, pitch, roll};
+	  			  //Transmission message from receiver board to main board
+	  //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_12, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
+	  //				  Error_Handler();
+	  //			  }
+
+	  		  }
+	  		  else if(NMEA0183__getScentenceType(data) == MESSAGE_HDT){
+	  			  int8_t *heading_data = NMEA0183__getField(data, 1);
+
+	  			  uint32_t heading = (atof(heading_data)+180)*1000;
+	  			  printf("Heading Data: %u \x0D\x0A", heading);
+
+	  			  uint32_t euler[] = {heading};
+	  			  //Transmission message from receiver board to main board
+	  //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
+	  //				  Error_Handler();
+	  //			  }
+	  		  }
+
+	  		  printf("\x0D\x0A");
+
+	  		  NMEA0183__incrementReadIndex(ecompass);
+	  	  }
+	  	  HAL_Delay(50);
+	    }
     runPID(&rudderAngle);
+}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
   /* USER CODE END 3 */
-}
 
 /**
   * @brief System Clock Configuration
