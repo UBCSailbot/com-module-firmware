@@ -26,6 +26,7 @@
 #include "RUDDER_PARAMS.h"
 #include "RUDDERPID.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 /* USER CODE END Includes */
 
@@ -41,7 +42,8 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define CAN_TX_DELAY_MS 100
+#define RUDDER_TO_MAINFRAME_DEBUG_ID 0x204
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -70,7 +72,7 @@ HAL_StatusTypeDef CanStartStatus;
 
 float desiredRudderAngle = 0;
 
-char uartBuffer[128];
+uint8_t * rudder_debug_frame;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -139,7 +141,8 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  //CAN frame ID 0x204 tx_frame
+  rudder_debug_frame = (uint8_t * ) malloc(16);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -218,10 +221,9 @@ int main(void)
     {
       Error_Handler();
     }
-    char uartLine[128];
-      uint8_t canDLC, canData[64];
-      uint32_t canID = 0;
-      uint8_t * txMsg = (uint8_t *) malloc (4);
+
+    uint32_t can_frame_tx_time = HAL_GetTick();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -239,46 +241,57 @@ int main(void)
 
 	  if(NMEA0183__getScentenceType(data) == MESSAGE_SHR){
 
-	    int8_t *heading_data = NMEA0183__getField(data, 2);
-	  	int8_t *roll_data = NMEA0183__getField(data, 4);
-	  	int8_t *pitch_data = NMEA0183__getField(data, 5);
+		//Get IMU data from message
+	  	uint32_t heading = (atof(NMEA0183__getField(data, 2))+180)*100; //32 bits
+	  	uint32_t pitch = (atof(NMEA0183__getField(data, 4))+180)*100; //32 bits
+	  	uint32_t roll = (atof(NMEA0183__getField(data, 5))+180)*100; //32 bits
 
-	  	uint32_t heading = (atof(heading_data)+180)*100; //32 bits
-	  	uint32_t pitch = (atof(pitch_data)+180)*100; //32 bits
-	  	uint32_t roll = (atof(roll_data)+180)*100; //32 bits
+	  	//Update CAN frame
+	  	rudder_debug_frame[2] = roll & 0xFF;
+		rudder_debug_frame[3] = (((uint16_t) roll) >> 8) & 0xFF;
+		rudder_debug_frame[4] = pitch & 0xFF;
+		rudder_debug_frame[5] = (((uint16_t) pitch) >> 8) & 0xFF;
+		rudder_debug_frame[6] = heading & 0xFF;
+		rudder_debug_frame[7] = (((uint16_t) heading) >> 8) & 0xFF;
 
+		//Update controller states
         controller.live.sailingState.currentHeading = heading / 100.0f;
         controller.live.sailingState.heelAngle = (roll / 100.0f) - 180.0f;
 
-	  	printf("Euler Data: %u, %u, %u \x0D\x0A", heading, roll, pitch);
-
-	  	uint32_t euler[] = {heading, pitch, roll};
-	  	//Transmission message from receiver board to main board
-	    //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_12, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
-	    //				  Error_Handler();
-	    //			  }
+	  	printf("Euler Data: %lu, %lu, %lu \x0D\x0A", heading, roll, pitch);
 
 	  	}
-	  	else if(NMEA0183__getScentenceType(data) == MESSAGE_HDT){
-	  	  int8_t *heading_data = NMEA0183__getField(data, 1);
-
-	  	  uint32_t heading = (atof(heading_data)+180)*1000;
-	  	  printf("Heading Data: %u \x0D\x0A", heading);
-
-	  	  uint32_t euler[] = {heading};
-	  	  //Transmission message from receiver board to main board
-	  	  //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
-	  	  //				  Error_Handler();
-	  	  //			  }
-	  	}
-
-	  	printf("\x0D\x0A");
-
+//Same data as above, easier for now to just do the one
+	  //	  	else if(NMEA0183__getScentenceType(data) == MESSAGE_HDT){
+//	  	  int8_t *heading_data = NMEA0183__getField(data, 1);
+//
+//	  	  uint32_t heading = (atof(heading_data)+180)*1000;
+//	  	  printf("Heading Data: %u \x0D\x0A", heading);
+//
+//	  	  uint32_t euler[] = {heading};
+//	  	}
 	  	NMEA0183__incrementReadIndex(ecompass);
 	  }
 	  HAL_Delay(50);
+	  runPID(&rudderAngle);
+
+	  //Transmit CAN message after so long
+	  if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
+		  TxHeader1.Identifier         = RUDDER_TO_MAINFRAME_DEBUG_ID;
+		  TxHeader1.IdType             = (RUDDER_TO_MAINFRAME_DEBUG_ID>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+		  TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
+		  TxHeader1.DataLength         = byte_to_dlc(16);  /* HAL expects DLC in bits [19:16] */
+		  TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
+		  TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
+		  TxHeader1.FDFormat           = FDCAN_FD_CAN;
+		  TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
+
+		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
+			printf("Error\r\n");
+		  }
+	  }
 	}
-    runPID(&rudderAngle);
+
 
     /* USER CODE END WHILE */
 
@@ -958,11 +971,13 @@ void unpackCoefficients(uint8_t * rxData) {
 void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
   // Need a switch based on rxHeader->Identifier
   // WITHIN EACH CASE, extract data from rxData and set variable in sailing state
+	uint8_t length = dlc_to_bytes(RxHeader1.DataLength);
   switch(rxHeader->Identifier) {
 
     case 0x001:
         // Desired heading
-        unpackHeadingData(rxData);
+    	if (length == 5)
+    		unpackHeadingData(rxData);
         break;
 
     // case 0x040: {
@@ -972,7 +987,8 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     case 0x041:
         // Wind data 2
-        unpackWindData(rxData);
+    	if (length == 4)
+    		unpackWindData(rxData);
         break;
 
 //Won't get x070 frame this test
@@ -983,7 +999,8 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     case 0x200:
         // PID Coefficients
-        unpackCoefficients(rxData);
+    	if (length == 12)
+    		unpackCoefficients(rxData);
         break;
 
     default:
