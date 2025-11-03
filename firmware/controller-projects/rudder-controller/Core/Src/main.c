@@ -18,13 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
 #include "RUDDERPID.h"
-#include "NMEA0183.h"
 #include <stdio.h>
 
 /* USER CODE END Includes */
@@ -54,6 +54,7 @@ FDCAN_HandleTypeDef hfdcan1;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
+DMA_HandleTypeDef handle_GPDMA1_Channel9;
 DMA_HandleTypeDef handle_GPDMA1_Channel15;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -77,15 +78,15 @@ void SystemClock_Config(void);
 static void SystemPower_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_UCPD1_Init(void);
-static void MX_USART1_UART_Init(void);
-static void MX_FDCAN1_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_USART3_UART_Init(void);
+static void MX_ADC1_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_USART1_UART_Init(void);
 static void MX_DAC1_Init(void);
+static void MX_FDCAN1_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 static uint8_t byte_to_dlc(uint8_t len);
 static uint8_t dlc_to_bytes(uint8_t len);
@@ -144,15 +145,15 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_GPDMA1_Init();
-  MX_ADC1_Init();
   MX_ICACHE_Init();
   MX_UCPD1_Init();
-  MX_USART1_UART_Init();
-  MX_FDCAN1_Init();
-  MX_USART2_UART_Init();
-  MX_USART3_UART_Init();
+  MX_ADC1_Init();
   MX_USB_OTG_FS_PCD_Init();
+  MX_USART2_UART_Init();
+  MX_USART1_UART_Init();
   MX_DAC1_Init();
+  MX_FDCAN1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
   ecompass = NMEA0183__create(&huart2);
@@ -227,62 +228,63 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  while (NMEA0183__itemsInBuffer(ecompass) > 0) {
-	  		  NMEA0183Raw *data = NMEA0183__getTopBufferItem(ecompass);
-	  		  data->scentenceData[data->scentenceLength] = '\0';
-	  		  //testing
-	  		  printf("Message: %s", data->scentenceData);
+	while (NMEA0183__itemsInBuffer(ecompass) > 0) {
+	  NMEA0183Raw *data = NMEA0183__getTopBufferItem(ecompass);
+	  data->scentenceData[data->scentenceLength] = '\0';
+	  //testing
+	  printf("Message: %s", data->scentenceData);
 
-	  		  printf("Data integrity test: %d\x0D\x0A", NMEA0183__checkMessage(data));
+	  printf("Data integrity test: %d\x0D\x0A", NMEA0183__checkMessage(data));
 	  //		  printf("Message type: %s\x0D\x0A", NMEA0183__getField(data, 0));
 
-	  		  if(NMEA0183__getScentenceType(data) == MESSAGE_SHR){
+	  if(NMEA0183__getScentenceType(data) == MESSAGE_SHR){
 
-	  			  int8_t *heading_data = NMEA0183__getField(data, 2);
-	  			  int8_t *roll_data = NMEA0183__getField(data, 4);
-	  			  int8_t *pitch_data = NMEA0183__getField(data, 5);
+	    int8_t *heading_data = NMEA0183__getField(data, 2);
+	  	int8_t *roll_data = NMEA0183__getField(data, 4);
+	  	int8_t *pitch_data = NMEA0183__getField(data, 5);
 
-	  			  uint32_t heading = (atof(heading_data)+180)*1000; //32 bits
-	  			  uint32_t pitch = (atof(pitch_data)+180)*1000; //32 bits
-	  			  uint32_t roll = (atof(roll_data)+180)*1000; //32 bits
+	  	uint32_t heading = (atof(heading_data)+180)*100; //32 bits
+	  	uint32_t pitch = (atof(pitch_data)+180)*100; //32 bits
+	  	uint32_t roll = (atof(roll_data)+180)*100; //32 bits
 
-            controller.live.sailingState.currentHeading = heading / 1000.0f;
-            controller.live.sailingState.heelAngle = (roll / 1000.0f) - 180.0f;          
+        controller.live.sailingState.currentHeading = heading / 100.0f;
+        controller.live.sailingState.heelAngle = (roll / 100.0f) - 180.0f;
 
-	  			  printf("Euler Data: %u, %u, %u \x0D\x0A", heading, roll, pitch);
+	  	printf("Euler Data: %u, %u, %u \x0D\x0A", heading, roll, pitch);
 
-	  			  uint32_t euler[] = {heading, pitch, roll};
-	  			  //Transmission message from receiver board to main board
-	  //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_12, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
-	  //				  Error_Handler();
-	  //			  }
+	  	uint32_t euler[] = {heading, pitch, roll};
+	  	//Transmission message from receiver board to main board
+	    //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_12, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
+	    //				  Error_Handler();
+	    //			  }
 
-	  		  }
-	  		  else if(NMEA0183__getScentenceType(data) == MESSAGE_HDT){
-	  			  int8_t *heading_data = NMEA0183__getField(data, 1);
+	  	}
+	  	else if(NMEA0183__getScentenceType(data) == MESSAGE_HDT){
+	  	  int8_t *heading_data = NMEA0183__getField(data, 1);
 
-	  			  uint32_t heading = (atof(heading_data)+180)*1000;
-	  			  printf("Heading Data: %u \x0D\x0A", heading);
+	  	  uint32_t heading = (atof(heading_data)+180)*1000;
+	  	  printf("Heading Data: %u \x0D\x0A", heading);
 
-	  			  uint32_t euler[] = {heading};
-	  			  //Transmission message from receiver board to main board
-	  //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
-	  //				  Error_Handler();
-	  //			  }
-	  		  }
+	  	  uint32_t euler[] = {heading};
+	  	  //Transmission message from receiver board to main board
+	  	  //			  if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, (uint8_t *) euler, &hfdcan1) != HAL_OK) {
+	  	  //				  Error_Handler();
+	  	  //			  }
+	  	}
 
-	  		  printf("\x0D\x0A");
+	  	printf("\x0D\x0A");
 
-	  		  NMEA0183__incrementReadIndex(ecompass);
-	  	  }
-	  	  HAL_Delay(50);
-	    }
+	  	NMEA0183__incrementReadIndex(ecompass);
+	  }
+	  HAL_Delay(50);
+	}
     runPID(&rudderAngle);
-}
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
+}
 
 /**
   * @brief System Clock Configuration
@@ -478,20 +480,20 @@ static void MX_FDCAN1_Init(void)
 
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
-  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
-  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_NO_BRS;
-  hfdcan1.Init.Mode = FDCAN_MODE_EXTERNAL_LOOPBACK;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV4;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
+  hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = ENABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
-  hfdcan1.Init.NominalPrescaler = 5;
+  hfdcan1.Init.NominalPrescaler = 4;
   hfdcan1.Init.NominalSyncJumpWidth = 3;
   hfdcan1.Init.NominalTimeSeg1 = 16;
   hfdcan1.Init.NominalTimeSeg2 = 3;
-  hfdcan1.Init.DataPrescaler = 2;
-  hfdcan1.Init.DataSyncJumpWidth = 11;
-  hfdcan1.Init.DataTimeSeg1 = 13;
-  hfdcan1.Init.DataTimeSeg2 = 11;
+  hfdcan1.Init.DataPrescaler = 1;
+  hfdcan1.Init.DataSyncJumpWidth = 16;
+  hfdcan1.Init.DataTimeSeg1 = 23;
+  hfdcan1.Init.DataTimeSeg2 = 16;
   hfdcan1.Init.StdFiltersNbr = 1;
   hfdcan1.Init.ExtFiltersNbr = 1;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
@@ -521,6 +523,8 @@ static void MX_GPDMA1_Init(void)
   __HAL_RCC_GPDMA1_CLK_ENABLE();
 
   /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel9_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel9_IRQn);
     HAL_NVIC_SetPriority(GPDMA1_Channel15_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(GPDMA1_Channel15_IRQn);
 
@@ -671,7 +675,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
+  huart2.Init.BaudRate = 9600;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -719,7 +723,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
+  huart3.Init.BaudRate = 19200;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -801,13 +805,17 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0|GPIO_PIN_1|LED_RED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
@@ -820,6 +828,27 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PF13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PG0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PG1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
   /*Configure GPIO pin : UCPD_FLT_Pin */
   GPIO_InitStruct.Pin = UCPD_FLT_Pin;
@@ -919,8 +948,8 @@ void unpackHeadingData(uint8_t * rxData) {
 void unpackCoefficients(uint8_t * rxData) {
     // Unpack PID coefficients from rxData and set them in controller settings
     uint32_t raw_kp = little_endian_bytes_to_uint32(&rxData[0]);
-    uint32_t raw_ki = little_endian_bytes_to_uint32(&rxData[8]);
-    uint32_t raw_kd = little_endian_bytes_to_uint32(&rxData[16]);
+    uint32_t raw_ki = little_endian_bytes_to_uint32(&rxData[4]);
+    uint32_t raw_kd = little_endian_bytes_to_uint32(&rxData[8]);
 
     controller.fixed.standardCoeffs.Kp = raw_kp / 1000000.0f;
     controller.fixed.standardCoeffs.Ki = raw_ki / 1000000.0f;
@@ -946,10 +975,11 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
         unpackWindData(rxData);
         break;
 
-    case 0x070:
-      //GPS Data
-      unpackGPSData(rxData);
-      break;
+//Won't get x070 frame this test
+//    case 0x070:
+//      //GPS Data
+//      unpackGPSData(rxData);
+//      break;
 
     case 0x200:
         // PID Coefficients
@@ -987,7 +1017,6 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
 #ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number

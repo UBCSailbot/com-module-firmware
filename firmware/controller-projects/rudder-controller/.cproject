@@ -51,7 +51,7 @@
 									<listOptionValue builtIn="false" value="../Drivers/CMSIS/Include"/>
 									<listOptionValue builtIn="false" value="../../../drv-modules/rudder-control-model"/>
 									<listOptionValue builtIn="false" value="../../../drv-modules/motor-base-PID"/>
-									<listOptionValue builtIn="false" value="../rudder-controller/Drivers/STM32U5xx_HAL_Driver/Inc/stm32u5xx_hal_dac.h"/>
+									<listOptionValue builtIn="false" value="../../../drv-modules/nmea0183"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.1486740753" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
@@ -80,10 +80,9 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="rudder-control-model"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="motor-base-PID"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="nmea0183"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
-						<entry excluding="Archive/" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="motor-base-PID"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
