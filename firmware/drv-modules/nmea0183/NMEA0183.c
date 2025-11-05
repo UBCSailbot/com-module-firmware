@@ -67,8 +67,8 @@ void NMEA0183__destroy(NMEA0183* self){
 void NMEA0183__IRQHandler(UART_HandleTypeDef *huart){
 	for(int i = 0; i < MAX_NMEA_CHANNELS; i++){
 		if(huartNMEALookup[i][0] == huart->Instance){
+			NMEA0183 * nmea = huartNMEALookup[i][1];
 			if(READ_BIT(huart->Instance->ISR, USART_ISR_CMF)){ //Check if character matches
-				NMEA0183 * nmea = huartNMEALookup[i][1];
 
 				//stop receiving data
 				HAL_UART_DMAStop(huart);
@@ -126,13 +126,25 @@ void NMEA0183__IRQHandler(UART_HandleTypeDef *huart){
 				   nmea->dataBufferWriteIndex = next;
 
 				   // Update read index (since it's now outdated)
-				   nmea->dataBufferReadIndex = (nmea->dataBufferReadIndex + 1) % MAX_DATA_BUFFER_SIZE;
+				   nmea->dataBufferReadIndex = (nmea->dataBufferReadIndex + 2) % MAX_DATA_BUFFER_SIZE;
 				  
 				}
 
 			} else {
 				//No CM IRQ (should not happen)
-				Error_Handler();
+				//Restart the reception
+				HAL_UART_DMAStop(huart);
+				__HAL_UART_CLEAR_OREFLAG(huart);
+				__HAL_UART_CLEAR_FEFLAG(huart);
+				__HAL_UART_CLEAR_NEFLAG(huart);
+				__HAL_UART_CLEAR_PEFLAG(huart);
+				__HAL_UART_CLEAR_IDLEFLAG(huart);
+				WRITE_REG(huart->Instance->ICR, USART_ICR_CMCF);
+
+				nmea->receiveBufferPosition = 1 - nmea->receiveBufferPosition;
+				HAL_UART_Receive_DMA(huart,
+										nmea->receiveBuffers[nmea->receiveBufferPosition],
+										MAX_SENTENCE_LENGTH + 1);
 			}
 			break;
 		}
