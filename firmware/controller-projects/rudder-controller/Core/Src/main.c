@@ -25,6 +25,7 @@
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
 #include "RUDDERPID.h"
+#include "BRITER.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -44,6 +45,7 @@
 /* USER CODE BEGIN PM */
 #define CAN_TX_DELAY_MS 100
 #define RUDDER_TO_MAINFRAME_DEBUG_ID 0x204
+#define CONTROL_MODEL_PARAMS_ID 0x200
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -96,6 +98,14 @@ static uint8_t dlc_to_bytes(uint8_t len);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+BRITER * encoderObject;
+int get_encoder_delta(int prev, int curr) {
+      int delta = curr - prev;
+      if (delta > 512) delta -= 1024;
+      if (delta < -512) delta += 1024;
+      return delta;
+  }
 
 NMEA0183 *ecompass;
 const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,10\x0D\x0A"; //enables PASHR sentence type
@@ -274,6 +284,23 @@ int main(void)
 	  }
 	  HAL_Delay(50);
 	  runPID(&rudderAngle);
+
+    	  	//Update CAN frame
+    currentError = controller.live.liveValues.errorValue
+    currentDerivative = controller.live.liveValues.derivativeValue
+    currentIntegral = controller.live.liveValues.integralValue
+    current_rudder_angle = BRITER__floatAngle(encoderObject);
+    rudder_debug_frame[0] = current_rudder_angle & 0xFF;
+    rudder_debug_frame[1] = (((uint16_t) current_rudder_angle) >> 8) & 0xFF;
+	  rudder_debug_frame[8] = rudderAngle & 0xFF;
+		rudder_debug_frame[9] = (((uint16_t) rudderAngle) >> 8) & 0xFF;
+    rudder_debug_frame[10] = currentIntegral & 0xFF;
+    rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
+    rudder_debug_frame[12] = currentDerivative & 0xFF;
+    rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
+    rudder_debug_frame[14] = currentError & 0xFF;
+    rudder_debug_frame[15] = (((uint16_t) currentError) >> 8) & 0xFF;
+
 
 	  //Transmit CAN message after so long
 	  if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
@@ -903,6 +930,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
+	BRITER__handleDMA(encoderObject, huart, size);
+	PI_Motor(desiredRudderAngle, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
+}
+
 static uint8_t dlc_to_bytes(uint8_t dlc) {
     static const uint8_t dlc_lut[16] = {
         0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64
@@ -1029,6 +1061,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+  Disable_Motor();
   while (1)
   {
   }

@@ -166,6 +166,12 @@ typedef struct {
     float targetHeading;
 } GybingState;
 
+typedef struct {
+	float integralValue;
+	float derivativeValue;
+	float errorValue;
+} LiveValues;
+
 /* This struct represents the overall PID controller fixed coefficients
  * These coeffs are fixed as they do not change while the boat is under sail
  * @param standardCoeffs - a series of PID coefficients and related factors that correspond to straight line sailing
@@ -201,6 +207,7 @@ typedef struct {
     PIDcoefficients activeCoeffs;
     TackingState tackingState;
     GybingState gybingState;
+	LiveValues liveValues;
 } PIDControllerLive;
 
 /* This struct encapsulates the entire PID controller

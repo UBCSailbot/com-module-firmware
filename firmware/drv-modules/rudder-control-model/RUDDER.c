@@ -173,6 +173,9 @@ float getRudderAngle(float currentError) {
     ScalingCoefficients *scaling = &controller.fixed.scalingCoeffs;
     PhysicalParams *params = &controller.fixed.physicalParams;
     volatile SailingState *sailing = &controller.live.sailingState;
+    LiveValues *vals = &controller.live.liveValues;
+
+    vals->errorValue = currentError;
 
 	cState->currentTime = HAL_GetTick();
 	float dt = cState->currentTime -  cState->lastTime;
@@ -186,6 +189,8 @@ float getRudderAngle(float currentError) {
         integral = -integralMax;
     }
 
+    vals->integralValue = integral;
+
     // Save the clamped integral back
     cState->integralError = integral;
     // Low pass filtering the derivative
@@ -197,7 +202,8 @@ float getRudderAngle(float currentError) {
         derivative = 0;
     } else {
         derivative = (cState->filteredError - cState->previousFilteredError) / dt;
-    }    
+    }   
+    vals->derivativeValue = derivative; 
     // Calculating PID output
     float outputAngle = PID->Kp * currentError + PID->Ki * integral + PID->Kd * derivative;
     // Saving error
