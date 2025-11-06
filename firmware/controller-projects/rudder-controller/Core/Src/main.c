@@ -1049,6 +1049,16 @@ void HAL_FDCAN_RxFifo0MsgPendingCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t R
     }
     // Process the received message
     processCANFrames(&RxHeader1, RxData1);
+
+    if(RxHeader1.Identifier == 0x001 && length == 5){
+		if(RxData1[4] >> 7 == 1){
+			printf("Manual Mode\r\n");
+		} else
+			printf("Auto Mode\r\n");
+
+		uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
+		desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
+	}
 }
 /* USER CODE END 4 */
 
