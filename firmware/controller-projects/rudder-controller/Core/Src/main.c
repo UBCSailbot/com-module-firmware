@@ -96,6 +96,14 @@ static void MX_DAC1_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
+#ifdef __GNUC__
+/* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+   set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
 static uint8_t byte_to_dlc(uint8_t len);
 static uint8_t dlc_to_bytes(uint8_t len);
 /* USER CODE END PFP */
@@ -132,10 +140,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
-  PIDControllerFixed fixedController = getRudderFixedParams();
-  initController(fixedController);
-  float rudderAngle = 0.0f;
   
   /* USER CODE END 1 */
 
@@ -157,6 +161,10 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   //CAN frame ID 0x204 tx_frame
   rudder_debug_frame = (uint8_t * ) malloc(16);
+
+  PIDControllerFixed fixedController = getRudderFixedParams();
+  initController(fixedController);
+  float rudderAngle = 0.0f;
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -173,15 +181,15 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  ecompass = NMEA0183__create(&huart2);
+  ecompass = NMEA0183__create(&huart3);
 
     //signal sent to initialize PASHR sentence type
-    if(HAL_UART_Transmit(&huart2, (uint8_t *)PASHR_ENABLE_CMD, 15, HAL_MAX_DELAY) != HAL_OK){
+    if(HAL_UART_Transmit(&huart3, (uint8_t *)PASHR_ENABLE_CMD, 15, HAL_MAX_DELAY) != HAL_OK){
   	  printf("PASHR enable error \x0D\x0A");
     }
 
     //signal sent to set the transmission frequency for GPHDT sentence type
-    if(HAL_UART_Transmit(&huart2, (uint8_t*)GPHDT_FREQ, 16, HAL_MAX_DELAY) != HAL_OK){
+    if(HAL_UART_Transmit(&huart3, (uint8_t*)GPHDT_FREQ, 16, HAL_MAX_DELAY) != HAL_OK){
   	  printf("GPHDT frequency set error \x0D\x0A");
     }
 
@@ -237,6 +245,8 @@ int main(void)
     }
 
     uint32_t can_frame_tx_time = HAL_GetTick();
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
+    encoderObject = BRITER__create(&huart2, 20);
 
   /* USER CODE END 2 */
 
@@ -291,6 +301,8 @@ int main(void)
 	  if (controller_mode == 0)
 		  runPID(&rudderAngle);
 
+
+
     	  	//Update CAN frame
     uint16_t currentError = controller.live.liveValues.errorValue * 100;
     rudder_debug_frame[14] = currentError & 0xFF;
@@ -307,14 +319,11 @@ int main(void)
     uint16_t current_rudder_angle = (BRITER__floatAngle(encoderObject) + 90) * 100;
     rudder_debug_frame[0] = current_rudder_angle & 0xFF;
     rudder_debug_frame[1] = (((uint16_t) current_rudder_angle) >> 8) & 0xFF;
+    printf("Rudder angle: %f\r\n", BRITER__floatAngle(encoderObject));
 
     uint16_t commanded_rudder_angle = (rudderAngle + 90) * 100;
 	rudder_debug_frame[8] = commanded_rudder_angle & 0xFF;
 	rudder_debug_frame[9] = (((uint16_t) commanded_rudder_angle) >> 8) & 0xFF;
-
-
-
-
 
 	  //Transmit CAN message after so long
 	  if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
@@ -944,6 +953,15 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+PUTCHAR_PROTOTYPE
+{
+  /* Place your implementation of fputc here */
+  /* e.g. write a character to the USART1 and Loop until the end of transmission */
+  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
+
+  return ch;
+}
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
 	PI_Motor(desiredRudderAngle, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));

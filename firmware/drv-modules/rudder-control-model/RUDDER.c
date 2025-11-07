@@ -42,7 +42,7 @@
 #include <stdbool.h>
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
-#include "MOCK_HARDWARE_FUNCTIONS.h"
+//#include "MOCK_HARDWARE_FUNCTIONS.h"
 
 #define WINDOW_SIZE 10
 
@@ -117,13 +117,13 @@ void initController(PIDControllerFixed fixedController) {
 
 void updateControllerVariables () {
     // Update the sailing and sea state in the controller
-    controller.live.windState.windSpeed = getWindSpeed();
-    controller.live.windState.windDirection = getWindDirection();
-    controller.live.sailingState.linearVelocity = getLinearVelocity();
-    controller.live.sailingState.angularVelocity = getAngularVelocity();
-    controller.live.sailingState.heelAngle = getHeelAngle();
-    controller.live.sailingState.currentHeading = getCurrentHeading();
-    controller.live.sailingState.desiredHeading = getDesiredHeading();
+//    controller.live.windState.windSpeed = getWindSpeed();
+//    controller.live.windState.windDirection = getWindDirection();
+//    controller.live.sailingState.linearVelocity = getLinearVelocity();
+//    controller.live.sailingState.angularVelocity = getAngularVelocity();
+//    controller.live.sailingState.heelAngle = getHeelAngle();
+//    controller.live.sailingState.currentHeading = getCurrentHeading();
+//    controller.live.sailingState.desiredHeading = getDesiredHeading();
     updateAverages();
 }
 

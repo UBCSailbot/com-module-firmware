@@ -17,7 +17,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "MOCK_HARDWARE_FUNCTIONS.h"
+//#include "MOCK_HARDWARE_FUNCTIONS.h"
 
 #define STRAIGHT_ONLY
 #define TUNING_MODE
