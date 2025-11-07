@@ -247,6 +247,20 @@ int main(void)
     uint32_t can_frame_tx_time = HAL_GetTick();
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
     encoderObject = BRITER__create(&huart2, 20);
+    MOTOR_CONFIG motorConfig = {
+            .motorDacPeripheral = &hdac1,
+            .motorDacChannel = DAC_CHANNEL_2,
+            .enableGPIOPeripheral = GPIOG,
+            .enableGPIOPin = GPIO_PIN_1,
+            .reverseGPIOPeripheral = GPIOF,
+            .reverseGPIOPin = GPIO_PIN_13
+      };
+    Setup_Motor(motorConfig);
+    HAL_Delay(1000);
+   Set_Motor_Raw(0);
+
+   HAL_Delay(2000);
+   Enable_Motor();
 
   /* USER CODE END 2 */
 
