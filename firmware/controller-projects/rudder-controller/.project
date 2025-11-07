@@ -33,6 +33,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>briter-encoders</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
+		</link>
+		<link>
 			<name>motor-base-PID</name>
 			<type>2</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/motor-base-PID</locationURI>

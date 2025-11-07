@@ -75,6 +75,10 @@ HAL_StatusTypeDef CanStartStatus;
 float desiredRudderAngle = 0;
 
 uint8_t * rudder_debug_frame;
+
+//0 = auto mode, 1 = manual
+uint8_t controller_mode = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -283,23 +287,33 @@ int main(void)
 	  	NMEA0183__incrementReadIndex(ecompass);
 	  }
 	  HAL_Delay(50);
-	  runPID(&rudderAngle);
+
+	  if (controller_mode == 0)
+		  runPID(&rudderAngle);
 
     	  	//Update CAN frame
-    currentError = controller.live.liveValues.errorValue
-    currentDerivative = controller.live.liveValues.derivativeValue
-    currentIntegral = controller.live.liveValues.integralValue
-    current_rudder_angle = BRITER__floatAngle(encoderObject);
-    rudder_debug_frame[0] = current_rudder_angle & 0xFF;
-    rudder_debug_frame[1] = (((uint16_t) current_rudder_angle) >> 8) & 0xFF;
-	  rudder_debug_frame[8] = rudderAngle & 0xFF;
-		rudder_debug_frame[9] = (((uint16_t) rudderAngle) >> 8) & 0xFF;
-    rudder_debug_frame[10] = currentIntegral & 0xFF;
-    rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
-    rudder_debug_frame[12] = currentDerivative & 0xFF;
-    rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
+    uint16_t currentError = controller.live.liveValues.errorValue * 100;
     rudder_debug_frame[14] = currentError & 0xFF;
     rudder_debug_frame[15] = (((uint16_t) currentError) >> 8) & 0xFF;
+
+    uint16_t currentDerivative = controller.live.liveValues.derivativeValue * 100;
+    rudder_debug_frame[12] = currentDerivative & 0xFF;
+    rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
+
+    uint16_t currentIntegral = controller.live.liveValues.integralValue * 100;
+    rudder_debug_frame[10] = currentIntegral & 0xFF;
+    rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
+
+    uint16_t current_rudder_angle = (BRITER__floatAngle(encoderObject) + 90) * 100;
+    rudder_debug_frame[0] = current_rudder_angle & 0xFF;
+    rudder_debug_frame[1] = (((uint16_t) current_rudder_angle) >> 8) & 0xFF;
+
+    uint16_t commanded_rudder_angle = (rudderAngle + 90) * 100;
+	rudder_debug_frame[8] = commanded_rudder_angle & 0xFF;
+	rudder_debug_frame[9] = (((uint16_t) commanded_rudder_angle) >> 8) & 0xFF;
+
+
+
 
 
 	  //Transmit CAN message after so long
@@ -1008,8 +1022,19 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     case 0x001:
         // Desired heading
-    	if (length == 5)
-    		unpackHeadingData(rxData);
+    	if (length == 5){
+    		if(RxData1[4] >> 7 == 1){
+    			printf("Manual Mode\r\n");
+    			controller_mode = 1;
+    			uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
+    			desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
+    		} else {
+    			printf("Auto Mode\r\n");
+    			controller_mode = 0;
+    			unpackHeadingData(rxData);
+    		}
+    	}
+
         break;
 
     // case 0x040: {
@@ -1049,16 +1074,6 @@ void HAL_FDCAN_RxFifo0MsgPendingCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t R
     }
     // Process the received message
     processCANFrames(&RxHeader1, RxData1);
-
-    if(RxHeader1.Identifier == 0x001 && length == 5){
-		if(RxData1[4] >> 7 == 1){
-			printf("Manual Mode\r\n");
-		} else
-			printf("Auto Mode\r\n");
-
-		uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
-		desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
-	}
 }
 /* USER CODE END 4 */
 
