@@ -31,10 +31,10 @@
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #define MAX_NMEA_CHANNELS 3 		//The maximum number of NMEA0183 channels. This is hardware limited based on there only being 3 UART channels. Don't change this value
-#define BUFFER_SIZE 8 				//The number of bytes to buffer prior to calling an interrupt.
+#define BUFFER_SIZE 80 				//The number of bytes to buffer prior to calling an interrupt.
 #define MAX_SENTENCE_LENGTH 127 	//The maximum number of bytes in a NMEA0183 sentence. The standard limit is 82, but some devices do not follow convention, hence extra room
 
-#define MAX_DATA_BUFFER_SIZE 8
+#define MAX_DATA_BUFFER_SIZE 80
 
 //Constants for different NMEA data types. This is encoded as follows:
 //		00000000aaaaaaaabbbbbbbbcccccccc Where the bits are the ASCII abbreviation of the data type: "CBA".

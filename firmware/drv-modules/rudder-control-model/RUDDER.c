@@ -95,6 +95,7 @@ PIDControllerLive initLiveController() {
     gState.isGybing = false;
     live.gybingState = gState;
     // assign states to live controller
+    LiveValues liveVals;
 
     PIDcoefficients activeCoeffs;
 
@@ -104,6 +105,7 @@ PIDControllerLive initLiveController() {
     live.sailingState = sState;
     live.tackingState = tState;
     live.gybingState = gState;
+    live.liveValues = liveVals;
 
     return live;
 }
