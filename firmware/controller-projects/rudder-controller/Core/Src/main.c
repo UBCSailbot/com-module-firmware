@@ -330,18 +330,18 @@ int main(void)
 
     	  	//Update CAN frame
     uint16_t currentError = controller.live.liveValues.errorValue * 100;
-    printf("current error: %hu \n", currentError);
+    printf("current error: %f \r\n", controller.live.liveValues.errorValue);
     rudder_debug_frame[14] = currentError & 0xFF;
     rudder_debug_frame[15] = (((uint16_t) currentError) >> 8) & 0xFF;
 
-    uint16_t currentDerivative = controller.live.liveValues.derivativeValue * 100;
+    uint16_t currentDerivative = (controller.live.liveValues.derivativeValue + 300) * 100;
     rudder_debug_frame[12] = currentDerivative & 0xFF;
-    printf("currentderivative: %hu \n", currentDerivative);
+    printf("currentderivative: %f \r\n", controller.live.liveValues.derivativeValue);
     rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
 
-    uint16_t currentIntegral = controller.live.liveValues.integralValue * 100;
+    uint16_t currentIntegral = controller.live.liveValues.integralValue + 30000;
     rudder_debug_frame[10] = currentIntegral & 0xFF;
-    printf("current integral: %hu \n", currentIntegral);
+    printf("current integral: %u \r\n", currentIntegral);
     rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
 
     uint16_t current_rudder_angle = (BRITER__floatAngle(encoderObject) + 90) * 100;
@@ -350,7 +350,7 @@ int main(void)
 //    printf("Rudder angle: %f\r\n", BRITER__floatAngle(encoderObject));
 
     uint16_t commanded_rudder_angle = (desiredRudderAngle + 90) * 100;
-    printf("Commanded rudder angle: %hu\n desiredRudderAngle: %f\n", commanded_rudder_angle, desiredRudderAngle);
+//    printf("Commanded rudder angle: %hu\n desiredRudderAngle: %f\n", commanded_rudder_angle, desiredRudderAngle);
 	rudder_debug_frame[8] = commanded_rudder_angle & 0xFF;
 	rudder_debug_frame[9] = (((uint16_t) commanded_rudder_angle) >> 8) & 0xFF;
 
@@ -1050,7 +1050,9 @@ void unpackWindData(uint8_t * rxData) {
 
 void unpackHeadingData(uint8_t * rxData) {
     uint32_t raw_heading = little_endian_bytes_to_uint32(&rxData[0]);
-    controller.live.sailingState.desiredHeading = (360-raw_heading) / 1000; // heading in degrees
+    printf("Raw heading: %lu \r\n", raw_heading);
+    controller.live.sailingState.desiredHeading = 360-(((float) raw_heading) / 1000); // heading in degrees
+    printf("Command heading: %f \r\n", controller.live.sailingState.desiredHeading);
 }
 
 void unpackCoefficients(uint8_t * rxData) {
@@ -1062,6 +1064,10 @@ void unpackCoefficients(uint8_t * rxData) {
     controller.fixed.standardCoeffs.Kp = raw_kp / 1000000.0f;
     controller.fixed.standardCoeffs.Ki = raw_ki / 1000000.0f;
     controller.fixed.standardCoeffs.Kd = raw_kd / 1000000.0f;
+
+    printf("KP: %f\r\n", controller.fixed.standardCoeffs.Kp);
+    printf("KI: %f\r\n", controller.fixed.standardCoeffs.Ki);
+	printf("KD: %f\r\n", controller.fixed.standardCoeffs.Kd);
 }
 void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
   // Need a switch based on rxHeader->Identifier
@@ -1079,6 +1085,11 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
     			desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
     		} else {
 //    			printf("Auto Mode\r\n");
+    			if (controller_mode == 1){
+    				controller.live.controllerState.lastTime = HAL_GetTick();
+    				controller.live.controllerState.integralError = 0;
+    				controller.live.controllerState.previousError = 0;
+    			}
     			controller_mode = 0;
     			unpackHeadingData(rxData);
     		}

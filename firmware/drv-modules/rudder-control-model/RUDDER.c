@@ -167,9 +167,9 @@ void resetController() {
 float getRudderAngle(float currentError) {
 
     #ifdef TUNING_MODE
-    volatile PIDcoefficients *PID = &controller.fixed.standardCoeffs;
+    	volatile PIDcoefficients *PID = &controller.fixed.standardCoeffs;
     #else
-    PIDcoefficients *PID = &controller.live.activeCoeffs;
+    	PIDcoefficients *PID = &controller.live.activeCoeffs;
     #endif
     ControllerState *cState = &controller.live.controllerState;
     ScalingCoefficients *scaling = &controller.fixed.scalingCoeffs;
@@ -183,6 +183,11 @@ float getRudderAngle(float currentError) {
 	float dt = cState->currentTime -  cState->lastTime;
     // Calculating the integral addition
     float integral = cState->integralError + currentError * dt;
+    if (dt < 1.0f){
+    		integral = cState->integralError;
+    }
+    printf("Time %f \r\n", dt);
+    printf("Bitch %f \r\n",integral);
     // Clamp integral to prevent windup
     const float integralMax = PID->integralMax; // from your PhysicalParams or a #define
     if (integral > integralMax) {
@@ -195,6 +200,7 @@ float getRudderAngle(float currentError) {
 
     // Save the clamped integral back
     cState->integralError = integral;
+
     // Low pass filtering the derivative
     cState->filteredError = PID->derivativeFilterFactor * currentError + (1 - PID->derivativeFilterFactor) * cState->previousFilteredError;
     // Calculating the derivative
@@ -294,7 +300,7 @@ State getState(float error) {
     StateThresholds *thresholds = &controller.fixed.stateThresholds;
     
     #ifdef STRAIGHT_ONLY
-    return STRAIGHT;
+    	return STRAIGHT;
     #endif
 
     if (isTackingCondition(error)) {
