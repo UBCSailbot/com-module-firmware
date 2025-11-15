@@ -131,7 +131,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(10);
+    HAL_Delay(100);
 
     // See if a message is available
     NMEA0183Raw *msg = NMEA0183__getTopBufferItem(windSensor);
@@ -145,7 +145,7 @@ int main(void)
         }
         else
         {
-            printf("BAD MESSAGE\r\n");
+            printf("BAD MESSAGE (%.*s)\r\n", msg->scentenceLength, msg->scentenceData);
         }
 
         // IMPORTANT: advance the ring buffer
