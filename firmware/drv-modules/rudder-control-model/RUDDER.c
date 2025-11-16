@@ -254,6 +254,13 @@ void runPID(float *rudderAngle) {
     volatile SailingState *sailing = &controller.live.sailingState;
 
     updateControllerVariables();
+    if(HAL_GetTick() - controller.live.tackingState.tackingBanStartTime > 30000) {
+        controller.live.tackingState.tackingAllowed = true;
+    }
+
+    if(HAL_GetTick() - controller.live.gybingState.gybingBanStartTime > 30000) {
+        controller.live.gybingState.gybingAllowed = true;
+    }
 
     float error = sailing->currentHeading - sailing->desiredHeading;
     // Normalize error to be within -180 to 180 degrees
@@ -268,6 +275,9 @@ void runPID(float *rudderAngle) {
 
 	switch(state){
 	case STRAIGHT:
+        if(HAL_GetTick() - controller.live.ironsState.ironsEndTime > 30000) {
+            controller.live.ironsState.isInIrons = false;
+        }
 		*rudderAngle = straightLine(error);
         break;
 	case TACKING:
@@ -301,8 +311,7 @@ State getState(float error) {
         return GYBING;
     } else if (wind->windSpeed < params->lowWindThreshold) {
         return LOWWIND;
-    } else if (sailing->angularVelocity < thresholds->ironsSpeed && sailing->angularVelocity < thresholds->stateironsRot && 
-        (fabs(wind->windDirection - sailing->currentHeading) < params->upwindIronsAngle || fabs(wind->windDirection - sailing->currentHeading) < params->downwindIronsAngle)) {
+    } else if (isInIrons()) {
         return IRONS;
     } else {
         return STRAIGHT; // Default to straight if no other conditions met
@@ -316,6 +325,10 @@ bool isTackingCondition(float error) {
 
     float relativeWind = wind->windDirection - sailing->desiredHeading;
     float boatWindAngle = wind->windDirection - sailing->currentHeading;
+
+    if(controller.live.tackingState.tackingAllowed == false) {
+        return false;
+    }
 
     if(controller.live.tackingState.isTacking) {
         // If already tacking, continue until duration is over
@@ -342,6 +355,10 @@ bool isGybingCondition(float error) {
     float relativeWind = wind->windDirection - sailing->desiredHeading;
     float boatWindAngle = wind->windDirection - sailing->currentHeading;
 
+    if(controller.live.gybingState.gybingAllowed == false) {
+        return false;
+    }
+    
     if(controller.live.gybingState.isGybing) {
         // If already gybing, continue until duration is over
         if(HAL_GetTick() - controller.live.gybingState.gybingStartTime < controller.fixed.scalingCoeffs.gybeTime) {
@@ -515,10 +532,72 @@ float lowwind(float error) {
     return rudderAngle;
 }
 
-//TODO: Implement this - kind of error handling for entire model
-float irons(float error) {
-	return 0.0;
+//Will need to figure out what side of the wind we are on - maybe default to straight line mode for ~30 seconds then allow attempted tack again
+
+float irons() {
+    if(HAL_GetTick() - controller.live.ironsState.ironsBlockDuration > 30000) {
+        controller.live.ironsState.isInIrons = false;
+    }
+    
+    if(!controller.live.ironsState.isInIrons) {
+        //set irons state
+        controller.live.ironsState.isInIrons = true;
+        controller.live.ironsState.ironsStartTime = HAL_GetTick();
+        //get and set random angle
+        srand(HAL_GetTick()); 
+        controller.live.tackingState.tackingAllowed = false;
+        controller.live.gybingState.gybingAllowed = false;
+        randomAngle = (srand() % 8) + 7.0f; // Random angle between 7 and 15 degrees
+        if(srand() % 2 == 0) {
+            randomAngle = -randomAngle; // Randomly choose left or right
+        }
+        controller.live.ironsState.randomAngle = randomAngle;
+    }
+
+    if(!isInIrons()) {
+        //exit irons state
+        controller.live.ironsState.isInIrons = false;
+        controller.live.ironsState.ironsEndTime = HAL_GetTick();
+
+        desiredHeadingRelWind = controller.live.sailingState.desiredHeading - controller.live.windState.windDirection;
+        currentheadingRelWind = controller.live.sailingState.currentHeading - controller.live.windState.windDirection;
+
+        if(desiredHeadingRelWind < 90 || desiredHeadingRelWind > 270) {
+            if(currentheadingRelWind < 180) {
+                controller.live.ironsState.fixedHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f;
+            } else {
+                controller.live.ironsState.fixedHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f; 
+            }
+            
+        } else {
+            if(currentheadingRelWind < 180) {
+                // Desired heading is to starboard of wind direction, tack to starboard
+                controller.live.sailingState.desiredHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f; // Add small padding
+            }
+            // Desired heading is to port of wind direction, tack to port
+            controller.live.sailingState.desiredHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f; // Add small padding
+        }
+        controller.live.ironsState.fixedHeading = 
+        return 0.0f; // Return rudder to neutral
+    }
+
+    return controller.live.ironsState.randomAngle;
 }
+
+bool isInIrons() {
+    volatile WindState *wind = &controller.live.windState;
+    volatile SailingState *sailing = &controller.live.sailingState;
+    StateThresholds *thresholds = &controller.fixed.stateThresholds;
+    PhysicalParams *params = &controller.fixed.physicalParams;
+    if (sailing->angularVelocity < thresholds->ironsSpeed && sailing->angularVelocity < thresholds->stateironsRot && 
+        (fabs(wind->windDirection - sailing->currentHeading) < params->upwindIronsAngle || fabs(wind->windDirection - sailing->currentHeading) < params->downwindIronsAngle)) {
+        return true;
+    } else {
+        return false;
+    }        
+}
+
+
 
 
 

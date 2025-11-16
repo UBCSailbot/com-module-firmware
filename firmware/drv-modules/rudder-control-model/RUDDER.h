@@ -17,7 +17,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "MOCK_HARDWARE_FUNCTIONS.h"
 
 #define STRAIGHT_ONLY
 #define TUNING_MODE
@@ -147,6 +146,8 @@ typedef struct {
  */
 typedef struct {
     bool isTacking;
+	bool tackingAllowed;
+	float tackingBanStartTime;
     float tackingStartTime;
     float initialHeading;
     float targetHeading;
@@ -161,10 +162,22 @@ typedef struct {
  */
 typedef struct {
     bool isGybing;
+	bool gybingAllowed;
+	float gybingBanStartTime;
     float gybingStartTime;
     float initialHeading;
     float targetHeading;
 } GybingState;
+
+typedef struct {
+	float randomAngle;
+	float ironsStartTime;
+	float ironsEndTime;
+	float ironsDuration;
+	float ironsBlockDuration;
+	float fixedHeading;
+	bool isInIrons;
+} IronsState;
 
 typedef struct {
 	float integralValue;
@@ -208,6 +221,7 @@ typedef struct {
     TackingState tackingState;
     GybingState gybingState;
 	LiveValues liveValues;
+	IronsState ironsState;
 } PIDControllerLive;
 
 /* This struct encapsulates the entire PID controller
