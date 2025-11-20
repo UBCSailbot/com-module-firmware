@@ -369,7 +369,7 @@ int main(void)
 
 		  int16_t encoded_val;  // Declare here so it's accessible below
 
-		   /* if (info.is_temp) {
+		   if (info.is_temp) {
 		    	 encoded_val = (int16_t)(adc * 100);  //to get rid of the decimal places (this gives us 4 hex digits)
 		        if (adc >= temp_threshold ) {
 		            printf("%s temperature too high! %.2f°C CANT: %d CANT: %X \r\n", info.label, adc ,encoded_val , encoded_val);
@@ -436,7 +436,7 @@ int main(void)
 		            	}
 
 		            }
-						// prior comment end HERE
+						*/
 
 
 		        }
@@ -445,7 +445,7 @@ int main(void)
 		            printf("%s: %.2fV CANV: %d CANV: %X\r\n", info.label, 5*adc ,encoded_val, encoded_val);
 		        }
 		    }
-  	  	  	 */
+
 
 		    // Build vc[] array only for your voltage channels (1,3,6,7)
 		           if ((i == 1) || (i == 3) || (i == 6) || (i == 7)) {
@@ -485,7 +485,7 @@ int main(void)
 
 		            	   }
 
-		            	   /*
+		            	   
 		            	   while(voltage_back == 0) {
 
 		            	       // Wait 20 seconds
@@ -524,7 +524,7 @@ int main(void)
 
 		            	   }
 
-							*/
+							
 
 		            	   for (int z=0 ; z<4 ; z++) {
 		            		   printf("%f ", cell_voltage[z]);
