@@ -141,14 +141,19 @@ int main(void)
         // validate and null-terminate fields
         if (NMEA0183__checkMessage(msg) == GOOD_MESSAGE)
         {
-            for (int i = 0; i < msg->scentenceLength; i++) {
-            	putchar(msg->scentenceData[i]);
-            }
-            printf("\r\n");
+        	for (int i = 0; i < msg->scentenceLength; i++) {
+        	    uint8_t c = msg->scentenceData[i];
+        	    if (c == '\0') printf("\n\r");   // break at each field
+        	    else putchar(c);
+        	}
+        	printf("\n\r");
         }
         else
         {
-            printf("BAD MESSAGE (%.*s)\r\n", msg->scentenceLength, msg->scentenceData);
+        	printf("BAD MESSAGE len=%u:\n", msg->scentenceLength);
+        	for (int i=0; i<msg->scentenceLength; i++)
+        	    printf("%02X ", msg->scentenceData[i]);
+        	printf("\n\r");
         }
 
         // IMPORTANT: advance the ring buffer
