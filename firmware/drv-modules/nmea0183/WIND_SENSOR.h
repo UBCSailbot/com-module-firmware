@@ -35,18 +35,10 @@ typedef struct {
 /*
  * Creates a new WIND_SENSOR object.
  *
- * @param huartChannel Is the USART channel associated with this object. The object must not be muted after calling this function.
+ * @param huartChannel Is the USART channel associated with this object. The object must not be mutated after calling this function.
  * @return An initialized WIND_SENSOR object.
  */
-WIND_SENSOR* WIND_SENSOR__create(UART_HandleTypeDef* huartChannel);
-
-/*
- * Creates a new WIND_SENSOR object.
- *
- * @param NMEA0183 Is the NMEA0183 channel associated with this object. The object must not be muted after calling this function.
- * @return An initialized WIND_SENSOR object.
- */
-WIND_SENSOR* WIND_SENSOR__create(NMEA0183* nmea0183Channel);
+WIND_SENSOR* WIND_SENSOR__create(NMEA0183* nmeaChannel);
 
 /*
  * Deletes the WIND_SENSOR object.

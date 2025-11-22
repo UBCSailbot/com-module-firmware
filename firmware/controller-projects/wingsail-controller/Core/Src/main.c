@@ -141,7 +141,10 @@ int main(void)
         // validate and null-terminate fields
         if (NMEA0183__checkMessage(msg) == GOOD_MESSAGE)
         {
-            printf("%.*s\r\n", msg->scentenceLength, msg->scentenceData);
+            for (int i = 0; i < msg->scentenceLength; i++) {
+            	putchar(msg->scentenceData[i]);
+            }
+            printf("\r\n");
         }
         else
         {
