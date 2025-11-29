@@ -25,8 +25,14 @@
  * @return An initialized WIND_SENSOR object.
  */
 WIND_SENSOR* WIND_SENSOR__create(NMEA0183* nmeaChannel) {
-
 }
+
+/*
+ * Deletes the WIND_SENSOR object.
+ *
+ * @param self Must be an initialized WIND_SENSOR object
+ */
+void WIND_SENSOR__destroy(WIND_SENSOR* self);
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- HELPER FUNCTIONS ---------------------------------------------------------------------------
