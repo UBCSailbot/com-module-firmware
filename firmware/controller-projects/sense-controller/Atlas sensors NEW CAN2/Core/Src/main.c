@@ -62,6 +62,8 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 #define EZO_RTD_I2C_ADDR (0x66 << 1)
 
 char uart_buffer[64];
+volatile uint32_t max600_clock = 0;
+volatile uint32_t max800_clock = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -187,6 +189,9 @@ int main(void)
 		 Error_Handler();
 	 } else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+
+	 max600_clock++;
+	 max800_clock++;
 
 	 HAL_Delay(1);
 
@@ -744,36 +749,60 @@ static void MX_GPIO_Init(void)
 /*
  * RTD Read */
 int read_rtd() {
-    char response[32] = {0};
-    SendSensorCommand("R", EZO_RTD_I2C_ADDR);
-    HAL_Delay(600);
-    ReadSensorResponse(response, sizeof(response), EZO_RTD_I2C_ADDR);
-    float response_f = simple_atof((char *) response) + 273.15;
-    return response_f * 1000;
+
+	char response[32] = {0};
+
+	if (max600_clock == 0) {
+	    SendSensorCommand("R", EZO_RTD_I2C_ADDR);
+	}
+
+	if (max600_clock == 600) {
+	    ReadSensorResponse(response, sizeof(response), EZO_RTD_I2C_ADDR);
+	    float response_f = simple_atof((char *) response) + 273.15;
+	    return response_f * 1000;
+	}
+
 }
 
 /*
  * EC Read */
 int read_ec() { //0.07 -> 500,000; resolution decreases as conductivity increases
-    char response[32] = {0};
-    SendSensorCommand("R", EZO_EC_I2C_ADDR);
-    HAL_Delay(600);
-    ReadSensorResponse(response, sizeof(response), EZO_EC_I2C_ADDR);
 
-    float response_f = simple_atof(response);
-    return response_f * 1000;
+	char response[32] = {0};
+
+	if (max600_clock == 0) {
+	    SendSensorCommand("R", EZO_EC_I2C_ADDR);
+	}
+
+	if (max600_clock == 600) {
+	    ReadSensorResponse(response, sizeof(response), EZO_EC_I2C_ADDR);
+
+	    float response_f = simple_atof(response);
+	    return response_f * 1000;
+	    max600_clock = 0;
+	}
+
+
 }
 
 /*
  * pH Read */
 int read_ph() { //0.001 -> 14.000, returns 1-> 14000
-    char response[32] = {0};
-    SendSensorCommand("R", EZO_pH_I2C_ADDR);
-    HAL_Delay(800);
-    ReadSensorResponse(response, sizeof(response), EZO_pH_I2C_ADDR);
 
-    float response_f = simple_atof(response);
-    return response_f * 1000;
+	char response[32] = {0};
+
+	if (max800_clock == 0) {
+	    SendSensorCommand("R", EZO_pH_I2C_ADDR);
+	}
+
+	if (max800_clock == 800) {
+	    ReadSensorResponse(response, sizeof(response), EZO_pH_I2C_ADDR);
+
+	    float response_f = simple_atof(response);
+	    return response_f * 1000;
+	    max800_clock = 0;
+	}
+
 }
 
 /* I2C Transmit and Receive for sensors */
