@@ -124,26 +124,14 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
 }
 
 /**
- * @brief   Copies received CAN Rx data and adds metadata into a local user-provided buffer.
- * @param   RxData_buffer: Pointer to buffer where received data will be copied.
- *                         Buffer format: {ID[0], ID[1], ID[2], ID[3], Length, Data[0], ..., Data[n]}
- *                         - Bytes 0-3: 32-bit identifier in little-endian
- *                         - Byte 4: Data length in uint8_t
- *                         - Bytes 5+: Actual data payload
- * @return  HAL_StatusTypeDef: HAL_OK if a message was received, HAL_ERROR if queue is empty.
- * @note    Should be called from the main application context, not from ISR.
- *          The queue uses a circular buffer.
+ * @brief   Dequeues the next received CAN frame.
+ * @param   frame: Pointer to a CAN_Frame struct that will be filled with the data.
+ * @return  HAL_OK if a frame was dequeued, HAL_ERROR if the queue is empty.
+ *
+ * @note    Called from application context (not ISR).
  */
-HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
-    CAN_Frame frame;
-    if (CAN_DequeueFrame(&frame) == 0) return HAL_ERROR;
-
-    RxData_buffer[0] = (uint8_t)(frame.RxData1_Identifier & 0xFF);
-    RxData_buffer[1] = (uint8_t)((frame.RxData1_Identifier >> 8) & 0xFF);
-    RxData_buffer[2] = (uint8_t)((frame.RxData1_Identifier >> 16) & 0xFF);
-    RxData_buffer[3] = (uint8_t)((frame.RxData1_Identifier >> 24) & 0xFF);
-    RxData_buffer[4] = frame.RxData1_BufferLength;
-    memcpy(RxData_buffer + 5, frame.RxData1, frame.RxData1_BufferLength);
+HAL_StatusTypeDef CAN_Receive(CAN_Frame *frame) {
+    if (CAN_DequeueFrame(frame) == 0) return HAL_ERROR;
     return HAL_OK;
 }
 
@@ -165,6 +153,7 @@ HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
  * 			6. HAL_FDCAN_HighPriorityMessageCallback(): Triggered when a high-priority message or remote frame is received.
  *               - When processing of urgent messages
  */
+
 
 /**
  * @brief Callback function for handling messages received in FIFO0.
