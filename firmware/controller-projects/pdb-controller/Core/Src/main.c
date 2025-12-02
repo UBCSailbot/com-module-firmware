@@ -231,33 +231,42 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CAN_Init(&hfdcan1);
 
-
-
-
-
-
   //* CODE INSERT FOR MPPT CURRENT SENSE START *//
   	  	// variable initialization
   		uint8_t I2C_buf[12]; //for sending and receiving values through i2c
 
   		// address of ADC device on current sense board
-  		uint16_t ADC_ADDR = 0x18 << 1; // or 0x18, if J1 disconnected
+  		uint16_t ADC_ADDR1 = 0x18 << 1; // 0x18, if J1 disconnected
+  		uint16_t ADC_ADDR2 = 0x1F << 1; // 0x1F, if J1 connected
 
   	   // I2C setup
 	   I2C_buf[0] = 0x08; //opcode for single register write
 	   I2C_buf[1] = 0x1c; // mode select register address
 	   I2C_buf[2] = 0x04; // selecting manual mode with AUTO
 
-	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+	   // send the same setup bytes to both mppt boards
+	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
 		  Error_Handler();
 	   }
+
+	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+	   	  Error_Handler();
+	   }
+
 
 	   I2C_buf[1] = 0x1E; // start sequence register
 	   I2C_buf[2] = 0b1; //starts first conversion
 
-	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
 		  Error_Handler();
-		}
+	   }
+
+
+	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+	   	   	  Error_Handler();
+	   }
+
+
    //* CODE INSERT FOR MPPT CURRENT SENSE END *//
 
 
@@ -532,8 +541,10 @@ int main(void)
 
 		            	   printf("\r\n");
 		               } //for loop end
+
 		           }
 	  }
+
 
 		       // Now build your TxData1 using temp_values and individual_voltages correctly
 
@@ -573,29 +584,53 @@ int main(void)
 
 
 		   	//* CODE INSERT FOR MPPT CURRENT SENSE START *//
-		       // receives data from mppt current sense board
-				HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR,I2C_buf,4,HAL_MAX_DELAY); //reads 4 bytes of raw voltage data, 2 bytes from each mppt channel
 
-				// parses values from the i2c receive buffer to two adc values representing current from one mppt each
+		       // MPPT Board 1 (hull)
+				HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR1,I2C_buf,4,HAL_MAX_DELAY); //reads 4 bytes of raw voltage data, 2 bytes from each mppt channel
+
+				// i2c buffer -> raw adc values from each mppt
 				uint16_t raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
 				uint16_t raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
 
-				// converts to signed current value * 100
-				int16_t curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*100); // (raw/2^16 *ref_V - offset) / scale
-				int16_t curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*100);
+				// raw adc values -> original current values (x1000)
+				// conversion eq: (raw/2^16 *ref_V - offset) / scale * 1000
+				int16_t curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
+				int16_t curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
 
-				//store in Tx buffer in little endian to allocated bytes
-				TxData1[15] = ( curr1 >> 8 ) & 0x00FF; // stores msb
-				TxData1[14] = curr1 & 0x00FF; // stores lsb
+				//store in Tx buffer (little endian)
+				TxData1[15] = ( curr1 >> 8 ) & 0x00FF; // MPPT 1_A - hull port
+				TxData1[14] = curr1 & 0x00FF;
 
-				TxData1[17] = ( curr2 >> 8 ) & 0x00FF; // stores msb
-				TxData1[16] = curr2 & 0x00FF; // stores lsb
+				TxData1[17] = ( curr2 >> 8 ) & 0x00FF; // MPPT 1_B - hull starboard
+				TxData1[16] = curr2 & 0x00FF;
 
-				printf("I*100  | CH0: %d, CH1: %d\r\n", curr1, curr2);
-				printf("TxData | %X_%X_%X_%X\r\n", TxData1[14], TxData1[15], TxData1[16], TxData1[17]);
+				// print to UART (just for debugging)
+				printf( "MPPT BOARD 1\n" );
+				printf("MPPT_1: I*1000  | CH0: %d, CH1: %d\r\n", curr1, curr2); // current * 1000
+				printf("MPPT_1: TxData  | %X_%X_%X_%X\r\n", TxData1[14], TxData1[15], TxData1[16], TxData1[17]); // tx buffer, exactly as it is sent
+
+			  // MPPT Board 2 (sail)
+				// same as above, just to different address & bytes
+
+				HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR2,I2C_buf,4,HAL_MAX_DELAY);
+
+				raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
+				raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
+
+				curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
+				curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
+
+				TxData1[19] = ( curr1 >> 8 ) & 0x00FF; // MPPT 2_A - sail port
+				TxData1[18] = curr1 & 0x00FF;
+
+				TxData1[21] = ( curr2 >> 8 ) & 0x00FF; // MPPT 2_B - sail starboard
+				TxData1[20] = curr2 & 0x00FF;
+
+				printf( "MPPT BOARD 2\n" );
+				printf("MPPT_2: I*1000  | CH0: %d, CH1: %d\r\n", curr1, curr2);
+				printf("MPPT_2: TxData  | %X_%X_%X_%X\r\n", TxData1[18], TxData1[19], TxData1[20], TxData1[21]);
+
 		   	//* CODE INSERT FOR MPPT CURRENT SENSE END *//
-
-
 
 
 
