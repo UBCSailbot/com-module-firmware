@@ -147,6 +147,9 @@ int main(void)
   NMEA0183 * windsensor = NMEA0183__create(&huart2);
   uint8_t output_wind_data[4];
 
+  max600_clock = 0;
+  max800_clock = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -159,7 +162,8 @@ int main(void)
 //	HAL_Delay(10);
 	uint8_t itemsInBuffer = NMEA0183__itemsInBuffer(windsensor);
 	if (itemsInBuffer == 0)
-		printf("No items in buffer.\r\n");
+		//printf("No items in buffer.\r\n");
+		printf("\r");
 
 	else {
 	  	for(uint8_t itemIndex = 0; itemIndex < itemsInBuffer; itemIndex++){
@@ -184,16 +188,18 @@ int main(void)
 	  			output_wind_data[1] = (uint8_t) ((processedAngle >> 8) & 0xFF);
 	  			output_wind_data[2] = (uint8_t) (processedSpeed & 0xFF);
 	  			output_wind_data[3] = (uint8_t) ((processedSpeed >> 8) & 0xFF);
-	  			if (CAN_Transmit(WIND_SENSOR_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, output_wind_data, &hfdcan1) != HAL_OK) {
-					Error_Handler();
-				}
+//	  			if (CAN_Transmit(WIND_SENSOR_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, output_wind_data, &hfdcan1) != HAL_OK) {
+//					Error_Handler();
+//				}
+
 	  		}
 
 	  		NMEA0183__incrementReadIndex(windsensor);
 	  	}
 	}
 
-	uint8_t TxData_temp[3]; memset(TxData_temp, 0, 3);
+	uint8_t TxData_temp[3];
+	memset(TxData_temp, 0, 3);
 	uint8_t TxData_ec[4]; memset(TxData_ec, 0, 4);
 	uint8_t TxData_ph[2]; memset(TxData_ph, 0, 2);
 
@@ -204,20 +210,32 @@ int main(void)
 	TxData_temp[1] = (uint8_t)((temp_val >> 8) & 0xFF);
 	TxData_temp[2] = (uint8_t)((temp_val >> 16) & 0xFF);
 
-    if (CAN_Transmit(0x100, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_3, TxData_temp, &hfdcan1) != HAL_OK) {
-    	Error_Handler();
-	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+//    if (CAN_Transmit(0x100, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_3, TxData_temp, &hfdcan1) != HAL_OK) {
+//    	Error_Handler();
+//	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+
+	if (temp_val != -1) {
+		printf("Temperature Value: %u\r\n", temp_val);
+	}
+
+	//HAL_UART_Transmit(&huart1, (uint8_t*)&temp_val, sizeof(temp_val), HAL_MAX_DELAY);
+
 
 	// PH
 	int ph_val = read_ph();
 	TxData_ph[0] = (uint8_t)(ph_val & 0xFF);
 	TxData_ph[1] = (uint8_t)((ph_val >> 8) & 0xFF);
 
-	if (CAN_Transmit(0x110, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, TxData_ph, &hfdcan1) != HAL_OK) {
-		Error_Handler();
-	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+//	if (CAN_Transmit(0x110, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, TxData_ph, &hfdcan1) != HAL_OK) {
+//		Error_Handler();
+//	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+	if (ph_val != -1) {
+		printf("PH Value: %u\r\n", ph_val);
+	}
+
+	//HAL_UART_Transmit(&huart1, (uint8_t*)&ph_val, sizeof(ph_val), HAL_MAX_DELAY);
 
 	// SALINITY
 	int ec_val = read_ec();
@@ -226,10 +244,16 @@ int main(void)
 	TxData_ec[2] = (uint8_t)((ec_val >> 16) & 0xFF);
 	TxData_ec[3] = (uint8_t)((ec_val >> 24) & 0xFF);
 
-	if (CAN_Transmit(0x120, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, TxData_ec, &hfdcan1) != HAL_OK) {
-		Error_Handler();
-	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+//	if (CAN_Transmit(0x120, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, TxData_ec, &hfdcan1) != HAL_OK) {
+//		Error_Handler();
+//	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+
+	if (ec_val != -1) {
+		printf("Salinity Value: %u\r\n", ec_val);
+	}
+
+	//HAL_UART_Transmit(&huart1, (uint8_t*)&ec_val, sizeof(ec_val), HAL_MAX_DELAY);
 
 	max600_clock++;
 	max800_clock++;
@@ -735,7 +759,7 @@ int read_rtd() {
 
 	char response[32] = {0};
 
-	if (max600_clock == 0) {
+	if (max600_clock == 1) {
 	    SendSensorCommand("R", EZO_RTD_I2C_ADDR);
 	}
 
@@ -745,6 +769,8 @@ int read_rtd() {
 	    return response_f * 1000;
 	}
 
+	return -1;
+
 }
 
 /*
@@ -753,17 +779,21 @@ int read_ec() { //0.07 -> 500,000; resolution decreases as conductivity increase
 
 	char response[32] = {0};
 
-	if (max600_clock == 0) {
+	if (max600_clock == 1) {
 	    SendSensorCommand("R", EZO_EC_I2C_ADDR);
+
 	}
 
 	if (max600_clock == 600) {
 	    ReadSensorResponse(response, sizeof(response), EZO_EC_I2C_ADDR);
 
 	    float response_f = simple_atof(response);
-	    return response_f * 1000;
 	    max600_clock = 0;
+	    return response_f * 1000;
+
 	}
+
+	return -1;
 
 
 }
@@ -774,7 +804,7 @@ int read_ph() { //0.001 -> 14.000, returns 1-> 14000
 
 	char response[32] = {0};
 
-	if (max800_clock == 0) {
+	if (max800_clock == 1) {
 	    SendSensorCommand("R", EZO_pH_I2C_ADDR);
 	}
 
@@ -782,9 +812,13 @@ int read_ph() { //0.001 -> 14.000, returns 1-> 14000
 	    ReadSensorResponse(response, sizeof(response), EZO_pH_I2C_ADDR);
 
 	    float response_f = simple_atof(response);
-	    return response_f * 1000;
+
 	    max800_clock = 0;
+	    return response_f * 1000;
+
 	}
+
+	return -1;
 
 }
 
