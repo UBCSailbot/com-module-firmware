@@ -28,11 +28,11 @@
       "-mthumb",
       "-o",
       "nmea0183/SHIP_TRACKER.o",
-      "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/SHIP_TRACKER.c"
+      "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/SHIP_TRACKER.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/SHIP_TRACKER.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/nmea0183/SHIP_TRACKER.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/SHIP_TRACKER.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/nmea0183/SHIP_TRACKER.o"
   },
   {
     "arguments": [
@@ -63,11 +63,11 @@
       "-mthumb",
       "-o",
       "nmea0183/NMEA0183.o",
-      "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/NMEA0183.c"
+      "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/NMEA0183.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/NMEA0183.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/nmea0183/NMEA0183.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/NMEA0183.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/nmea0183/NMEA0183.o"
   },
   {
     "arguments": [
@@ -98,11 +98,11 @@
       "-mthumb",
       "-o",
       "nmea0183/AIS.o",
-      "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/AIS.c"
+      "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/AIS.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/AIS.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/nmea0183/AIS.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183/AIS.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/nmea0183/AIS.o"
   },
   {
     "arguments": [
@@ -135,9 +135,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal.o"
   },
   {
     "arguments": [
@@ -170,9 +170,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc_ex.o"
   },
   {
     "arguments": [
@@ -205,9 +205,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_adc.o"
   },
   {
     "arguments": [
@@ -240,9 +240,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_cortex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_cortex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_cortex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_cortex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_cortex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_cortex.o"
   },
   {
     "arguments": [
@@ -275,9 +275,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma.o"
   },
   {
     "arguments": [
@@ -310,9 +310,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_dma_ex.o"
   },
   {
     "arguments": [
@@ -345,9 +345,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_exti.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_exti.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_exti.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_exti.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_exti.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_exti.o"
   },
   {
     "arguments": [
@@ -380,9 +380,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash.o"
   },
   {
     "arguments": [
@@ -415,9 +415,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_flash_ex.o"
   },
   {
     "arguments": [
@@ -450,9 +450,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gpio.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gpio.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gpio.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gpio.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gpio.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gpio.o"
   },
   {
     "arguments": [
@@ -485,9 +485,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gtzc.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gtzc.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gtzc.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gtzc.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gtzc.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_gtzc.o"
   },
   {
     "arguments": [
@@ -520,9 +520,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c.o"
   },
   {
     "arguments": [
@@ -555,9 +555,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_i2c_ex.o"
   },
   {
     "arguments": [
@@ -590,9 +590,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_icache.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_icache.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_icache.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_icache.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_icache.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_icache.o"
   },
   {
     "arguments": [
@@ -625,9 +625,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd.o"
   },
   {
     "arguments": [
@@ -660,9 +660,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pcd_ex.o"
   },
   {
     "arguments": [
@@ -695,9 +695,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr.o"
   },
   {
     "arguments": [
@@ -730,9 +730,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_pwr_ex.o"
   },
   {
     "arguments": [
@@ -765,9 +765,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc.o"
   },
   {
     "arguments": [
@@ -800,9 +800,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_rcc_ex.o"
   },
   {
     "arguments": [
@@ -835,9 +835,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart.o"
   },
   {
     "arguments": [
@@ -870,9 +870,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart_ex.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart_ex.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart_ex.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart_ex.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart_ex.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_hal_uart_ex.o"
   },
   {
     "arguments": [
@@ -905,9 +905,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_exti.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_exti.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_exti.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_exti.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_exti.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_exti.o"
   },
   {
     "arguments": [
@@ -940,9 +940,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_dma.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_dma.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_dma.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_dma.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_dma.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_dma.o"
   },
   {
     "arguments": [
@@ -975,9 +975,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_gpio.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_gpio.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_gpio.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_gpio.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_gpio.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_gpio.o"
   },
   {
     "arguments": [
@@ -1010,9 +1010,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_lpgpio.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_lpgpio.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_lpgpio.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_lpgpio.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_lpgpio.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_lpgpio.o"
   },
   {
     "arguments": [
@@ -1045,9 +1045,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_ucpd.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_ucpd.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_ucpd.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_ucpd.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_ucpd.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_ucpd.o"
   },
   {
     "arguments": [
@@ -1080,9 +1080,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_usb.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_usb.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_usb.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_usb.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_usb.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_usb.o"
   },
   {
     "arguments": [
@@ -1115,9 +1115,9 @@
       "Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_utils.o",
       "../Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_utils.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_utils.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_utils.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_utils.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Drivers/STM32U5xx_HAL_Driver/Src/stm32u5xx_ll_utils.o"
   },
   {
     "arguments": [
@@ -1137,9 +1137,9 @@
       "Core/Startup/startup_stm32u575zitxq.o",
       "../Core/Startup/startup_stm32u575zitxq.s"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Startup/startup_stm32u575zitxq.s",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Startup/startup_stm32u575zitxq.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Startup/startup_stm32u575zitxq.s",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Startup/startup_stm32u575zitxq.o"
   },
   {
     "arguments": [
@@ -1172,9 +1172,9 @@
       "Core/Src/main.o",
       "../Core/Src/main.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/main.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/main.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/main.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/main.o"
   },
   {
     "arguments": [
@@ -1207,9 +1207,9 @@
       "Core/Src/stm32u5xx_hal_msp.o",
       "../Core/Src/stm32u5xx_hal_msp.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/stm32u5xx_hal_msp.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/stm32u5xx_hal_msp.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/stm32u5xx_hal_msp.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/stm32u5xx_hal_msp.o"
   },
   {
     "arguments": [
@@ -1242,9 +1242,9 @@
       "Core/Src/stm32u5xx_it.o",
       "../Core/Src/stm32u5xx_it.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/stm32u5xx_it.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/stm32u5xx_it.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/stm32u5xx_it.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/stm32u5xx_it.o"
   },
   {
     "arguments": [
@@ -1277,9 +1277,9 @@
       "Core/Src/syscalls.o",
       "../Core/Src/syscalls.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/syscalls.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/syscalls.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/syscalls.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/syscalls.o"
   },
   {
     "arguments": [
@@ -1312,9 +1312,9 @@
       "Core/Src/sysmem.o",
       "../Core/Src/sysmem.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/sysmem.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/sysmem.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/sysmem.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/sysmem.o"
   },
   {
     "arguments": [
@@ -1347,8 +1347,8 @@
       "Core/Src/system_stm32u5xx.o",
       "../Core/Src/system_stm32u5xx.c"
     ],
-    "directory": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
-    "file": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/system_stm32u5xx.c",
-    "output": "/home/george-sleen/documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/system_stm32u5xx.o"
+    "directory": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug",
+    "file": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Core/Src/system_stm32u5xx.c",
+    "output": "/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/wingsail-controller/Debug/Core/Src/system_stm32u5xx.o"
   }
 ]
