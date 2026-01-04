@@ -8,13 +8,16 @@ BUILD_DIR := $(ROOT_DIR)/tests/build
 
 TARGET := $(BUILD_DIR)/nmea0183_test
 
-.PHONY: all clean
+.PHONY: all clean test
 
 all: $(TARGET)
 
 $(TARGET): $(ROOT_DIR)/tests/nmea0183_test.c $(NMEA_DIR)/NMEA0183.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(NMEA_DIR) $^ -o $@
+
+test: all
+	$(TARGET)
 
 clean:
 	rm -rf $(BUILD_DIR)
