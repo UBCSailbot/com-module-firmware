@@ -20,3 +20,6 @@
 *.vscode
 *.idea
 *.cache
+
+# Host test artifacts
+firmware/tests/build/
