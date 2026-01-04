@@ -7,7 +7,7 @@ static int g_failures = 0;
 
 /**
  * @brief Record a test assertion failure.
- * 
+ *
  * @param condition Expression result to evaluate.
  * @param expr String form of the expression.
  * @param file Source file where the assertion occurred.
@@ -26,6 +26,7 @@ static void test_assert(int condition, const char *expr, const char *file,
 
 /**
  * @brief Convert a nibble to uppercase hex ASCII.
+ *
  * @param value Value in the range 0-15.
  * @return ASCII character for the hex value.
  */
@@ -38,6 +39,7 @@ static uint8_t to_hex_ascii(uint8_t value) {
 
 /**
  * @brief Build a valid NMEA0183 sentence with checksum and CRLF.
+ *
  * @param msg Output sentence container.
  * @param start Start character ('$' or '!').
  * @param body Sentence body without checksum or terminators.
@@ -65,6 +67,7 @@ static void build_sentence(NMEA0183Raw *msg, char start, const char *body) {
 
 /**
  * @brief Load a raw sample line and append CRLF terminators.
+ *
  * @param msg Output sentence container.
  * @param line Raw NMEA line without CRLF.
  * @return void
@@ -79,6 +82,7 @@ static void load_sentence_line(NMEA0183Raw *msg, const char *line) {
 
 /**
  * @brief Validate short messages fail termination checks.
+ *
  * @param void
  * @return void
  */
@@ -90,6 +94,7 @@ static void test_check_message_rejects_short(void) {
 
 /**
  * @brief Validate bad start characters are rejected.
+ *
  * @param void
  * @return void
  */
@@ -107,6 +112,7 @@ static void test_check_message_bad_start(void) {
 
 /**
  * @brief Validate missing CRLF is rejected.
+ *
  * @param void
  * @return void
  */
@@ -119,6 +125,7 @@ static void test_check_message_bad_termination(void) {
 
 /**
  * @brief Validate incorrect checksum is rejected.
+ *
  * @param void
  * @return void
  */
@@ -131,6 +138,7 @@ static void test_check_message_bad_checksum(void) {
 
 /**
  * @brief Validate a few real sample lines parse correctly.
+ *
  * @param void
  * @return void
  */
@@ -150,6 +158,7 @@ static void test_check_message_sample_lines(void) {
 
 /**
  * @brief Validate field splitting and sentence type hashing.
+ *
  * @param void
  * @return void
  */
@@ -168,6 +177,7 @@ static void test_good_message_fields_and_type(void) {
 
 /**
  * @brief Validate helper functions for buffer indices.
+ *
  * @param void
  * @return void
  */
@@ -189,6 +199,7 @@ static void test_buffer_helpers(void) {
 
 /**
  * @brief Initialize a UART/DMA stub for IRQ tests.
+ *
  * @param huart UART handle to initialize.
  * @param uart_instance UART register block.
  * @param dma DMA handle to initialize.
@@ -204,6 +215,7 @@ static void setup_uart(UART_HandleTypeDef *huart, USART_TypeDef *uart_instance,
 
 /**
  * @brief Simulate a CMF IRQ with a given DMA length.
+ *
  * @param huart UART handle with DMA state.
  * @param len Received length to report.
  * @return void
@@ -216,6 +228,7 @@ static void trigger_irq(UART_HandleTypeDef *huart, uint16_t len) {
 
 /**
  * @brief Copy a sentence into the active DMA buffer.
+ *
  * @param nmea NMEA instance with receive buffers.
  * @param msg Sentence to copy.
  * @return void
@@ -227,6 +240,7 @@ static void copy_sentence_to_dma(NMEA0183 *nmea, const NMEA0183Raw *msg) {
 
 /**
  * @brief Verify overflow handling when the ring buffer wraps.
+ *
  * @param void
  * @return void
  */
@@ -256,6 +270,7 @@ static void test_irq_buffer_overflow(void) {
 
 /**
  * @brief Verify short DMA receives are ignored.
+ *
  * @param void
  * @return void
  */
@@ -280,6 +295,7 @@ static void test_irq_ignores_short_receive(void) {
 
 /**
  * @brief Stub Error_Handler for host tests.
+ *
  * @param void
  * @return void
  */
@@ -287,6 +303,7 @@ void Error_Handler(void) { g_failures++; }
 
 /**
  * @brief Test runner entry point.
+ *
  * @param void
  * @return 0 when all tests pass, nonzero otherwise.
  */

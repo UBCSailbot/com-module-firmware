@@ -51,6 +51,7 @@ typedef enum {
 
 /**
  * @brief Stub HAL UART DMA receive.
+ *
  * @param huart UART handle to configure.
  * @param pData Destination buffer.
  * @param size Number of bytes to receive.
@@ -67,6 +68,7 @@ static inline HAL_StatusTypeDef HAL_UART_Receive_DMA(UART_HandleTypeDef *huart,
 
 /**
  * @brief Stub HAL UART DMA stop.
+ *
  * @param huart UART handle to stop.
  * @return HAL_OK for host tests.
  */

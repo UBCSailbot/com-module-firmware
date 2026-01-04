@@ -3,6 +3,7 @@
 
 /**
  * @brief Stub error handler used by host tests.
+ *
  * @param void
  * @return void
  */
