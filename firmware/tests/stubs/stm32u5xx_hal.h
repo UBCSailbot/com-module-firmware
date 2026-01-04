@@ -49,6 +49,13 @@ typedef enum {
 
 #define __HAL_DMA_GET_COUNTER(hdma) ((hdma) ? (hdma)->counter : 0U)
 
+/**
+ * @brief Stub HAL UART DMA receive.
+ * @param huart UART handle to configure.
+ * @param pData Destination buffer.
+ * @param size Number of bytes to receive.
+ * @return HAL_OK for host tests.
+ */
 static inline HAL_StatusTypeDef HAL_UART_Receive_DMA(UART_HandleTypeDef *huart,
                                                      uint8_t *pData,
                                                      uint16_t size) {
@@ -58,6 +65,11 @@ static inline HAL_StatusTypeDef HAL_UART_Receive_DMA(UART_HandleTypeDef *huart,
     return HAL_OK;
 }
 
+/**
+ * @brief Stub HAL UART DMA stop.
+ * @param huart UART handle to stop.
+ * @return HAL_OK for host tests.
+ */
 static inline HAL_StatusTypeDef HAL_UART_DMAStop(UART_HandleTypeDef *huart) {
     (void)huart;
     return HAL_OK;
