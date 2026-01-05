@@ -137,7 +137,6 @@ int main(void)
     if (WIND_SENSOR__poll(windSensor)) {
       WIND_SENSOR__print(windSensor);
     }
-
     
     /* USER CODE END WHILE */
 

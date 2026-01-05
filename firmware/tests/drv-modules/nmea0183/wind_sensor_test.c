@@ -4,8 +4,67 @@
 #include "test_assert.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 static int g_failures = 0;
+
+/**
+ * @brief Capture WIND_SENSOR__print output into a buffer.
+ *
+ * @param sensor Wind sensor instance to print.
+ * @param buffer Output buffer to fill.
+ * @param buffer_size Size of the output buffer.
+ * @return void
+ */
+static void capture_wind_sensor_print(const WIND_SENSOR *sensor, char *buffer,
+                                      size_t buffer_size) {
+  int saved_stdout = -1;
+  FILE *tmp = NULL;
+
+  if (!sensor || !buffer || buffer_size == 0) {
+    return;
+  }
+
+  fflush(stdout);
+  saved_stdout = dup(fileno(stdout));
+  if (saved_stdout < 0) {
+    return;
+  }
+
+  tmp = tmpfile();
+  if (!tmp) {
+    close(saved_stdout);
+    return;
+  }
+
+  if (dup2(fileno(tmp), fileno(stdout)) < 0) {
+    close(saved_stdout);
+    fclose(tmp);
+    return;
+  }
+
+  WIND_SENSOR__print(sensor);
+  fflush(stdout);
+
+  if (fseek(tmp, 0, SEEK_END) == 0) {
+    long size = ftell(tmp);
+    if (size < 0) {
+      size = 0;
+    }
+    if ((size_t)size >= buffer_size) {
+      size = (long)buffer_size - 1;
+    }
+    if (fseek(tmp, 0, SEEK_SET) == 0) {
+      size_t read_size = fread(buffer, 1, (size_t)size, tmp);
+      buffer[read_size] = '\0';
+    }
+  }
+
+  dup2(saved_stdout, fileno(stdout));
+  close(saved_stdout);
+  fclose(tmp);
+}
 
 /**
  * @brief Validate MWV parsing into fixed-point fields.
@@ -33,6 +92,28 @@ static void test_wind_sensor_poll_parses_mwv(void) {
 }
 
 /**
+ * @brief Validate formatted output from WIND_SENSOR__print.
+ *
+ * @param void
+ * @return void
+ */
+static void test_wind_sensor_print_format(void) {
+  WIND_SENSOR sensor = {0};
+  char output[128] = {0};
+
+  sensor.direction = (wind_direction_deg_t)450;
+  sensor.reference = REFERENCE;
+  sensor.speed = (wind_speed_knots_t)102;
+  sensor.status = VALID;
+  sensor.temp = (wind_temp_C_t)0;
+
+  capture_wind_sensor_print(&sensor, output, sizeof(output));
+  TEST_ASSERT(&g_failures,
+              strcmp(output, "dir=45.0 R spd=10.2 kt status=A temp=0.0 C\r\n") ==
+                  0);
+}
+
+/**
  * @brief Stub Error_Handler for host tests.
  *
  * @param void
@@ -50,6 +131,7 @@ void Error_Handler(void) {
  */
 int main(void) {
   test_wind_sensor_poll_parses_mwv();
+  test_wind_sensor_print_format();
 
   if (g_failures == 0) {
     printf("PASS\n");
