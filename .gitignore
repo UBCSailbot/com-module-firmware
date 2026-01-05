@@ -21,5 +21,10 @@
 *.idea
 *.cache
 
+# Tooling artifacts
+compile_commands.json
+firmware/compile_commands.json
+.clangd
+
 # Host test artifacts
 firmware/tests/build/
