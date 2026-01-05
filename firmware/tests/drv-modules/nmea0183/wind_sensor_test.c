@@ -1,29 +1,11 @@
 #include "NMEA0183.h"
 #include "WIND_SENSOR.h"
 #include "nmea_test_utils.h"
+#include "test_assert.h"
 
 #include <stdio.h>
 
 static int g_failures = 0;
-
-/**
- * @brief Record a test assertion failure.
- *
- * @param condition Expression result to evaluate.
- * @param expr String form of the expression.
- * @param file Source file where the assertion occurred.
- * @param line Line number where the assertion occurred.
- * @return void
- */
-static void test_assert(int condition, const char *expr, const char *file,
-                        int line) {
-  if (!condition) {
-    printf("FAIL: %s:%d: %s\n", file, line, expr);
-    g_failures++;
-  }
-}
-
-#define TEST_ASSERT(cond) test_assert((cond), #cond, __FILE__, __LINE__)
 
 /**
  * @brief Validate MWV parsing into fixed-point fields.
@@ -38,14 +20,14 @@ static void test_wind_sensor_poll_parses_mwv(void) {
   nmea_test_set_channel_message(&channel, &msg);
 
   WIND_SENSOR *sensor = WIND_SENSOR__create(&channel);
-  TEST_ASSERT(sensor != NULL);
+  TEST_ASSERT(&g_failures, sensor != NULL);
 
-  TEST_ASSERT(WIND_SENSOR__poll(sensor) == true);
-  TEST_ASSERT(sensor->direction == (wind_direction_deg_t)450);
-  TEST_ASSERT(sensor->reference == REFERENCE);
-  TEST_ASSERT(sensor->speed == (wind_speed_knots_t)102);
-  TEST_ASSERT(sensor->status == VALID);
-  TEST_ASSERT(channel.dataBufferReadIndex == 1);
+  TEST_ASSERT(&g_failures, WIND_SENSOR__poll(sensor) == true);
+  TEST_ASSERT(&g_failures, sensor->direction == (wind_direction_deg_t)450);
+  TEST_ASSERT(&g_failures, sensor->reference == REFERENCE);
+  TEST_ASSERT(&g_failures, sensor->speed == (wind_speed_knots_t)102);
+  TEST_ASSERT(&g_failures, sensor->status == VALID);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 1);
 
   WIND_SENSOR__destroy(sensor);
 }

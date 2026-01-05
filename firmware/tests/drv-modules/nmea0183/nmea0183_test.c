@@ -1,29 +1,11 @@
 #include "NMEA0183.h"
 #include "nmea_test_utils.h"
+#include "test_assert.h"
 
 #include <stdio.h>
 #include <string.h>
 
 static int g_failures = 0;
-
-/**
- * @brief Record a test assertion failure.
- *
- * @param condition Expression result to evaluate.
- * @param expr String form of the expression.
- * @param file Source file where the assertion occurred.
- * @param line Line number where the assertion occurred.
- * @return void
- */
-static void test_assert(int condition, const char *expr, const char *file,
-                        int line) {
-  if (!condition) {
-    printf("FAIL: %s:%d: %s\n", file, line, expr);
-    g_failures++;
-  }
-}
-
-#define TEST_ASSERT(cond) test_assert((cond), #cond, __FILE__, __LINE__)
 
 /**
  * @brief Load a raw sample line and append CRLF terminators.
@@ -49,7 +31,8 @@ static void load_sentence_line(NMEA0183Raw *msg, const char *line) {
 static void test_check_message_rejects_short(void) {
   NMEA0183Raw msg = {0};
   msg.scentenceLength = 4;
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == BAD_TERMINATION_SEQUENCE);
+  TEST_ASSERT(&g_failures,
+              NMEA0183__checkMessage(&msg) == BAD_TERMINATION_SEQUENCE);
 }
 
 /**
@@ -67,7 +50,7 @@ static void test_check_message_bad_start(void) {
   msg.scentenceData[4] = '\r';
   msg.scentenceData[5] = '\n';
   msg.scentenceLength = 6;
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == BAD_START_CHARACTER);
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == BAD_START_CHARACTER);
 }
 
 /**
@@ -80,7 +63,8 @@ static void test_check_message_bad_termination(void) {
   NMEA0183Raw msg = {0};
   nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R");
   msg.scentenceData[msg.scentenceLength - 1] = 'X';
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == BAD_TERMINATION_SEQUENCE);
+  TEST_ASSERT(&g_failures,
+              NMEA0183__checkMessage(&msg) == BAD_TERMINATION_SEQUENCE);
 }
 
 /**
@@ -93,7 +77,7 @@ static void test_check_message_bad_checksum(void) {
   NMEA0183Raw msg = {0};
   nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R");
   msg.scentenceData[msg.scentenceLength - 3] = '0';
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == BAD_CHECK_SUM);
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == BAD_CHECK_SUM);
 }
 
 /**
@@ -106,14 +90,14 @@ static void test_check_message_sample_lines(void) {
   NMEA0183Raw msg = {0};
 
   load_sentence_line(&msg, "!AIVDM,1,1,,A,133sVfPP00PD>hRMDH@jNOvN20S8,0*7F");
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
-  TEST_ASSERT(NMEA0183__getScentenceType(&msg) == MESSAGE_VDM);
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
+  TEST_ASSERT(&g_failures, NMEA0183__getScentenceType(&msg) == MESSAGE_VDM);
 
   load_sentence_line(&msg,
                      "!AIVDM,2,1,9,B,53nFBv01SJ<thHp6220H4heHTf2222222222221?"
                      "50:454o<`9QSlUDp,0*09");
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
-  TEST_ASSERT(NMEA0183__getScentenceType(&msg) == MESSAGE_VDM);
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
+  TEST_ASSERT(&g_failures, NMEA0183__getScentenceType(&msg) == MESSAGE_VDM);
 }
 
 /**
@@ -125,14 +109,17 @@ static void test_check_message_sample_lines(void) {
 static void test_good_message_fields_and_type(void) {
   NMEA0183Raw msg = {0};
   nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
-  TEST_ASSERT(NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
 
-  TEST_ASSERT(strcmp((char *)NMEA0183__getField(&msg, 0), "IIMWV") == 0);
-  TEST_ASSERT(strcmp((char *)NMEA0183__getField(&msg, 1), "045.0") == 0);
-  TEST_ASSERT(strcmp((char *)NMEA0183__getField(&msg, 2), "R") == 0);
-  TEST_ASSERT(NMEA0183__getField(&msg, 50) == NULL);
+  TEST_ASSERT(&g_failures,
+              strcmp((char *)NMEA0183__getField(&msg, 0), "IIMWV") == 0);
+  TEST_ASSERT(&g_failures,
+              strcmp((char *)NMEA0183__getField(&msg, 1), "045.0") == 0);
+  TEST_ASSERT(&g_failures,
+              strcmp((char *)NMEA0183__getField(&msg, 2), "R") == 0);
+  TEST_ASSERT(&g_failures, NMEA0183__getField(&msg, 50) == NULL);
 
-  TEST_ASSERT(NMEA0183__getScentenceType(&msg) == MESSAGE_MWV);
+  TEST_ASSERT(&g_failures, NMEA0183__getScentenceType(&msg) == MESSAGE_MWV);
 }
 
 /**
@@ -146,15 +133,16 @@ static void test_buffer_helpers(void) {
 
   nmea.dataBufferReadIndex = 0;
   nmea.dataBufferWriteIndex = 0;
-  TEST_ASSERT(NMEA0183__itemsInBuffer(&nmea) == 0);
+  TEST_ASSERT(&g_failures, NMEA0183__itemsInBuffer(&nmea) == 0);
 
   nmea.dataBufferReadIndex = 1;
   nmea.dataBufferWriteIndex = 3;
-  TEST_ASSERT(NMEA0183__itemsInBuffer(&nmea) == 2);
+  TEST_ASSERT(&g_failures, NMEA0183__itemsInBuffer(&nmea) == 2);
 
-  TEST_ASSERT(NMEA0183__getTopBufferItem(&nmea) == &nmea.dataBuffer[1]);
+  TEST_ASSERT(&g_failures,
+              NMEA0183__getTopBufferItem(&nmea) == &nmea.dataBuffer[1]);
   NMEA0183__incrementReadIndex(&nmea);
-  TEST_ASSERT(nmea.dataBufferReadIndex == 2);
+  TEST_ASSERT(&g_failures, nmea.dataBufferReadIndex == 2);
 }
 
 /**
@@ -211,7 +199,7 @@ static void test_irq_buffer_overflow(void) {
   setup_uart(&huart, &uart_instance, &dma);
 
   NMEA0183 *nmea = NMEA0183__create(&huart);
-  TEST_ASSERT(nmea != NULL);
+  TEST_ASSERT(&g_failures, nmea != NULL);
 
   NMEA0183Raw msg = {0};
   nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
@@ -221,9 +209,9 @@ static void test_irq_buffer_overflow(void) {
     trigger_irq(&huart, msg.scentenceLength);
   }
 
-  TEST_ASSERT(nmea->overflowed == true);
-  TEST_ASSERT(nmea->dataBufferReadIndex == 3);
-  TEST_ASSERT(nmea->dataBufferWriteIndex == 2);
+  TEST_ASSERT(&g_failures, nmea->overflowed == true);
+  TEST_ASSERT(&g_failures, nmea->dataBufferReadIndex == 3);
+  TEST_ASSERT(&g_failures, nmea->dataBufferWriteIndex == 2);
 
   NMEA0183__destroy(nmea);
 }
@@ -241,14 +229,14 @@ static void test_irq_ignores_short_receive(void) {
   setup_uart(&huart, &uart_instance, &dma);
 
   NMEA0183 *nmea = NMEA0183__create(&huart);
-  TEST_ASSERT(nmea != NULL);
+  TEST_ASSERT(&g_failures, nmea != NULL);
 
   NMEA0183Raw msg = {0};
   nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R");
   copy_sentence_to_dma(nmea, &msg);
   trigger_irq(&huart, 2);
 
-  TEST_ASSERT(NMEA0183__itemsInBuffer(nmea) == 0);
+  TEST_ASSERT(&g_failures, NMEA0183__itemsInBuffer(nmea) == 0);
 
   NMEA0183__destroy(nmea);
 }
