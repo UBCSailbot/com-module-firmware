@@ -9,10 +9,11 @@ BUILD_DIR := $(ROOT_DIR)/tests/build
 
 NMEA_TEST := $(BUILD_DIR)/nmea0183_test
 WIND_TEST := $(BUILD_DIR)/wind_sensor_test
+AIS_TEST := $(BUILD_DIR)/ais_test
 
 .PHONY: all clean test
 
-all: $(NMEA_TEST) $(WIND_TEST)
+all: $(NMEA_TEST) $(WIND_TEST) $(AIS_TEST)
 
 $(NMEA_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/nmea0183_test.c \
 	$(ROOT_DIR)/tests/common/nmea_test_utils.c \
@@ -27,9 +28,17 @@ $(WIND_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/wind_sensor_test.c \
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) $^ -o $@
 
+$(AIS_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/ais_test.c \
+	$(ROOT_DIR)/tests/common/nmea_test_utils.c \
+	$(NMEA_DIR)/NMEA0183.c \
+	$(NMEA_DIR)/AIS.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) $^ -o $@
+
 test: all
 	$(NMEA_TEST)
 	$(WIND_TEST)
+	$(AIS_TEST)
 
 clean:
 	rm -rf $(BUILD_DIR)

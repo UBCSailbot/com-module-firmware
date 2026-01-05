@@ -50,6 +50,16 @@ typedef enum {
 #define __HAL_DMA_GET_COUNTER(hdma) ((hdma) ? (hdma)->counter : 0U)
 
 /**
+ * @brief Stub HAL tick getter.
+ *
+ * @param void
+ * @return Stub tick value in milliseconds.
+ */
+static inline uint32_t HAL_GetTick(void) {
+    return 0U;
+}
+
+/**
  * @brief Stub HAL UART DMA receive.
  *
  * @param huart UART handle to configure.
