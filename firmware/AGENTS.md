@@ -6,7 +6,7 @@ This repository contains STM32 firmware modules and controller projects.
 
 - `drv-modules/` and `pwr-modules/`: reusable driver/power modules (C sources + headers).
 - `controller-projects/`: board-specific projects, each with its own build directory and Makefile.
-- `tests/`: host-based unit tests and stubs (e.g., `tests/nmea0183_test.c`, `tests/stubs/`).
+- `tests/`: host-based unit tests, common helpers, and stubs (e.g., `tests/drv-modules/`, `tests/common/`, `tests/stubs/`).
 - `compile_commands.json`: top-level compilation database (often symlinked by project build tooling).
 
 ## Build, Test, and Development Commands
@@ -34,7 +34,8 @@ Common commands (run from the repository root):
 ## Testing Guidelines
 
 - Framework: minimal custom C test runner in `tests/`.
-- Naming: `*_test.c` with a single `main()` for each test binary.
+- Naming: `*_test.c` with a single `main()` for each test binary, organized under `tests/drv-modules/`.
+- Reuse shared utilities from `tests/common/` to avoid duplicating helpers.
 - Use representative, small NMEA samples (see `drv-modules/nmea0183/nmea-sample.txt`) rather than large fixtures.
 - When adding tests, update `tests/Makefile` with the new target.
 

@@ -13,6 +13,12 @@ make -C tests
 ./tests/build/nmea0183_test
 ```
 
+To build and run all tests:
+
+```sh
+make -C tests test
+```
+
 ## What is covered
 
 - NMEA0183 parsing and validation in `drv-modules/nmea0183/NMEA0183.c`
@@ -33,7 +39,8 @@ locally rather than importing the full device headers.
 
 ## Adding new tests
 
-- Add a new `*_test.c` under `tests/`
+- Add a new `*_test.c` under `tests/drv-modules/...` to mirror the module path.
+- Reuse helpers in `tests/common/nmea_test_utils.c` where applicable.
 - Update `tests/Makefile` to build the new target
 - Keep test data small and focused; prefer a few representative NMEA sentences
   instead of the full sample file

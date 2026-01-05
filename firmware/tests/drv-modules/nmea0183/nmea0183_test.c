@@ -1,4 +1,5 @@
 #include "NMEA0183.h"
+#include "nmea_test_utils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -23,47 +24,6 @@ static void test_assert(int condition, const char *expr, const char *file,
 }
 
 #define TEST_ASSERT(cond) test_assert((cond), #cond, __FILE__, __LINE__)
-
-/**
- * @brief Convert a nibble to uppercase hex ASCII.
- *
- * @param value Value in the range 0-15.
- * @return ASCII character for the hex value.
- */
-static uint8_t to_hex_ascii(uint8_t value) {
-  if (value < 10) {
-    return (uint8_t)('0' + value);
-  }
-  return (uint8_t)('A' + (value - 10));
-}
-
-/**
- * @brief Build a valid NMEA0183 sentence with checksum and CRLF.
- *
- * @param msg Output sentence container.
- * @param start Start character ('$' or '!').
- * @param body Sentence body without checksum or terminators.
- * @return void
- */
-static void build_sentence(NMEA0183Raw *msg, char start, const char *body) {
-  size_t body_len = strlen(body);
-  uint8_t checksum = 0;
-  size_t index = 0;
-
-  msg->scentenceData[index++] = (uint8_t)start;
-  memcpy(&msg->scentenceData[index], body, body_len);
-  for (size_t i = 0; i < body_len; i++) {
-    checksum ^= (uint8_t)body[i];
-  }
-  index += body_len;
-
-  msg->scentenceData[index++] = '*';
-  msg->scentenceData[index++] = to_hex_ascii((uint8_t)(checksum >> 4));
-  msg->scentenceData[index++] = to_hex_ascii((uint8_t)(checksum & 0x0F));
-  msg->scentenceData[index++] = '\r';
-  msg->scentenceData[index++] = '\n';
-  msg->scentenceLength = (uint8_t)index;
-}
 
 /**
  * @brief Load a raw sample line and append CRLF terminators.
@@ -118,7 +78,7 @@ static void test_check_message_bad_start(void) {
  */
 static void test_check_message_bad_termination(void) {
   NMEA0183Raw msg = {0};
-  build_sentence(&msg, '$', "IIMWV,045.0,R");
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R");
   msg.scentenceData[msg.scentenceLength - 1] = 'X';
   TEST_ASSERT(NMEA0183__checkMessage(&msg) == BAD_TERMINATION_SEQUENCE);
 }
@@ -131,7 +91,7 @@ static void test_check_message_bad_termination(void) {
  */
 static void test_check_message_bad_checksum(void) {
   NMEA0183Raw msg = {0};
-  build_sentence(&msg, '$', "IIMWV,045.0,R");
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R");
   msg.scentenceData[msg.scentenceLength - 3] = '0';
   TEST_ASSERT(NMEA0183__checkMessage(&msg) == BAD_CHECK_SUM);
 }
@@ -164,7 +124,7 @@ static void test_check_message_sample_lines(void) {
  */
 static void test_good_message_fields_and_type(void) {
   NMEA0183Raw msg = {0};
-  build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
   TEST_ASSERT(NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
 
   TEST_ASSERT(strcmp((char *)NMEA0183__getField(&msg, 0), "IIMWV") == 0);
@@ -254,7 +214,7 @@ static void test_irq_buffer_overflow(void) {
   TEST_ASSERT(nmea != NULL);
 
   NMEA0183Raw msg = {0};
-  build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
 
   for (int i = 0; i < MAX_DATA_BUFFER_SIZE + 2; i++) {
     copy_sentence_to_dma(nmea, &msg);
@@ -284,7 +244,7 @@ static void test_irq_ignores_short_receive(void) {
   TEST_ASSERT(nmea != NULL);
 
   NMEA0183Raw msg = {0};
-  build_sentence(&msg, '$', "IIMWV,045.0,R");
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R");
   copy_sentence_to_dma(nmea, &msg);
   trigger_irq(&huart, 2);
 

@@ -3,6 +3,7 @@ CFLAGS ?= -std=c11 -Wall -Wextra -Werror -O0
 
 ROOT_DIR := ..
 STUB_DIR := $(ROOT_DIR)/tests/stubs
+COMMON_DIR := $(ROOT_DIR)/tests/common
 NMEA_DIR := $(ROOT_DIR)/drv-modules/nmea0183
 BUILD_DIR := $(ROOT_DIR)/tests/build
 
@@ -13,15 +14,18 @@ WIND_TEST := $(BUILD_DIR)/wind_sensor_test
 
 all: $(NMEA_TEST) $(WIND_TEST)
 
-$(NMEA_TEST): $(ROOT_DIR)/tests/nmea0183_test.c $(NMEA_DIR)/NMEA0183.c
+$(NMEA_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/nmea0183_test.c \
+	$(ROOT_DIR)/tests/common/nmea_test_utils.c \
+	$(NMEA_DIR)/NMEA0183.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(NMEA_DIR) $^ -o $@
+	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) $^ -o $@
 
-$(WIND_TEST): $(ROOT_DIR)/tests/wind_sensor_test.c \
+$(WIND_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/wind_sensor_test.c \
+	$(ROOT_DIR)/tests/common/nmea_test_utils.c \
 	$(NMEA_DIR)/NMEA0183.c \
 	$(NMEA_DIR)/WIND_SENSOR.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(NMEA_DIR) $^ -o $@
+	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) $^ -o $@
 
 test: all
 	$(NMEA_TEST)
