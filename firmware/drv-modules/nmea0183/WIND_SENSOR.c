@@ -59,6 +59,44 @@ static tenths16_t parseTenths(const char *value_str) {
   return (tenths16_t)stringToInt(value_str);
 }
 
+/**
+ * Convert a wind status to a printable character.
+ *
+ * @param status the parsed status enum
+ * @return printable character for the status
+ */
+static char statusToChar(wind_status_t status) {
+  if (status == VALID || status == INVALID) {
+    return (char)status;
+  }
+  return '?';
+}
+
+/**
+ * Convert a wind reference to a printable character.
+ *
+ * @param reference the parsed reference enum
+ * @return printable character for the reference
+ */
+static char referenceToChar(wind_reference_t reference) {
+  if (reference == REFERENCE) {
+    return (char)reference;
+  }
+  return '?';
+}
+
+/**
+ * Print a fixed-point value scaled by 10 with a label.
+ *
+ * @param label the output label
+ * @param value the fixed-point value
+ * @return void
+ */
+static void printTenths(const char *label, tenths16_t value) {
+  printf("%s=%u.%u", label, (unsigned int)(value / 10),
+         (unsigned int)(value % 10));
+}
+
 /*
  * Management
  */
@@ -134,4 +172,20 @@ bool WIND_SENSOR__poll(WIND_SENSOR *self) {
   // Advance ring buffer
   NMEA0183__incrementReadIndex(channel);
   return result;
+}
+
+/*
+ * Prints the current wind sensor values to stdout.
+ */
+void WIND_SENSOR__print(const WIND_SENSOR *self) {
+  if (!self) {
+    return;
+  }
+
+  printTenths("dir", self->direction);
+  printf(" %c ", referenceToChar(self->reference));
+  printTenths("spd", self->speed);
+  printf(" kt status=%c ", statusToChar(self->status));
+  printTenths("temp", self->temp);
+  printf(" C\r\n");
 }

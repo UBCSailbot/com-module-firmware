@@ -89,4 +89,9 @@ void WIND_SENSOR__destroy(WIND_SENSOR *self);
  */
 bool WIND_SENSOR__poll(WIND_SENSOR *self);
 
+/*
+ * Prints the current wind sensor values to stdout.
+ */
+void WIND_SENSOR__print(const WIND_SENSOR *self);
+
 #endif /* WIND_SENSOR_H_ */

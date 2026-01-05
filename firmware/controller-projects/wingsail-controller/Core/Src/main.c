@@ -25,6 +25,7 @@
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
 #include "NMEA0183.h"
+#include "WIND_SENSOR.h"
 #include "stm32u5xx.h"
 #include "stm32u5xx_hal.h"
 #include "stm32u5xx_hal_uart.h"
@@ -124,7 +125,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-  NMEA0183* windSensor = NMEA0183__create(&huart2);
+  NMEA0183* nmeaChannel = NMEA0183__create(&huart2);
+  WIND_SENSOR* windSensor = WIND_SENSOR__create(nmeaChannel);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -132,37 +134,10 @@ int main(void)
   while (1)
   {
     HAL_Delay(100);
-
-    // See if a message is available
-    NMEA0183Raw *msg = NMEA0183__getTopBufferItem(windSensor);
-
-    if (msg != NULL)
-    {
-        // validate and null-terminate fields
-        if (NMEA0183__checkMessage(msg) == GOOD_MESSAGE)
-        {
-        	for (int i = 0; i < msg->scentenceLength; i++) {
-        	    uint8_t c = msg->scentenceData[i];
-        	    if (c == '\0') printf("\n\r");   // break at each field
-        	    else putchar(c);
-        	}
-        	printf("\n\r");
-        }
-        else
-        {
-        	printf("BAD MESSAGE len=%u:\n", msg->scentenceLength);
-        	for (int i=0; i<msg->scentenceLength; i++)
-        	    printf("%02X ", msg->scentenceData[i]);
-        	printf("\n\r");
-        }
-
-        // IMPORTANT: advance the ring buffer
-        NMEA0183__incrementReadIndex(windSensor);
+    if (WIND_SENSOR__poll(windSensor)) {
+      WIND_SENSOR__print(windSensor);
     }
-    else
-    {
-        printf("no new data\r\n");
-    }
+
     
     /* USER CODE END WHILE */
 
