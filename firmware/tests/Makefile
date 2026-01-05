@@ -6,18 +6,26 @@ STUB_DIR := $(ROOT_DIR)/tests/stubs
 NMEA_DIR := $(ROOT_DIR)/drv-modules/nmea0183
 BUILD_DIR := $(ROOT_DIR)/tests/build
 
-TARGET := $(BUILD_DIR)/nmea0183_test
+NMEA_TEST := $(BUILD_DIR)/nmea0183_test
+WIND_TEST := $(BUILD_DIR)/wind_sensor_test
 
 .PHONY: all clean test
 
-all: $(TARGET)
+all: $(NMEA_TEST) $(WIND_TEST)
 
-$(TARGET): $(ROOT_DIR)/tests/nmea0183_test.c $(NMEA_DIR)/NMEA0183.c
+$(NMEA_TEST): $(ROOT_DIR)/tests/nmea0183_test.c $(NMEA_DIR)/NMEA0183.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(NMEA_DIR) $^ -o $@
+
+$(WIND_TEST): $(ROOT_DIR)/tests/wind_sensor_test.c \
+	$(NMEA_DIR)/NMEA0183.c \
+	$(NMEA_DIR)/WIND_SENSOR.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(NMEA_DIR) $^ -o $@
 
 test: all
-	$(TARGET)
+	$(NMEA_TEST)
+	$(WIND_TEST)
 
 clean:
 	rm -rf $(BUILD_DIR)
