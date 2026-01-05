@@ -29,6 +29,7 @@ Common commands (run from the repository root):
 - Naming patterns include `Module__function` for public APIs and uppercase macros (e.g., `MAX_*`, `MESSAGE_*`).
 - Keep headers self-contained and prefer explicit `stdint.h` types.
 - In `tests/`, use Doxygen comments with a blank line after `@brief`, and include `@param`/`@return` tags.
+- For new comments outside `tests/`, keep the same `/** ... */` format with short summaries and `@param`/`@return` tags.
 
 ## Testing Guidelines
 
