@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "NMEA0183.h"
 #include "WIND_SENSOR.h"
 #include "nmea_test_utils.h"
