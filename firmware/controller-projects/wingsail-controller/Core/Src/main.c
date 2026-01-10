@@ -102,6 +102,7 @@ static void MX_SPI1_Init(void);
 int main(void)
 {
 
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -360,6 +361,37 @@ static void MX_FDCAN1_Init(void)
 }
 
 /**
+||||||||| 7f949f2
+=========
+  * @brief GPDMA1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPDMA1_Init(void)
+{
+
+  /* USER CODE BEGIN GPDMA1_Init 0 */
+
+  /* USER CODE END GPDMA1_Init 0 */
+
+  /* Peripheral clock enable */
+  __HAL_RCC_GPDMA1_CLK_ENABLE();
+
+  /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel15_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel15_IRQn);
+
+  /* USER CODE BEGIN GPDMA1_Init 1 */
+
+  /* USER CODE END GPDMA1_Init 1 */
+  /* USER CODE BEGIN GPDMA1_Init 2 */
+
+  /* USER CODE END GPDMA1_Init 2 */
+
+}
+
+/**
+>>>>>>>>> Temporary merge branch 2
   * @brief ICACHE Initialization Function
   * @param None
   * @retval None
