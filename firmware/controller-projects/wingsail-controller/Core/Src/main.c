@@ -25,7 +25,7 @@
 #include <stdio.h>
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
-//#include "NMEA0183.h"
+#include "NMEA0183.h"
 #include "WIND_SENSOR.h"
 #include "stm32u5xx.h"
 #include "can.h"
@@ -143,15 +143,12 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
-//  NMEA0183* nmeaChannel = NMEA0183__create(&huart2);
+  NMEA0183* nmeaChannel = NMEA0183__create(&huart2);
   WIND_SENSOR* windSensor = WIND_SENSOR__create(nmeaChannel);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  float angle = 0;
-  uint8_t * canBuffer;
-  canBuffer = (uint8_t *) malloc(9);
   while (1)
   {
     HAL_Delay(100);
@@ -361,37 +358,6 @@ static void MX_FDCAN1_Init(void)
 }
 
 /**
-||||||||| 7f949f2
-=========
-  * @brief GPDMA1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPDMA1_Init(void)
-{
-
-  /* USER CODE BEGIN GPDMA1_Init 0 */
-
-  /* USER CODE END GPDMA1_Init 0 */
-
-  /* Peripheral clock enable */
-  __HAL_RCC_GPDMA1_CLK_ENABLE();
-
-  /* GPDMA1 interrupt Init */
-    HAL_NVIC_SetPriority(GPDMA1_Channel15_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel15_IRQn);
-
-  /* USER CODE BEGIN GPDMA1_Init 1 */
-
-  /* USER CODE END GPDMA1_Init 1 */
-  /* USER CODE BEGIN GPDMA1_Init 2 */
-
-  /* USER CODE END GPDMA1_Init 2 */
-
-}
-
-/**
->>>>>>>>> Temporary merge branch 2
   * @brief ICACHE Initialization Function
   * @param None
   * @retval None
