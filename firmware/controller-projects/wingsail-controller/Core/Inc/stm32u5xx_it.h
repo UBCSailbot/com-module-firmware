@@ -23,8 +23,28 @@
 
 #ifdef __cplusplus
 extern "C" {
+extern "C" {
 #endif
 
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Exported types ------------------------------------------------------------*/
+/* USER CODE BEGIN ET */
+
+/* USER CODE END ET */
+
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
+
+/* USER CODE END EC */
+
+/* Exported macro ------------------------------------------------------------*/
+/* USER CODE BEGIN EM */
+
+/* USER CODE END EM */
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -55,6 +75,7 @@ void SVC_Handler(void);
 void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
+void FDCAN1_IT0_IRQHandler(void);
 void USART2_IRQHandler(void);
 void OTG_FS_IRQHandler(void);
 void GPDMA1_Channel15_IRQHandler(void);
