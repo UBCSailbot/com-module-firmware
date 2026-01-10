@@ -12,6 +12,23 @@
 #include <string.h>
 
 /*
+ * Constants
+ */
+
+static const uint8_t MESSAGE_TYPE_INDEX = 0;
+
+// Wind temperature messages
+static const char WIND_TEMP_SENTENCE[] = "WIXDR";
+static const uint8_t WIND_TEMP_INDEX = 2;
+
+// Wind messages
+static const char WIND_SENTENCE[] = "IIMWV";
+static const uint8_t WIND_DIRECTION_INDEX = 1;
+static const uint8_t WIND_REFERENCE_INDEX = 2;
+static const uint8_t WIND_SPEED_INDEX = 3;
+static const uint8_t WIND_STATUS_INDEX = 5;
+
+/*
  * Helper functions
  */
 
@@ -151,8 +168,10 @@ bool WIND_SENSOR__poll(WIND_SENSOR *self) {
   NMEA0183 *channel = self->channel;
   NMEA0183Raw *message = NMEA0183__getTopBufferItem(channel);
 
-  if (message != NULL) {
-    if (NMEA0183__checkMessage(message) == GOOD_MESSAGE) {
+  if (message != NULL && NMEA0183__checkMessage(message) == GOOD_MESSAGE) {
+    const char *messageType = getField(message, MESSAGE_TYPE_INDEX);
+
+    if (messageType == WIND_SENTENCE) {
       const char *direction = getField(message, WIND_DIRECTION_INDEX);
       const char *reference = getField(message, WIND_REFERENCE_INDEX);
       const char *speed = getField(message, WIND_SPEED_INDEX);
@@ -164,6 +183,11 @@ bool WIND_SENSOR__poll(WIND_SENSOR *self) {
       self->status = (wind_status_t)status[0];
 
       result = true;
+    } else if (messageType == WIND_TEMP_SENTENCE) {
+      const char *temp = getField(message, WIND_TEMP_INDEX);
+
+      self->temp = parseTenths(temp);
+
     } else {
       result = false;
     }

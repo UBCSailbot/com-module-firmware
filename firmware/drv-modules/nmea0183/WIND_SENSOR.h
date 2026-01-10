@@ -18,15 +18,6 @@
 #include "NMEA0183.h"
 
 /*
- * Constants
- */
-
-static const uint8_t WIND_DIRECTION_INDEX = 1;
-static const uint8_t WIND_REFERENCE_INDEX = 2;
-static const uint8_t WIND_SPEED_INDEX = 3;
-static const uint8_t WIND_STATUS_INDEX = 5;
-
-/*
  * Type definitions
  */
 
