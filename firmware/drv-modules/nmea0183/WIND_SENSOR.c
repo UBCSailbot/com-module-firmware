@@ -165,13 +165,17 @@ void WIND_SENSOR__destroy(WIND_SENSOR *self) {
 bool WIND_SENSOR__poll(WIND_SENSOR *self) {
   bool result = false;
 
+  if (!self) {
+    return false;
+  }
+
   NMEA0183 *channel = self->channel;
   NMEA0183Raw *message = NMEA0183__getTopBufferItem(channel);
 
   if (message != NULL && NMEA0183__checkMessage(message) == GOOD_MESSAGE) {
     const char *messageType = getField(message, MESSAGE_TYPE_INDEX);
 
-    if (messageType == WIND_SENTENCE) {
+    if (messageType && strcmp(messageType, WIND_SENTENCE) == 0) {
       const char *direction = getField(message, WIND_DIRECTION_INDEX);
       const char *reference = getField(message, WIND_REFERENCE_INDEX);
       const char *speed = getField(message, WIND_SPEED_INDEX);
@@ -179,11 +183,12 @@ bool WIND_SENSOR__poll(WIND_SENSOR *self) {
 
       self->direction = parseTenths(direction);
       self->speed = parseTenths(speed);
-      self->reference = (wind_reference_t)reference[0];
-      self->status = (wind_status_t)status[0];
+      self->reference =
+          reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
+      self->status = status ? (wind_status_t)status[0] : UNKNOWN;
 
       result = true;
-    } else if (messageType == WIND_TEMP_SENTENCE) {
+    } else if (messageType && strcmp(messageType, WIND_TEMP_SENTENCE) == 0) {
       const char *temp = getField(message, WIND_TEMP_INDEX);
 
       self->temp = parseTenths(temp);
