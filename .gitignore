@@ -21,6 +21,9 @@
 *.idea
 *.cache
 
+# Agent instructions
+*/AGENTS.md
+
 # Tooling artifacts
 compile_commands.json
 firmware/compile_commands.json
