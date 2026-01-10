@@ -152,8 +152,9 @@ int main(void)
   while (1)
   {
     HAL_Delay(100);
-    WIND_SENSOR__poll(windSensor);
-    WIND_SENSOR__print(windSensor);
+    if (WIND_SENSOR__poll(windSensor)) {
+      WIND_SENSOR__print(windSensor);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
