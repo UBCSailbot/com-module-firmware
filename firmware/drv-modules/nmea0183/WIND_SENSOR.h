@@ -22,6 +22,8 @@
  * Type definitions
  */
 
+typedef uint32_t can_frame_id_t;
+
 typedef uint16_t tenths16_t; // Convert to fixed point by dividing by ten
 
 typedef tenths16_t wind_direction_deg_t;
