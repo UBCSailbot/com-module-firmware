@@ -24,6 +24,17 @@ typedef enum {
     HAL_ERROR = 1
 } HAL_StatusTypeDef;
 
+#define RESET 0U
+
+#define GPIO_PIN_RESET 0U
+#define GPIO_PIN_SET 1U
+
+typedef struct {
+    uint32_t dummy;
+} GPIO_TypeDef;
+
+typedef uint32_t GPIO_PinState;
+
 #define USART_CR1_UE 0x00000001U
 #define USART_CR2_ADD 0x000000FFU
 #define UART_CR2_ADDRESS_LSB_POS 0U
@@ -85,6 +96,21 @@ static inline HAL_StatusTypeDef HAL_UART_Receive_DMA(UART_HandleTypeDef *huart,
 static inline HAL_StatusTypeDef HAL_UART_DMAStop(UART_HandleTypeDef *huart) {
     (void)huart;
     return HAL_OK;
+}
+
+/**
+ * @brief Stub HAL GPIO write.
+ *
+ * @param GPIOx GPIO port.
+ * @param GPIO_Pin GPIO pin mask.
+ * @param PinState Pin state to write.
+ * @return void
+ */
+static inline void HAL_GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin,
+                                     GPIO_PinState PinState) {
+    (void)GPIOx;
+    (void)GPIO_Pin;
+    (void)PinState;
 }
 
 #endif

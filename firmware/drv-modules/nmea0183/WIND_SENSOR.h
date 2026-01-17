@@ -16,6 +16,7 @@
  */
 
 #include "NMEA0183.h"
+#include "can.h"
 
 /*
  * Type definitions
@@ -80,9 +81,18 @@ void WIND_SENSOR__destroy(WIND_SENSOR *self);
  */
 bool WIND_SENSOR__poll(WIND_SENSOR *self);
 
-/*
+/**
  * Prints the current wind sensor values to stdout.
  */
 void WIND_SENSOR__print(const WIND_SENSOR *self);
+
+/**
+ *  Transmit both SAIL_WIND and DATA_WIND over CANFD
+ *  as defined in [Sailbot's Confluence Page](https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
+ *
+ *  @param self an initialized WIND_SENSOR object.
+ *  @return HAL_OK if successful, a HAL error code otherwise.
+ */
+HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self);
 
 #endif /* WIND_SENSOR_H_ */

@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
+//#include <stdio.h>
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
 #include "NMEA0183.h"
