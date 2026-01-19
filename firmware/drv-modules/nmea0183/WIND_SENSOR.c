@@ -28,8 +28,8 @@ static const uint8_t WIND_SPEED_INDEX = 3;
 static const uint8_t WIND_STATUS_INDEX = 5;
 
 // CAN communication
-static const can_frame_id_t SAIL_WIND = 0x040;
-static const can_frame_id_t DATA_WIND = 0x041;
+static const can_frame_id_t SAIL_WIND_ID = 0x040;
+static const can_frame_id_t DATA_WIND_ID = 0x041;
 static const uint32_t WIND_DATA_LENGTH = FDCAN_DLC_BYTES_4;
 
 /*
@@ -257,9 +257,9 @@ WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
 HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self,
                                             FDCAN_HandleTypeDef *hfdcan1) {
   HAL_StatusTypeDef sailTransmitted =
-      WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND, hfdcan1);
+      WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND_ID, hfdcan1);
   HAL_StatusTypeDef dataTransmitted =
-      WIND_SENSOR__CAN_transmit_single(self, DATA_WIND, hfdcan1);
+      WIND_SENSOR__CAN_transmit_single(self, DATA_WIND_ID, hfdcan1);
 
   if (sailTransmitted != HAL_OK)
     return sailTransmitted;
