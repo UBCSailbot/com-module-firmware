@@ -5,6 +5,9 @@
  *      Author: george-sleen
  */
 
+#include "can.h"
+#include "stm32u5xx_hal_def.h"
+#include "stm32u5xx_hal_fdcan.h"
 #include <NMEA0183.h>
 #include <WIND_SENSOR.h>
 #include <stdio.h>
@@ -15,12 +18,19 @@
  * Constants
  */
 
+// Temperature messages
 static const uint8_t WIND_TEMP_INDEX = 2;
 
+// Wind data messages
 static const uint8_t WIND_DIRECTION_INDEX = 1;
 static const uint8_t WIND_REFERENCE_INDEX = 2;
 static const uint8_t WIND_SPEED_INDEX = 3;
 static const uint8_t WIND_STATUS_INDEX = 5;
+
+// CAN communication
+static const can_frame_id_t SAIL_WIND = 0x040;
+static const can_frame_id_t DATA_WIND = 0x041;
+static const uint32_t WIND_DATA_LENGTH = FDCAN_DLC_BYTES_4;
 
 /*
  * Helper functions
@@ -215,12 +225,43 @@ void WIND_SENSOR__print(const WIND_SENSOR *self) {
 }
 
 /**
+ *  Transmit SAIL_WIND or DATA_WIND over CANFD
+ */
+static HAL_StatusTypeDef
+WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
+                                 FDCAN_HandleTypeDef *hfdcan1) {
+  uint8_t data[4];
+  uint16_t angle_deg = (uint16_t)(self->direction / 10U);
+  uint16_t speed_tenths = (uint16_t)(self->speed);
+
+  // Pack angle into [15:0]
+  data[0] = (uint8_t)(angle_deg & 0xFF);
+  data[1] = (uint8_t)((angle_deg >> 8) & 0xFF);
+  // Pack speed into [31:16]
+  data[2] = (uint8_t)(speed_tenths & 0xFF);
+  data[3] = (uint8_t)((speed_tenths >> 8) & 0xFF);
+
+  return CAN_Transmit((uint32_t)CAN_ID, FDCAN_STANDARD_ID, WIND_DATA_LENGTH,
+                      data, hfdcan1);
+}
+
+/**
  *  Transmit both SAIL_WIND and DATA_WIND over CANFD
- *  as defined in [Sailbot's Confluence Page](https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
+ *  as defined in [Sailbot's Confluence Page]
+ *  (https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
  *
  *  @param self an initialized WIND_SENSOR object.
+ *  @param hfdcan1 a can channel.
  *  @return HAL_OK if successful, a HAL error code otherwise.
  */
-HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self) {
-  
+HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self,
+                                            FDCAN_HandleTypeDef *hfdcan1) {
+  HAL_StatusTypeDef sailTransmitted =
+      WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND, hfdcan1);
+  HAL_StatusTypeDef dataTransmitted =
+      WIND_SENSOR__CAN_transmit_single(self, DATA_WIND, hfdcan1);
+
+  if (sailTransmitted != HAL_OK)
+    return sailTransmitted;
+  return dataTransmitted;
 }

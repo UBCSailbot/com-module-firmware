@@ -90,11 +90,14 @@ void WIND_SENSOR__print(const WIND_SENSOR *self);
 
 /**
  *  Transmit both SAIL_WIND and DATA_WIND over CANFD
- *  as defined in [Sailbot's Confluence Page](https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
+ *  as defined in [Sailbot's Confluence Page]
+ *  (https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
  *
  *  @param self an initialized WIND_SENSOR object.
+ *  @param hfdcan1 a can channel.
  *  @return HAL_OK if successful, a HAL error code otherwise.
  */
-HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self);
+HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self,
+                                            FDCAN_HandleTypeDef *hfdcan1);
 
 #endif /* WIND_SENSOR_H_ */
