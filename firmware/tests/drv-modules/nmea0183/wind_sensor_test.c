@@ -10,6 +10,60 @@
 #include <unistd.h>
 
 static int g_failures = 0;
+static uint32_t g_tx_identifiers[4];
+static uint32_t g_tx_id_types[4];
+static uint32_t g_tx_data_lengths[4];
+static uint8_t g_tx_payloads[4][8];
+static uint8_t g_tx_payload_sizes[4];
+static HAL_StatusTypeDef g_tx_statuses[4];
+static int g_tx_status_count = 0;
+static int g_tx_call_count = 0;
+
+/**
+ * @brief Reset captured CAN transmit state.
+ *
+ * @param void
+ * @return void
+ */
+static void reset_can_tx_capture(void) {
+  memset(g_tx_identifiers, 0, sizeof(g_tx_identifiers));
+  memset(g_tx_id_types, 0, sizeof(g_tx_id_types));
+  memset(g_tx_data_lengths, 0, sizeof(g_tx_data_lengths));
+  memset(g_tx_payloads, 0, sizeof(g_tx_payloads));
+  memset(g_tx_payload_sizes, 0, sizeof(g_tx_payload_sizes));
+  memset(g_tx_statuses, 0, sizeof(g_tx_statuses));
+  g_tx_status_count = 0;
+  g_tx_call_count = 0;
+}
+
+HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType,
+                               uint32_t DataLength, uint8_t *DataBuffer,
+                               FDCAN_HandleTypeDef *hfdcan1) {
+  int index = g_tx_call_count;
+
+  (void)hfdcan1;
+
+  if (index < (int)(sizeof(g_tx_identifiers) / sizeof(g_tx_identifiers[0]))) {
+    g_tx_identifiers[index] = Identifier;
+    g_tx_id_types[index] = IdType;
+    g_tx_data_lengths[index] = DataLength;
+    g_tx_payload_sizes[index] = (uint8_t)DataLength;
+    if (DataBuffer && DataLength > 0U) {
+      size_t copy_size = (size_t)DataLength;
+      if (copy_size > sizeof(g_tx_payloads[index])) {
+        copy_size = sizeof(g_tx_payloads[index]);
+      }
+      memcpy(g_tx_payloads[index], DataBuffer, copy_size);
+    }
+  }
+
+  g_tx_call_count++;
+
+  if (index < g_tx_status_count) {
+    return g_tx_statuses[index];
+  }
+  return HAL_OK;
+}
 
 /**
  * @brief Capture WIND_SENSOR__print output into a buffer.
@@ -116,6 +170,59 @@ static void test_wind_sensor_print_format(void) {
 }
 
 /**
+ * @brief Validate CAN transmit packs wind payload and IDs.
+ *
+ * @param void
+ * @return void
+ */
+static void test_wind_sensor_can_transmit_payload(void) {
+  WIND_SENSOR sensor = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+  uint8_t expected_payload[4] = {0x2D, 0x00, 0x66, 0x00};
+
+  sensor.direction = (wind_direction_deg_t)450;
+  sensor.speed = (wind_speed_knots_t)102;
+
+  reset_can_tx_capture();
+
+  TEST_ASSERT(&g_failures,
+              WIND_SENSOR__CAN_transmit(&sensor, &hfdcan) == HAL_OK);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 2);
+  TEST_ASSERT(&g_failures, g_tx_identifiers[0] == 0x040);
+  TEST_ASSERT(&g_failures, g_tx_identifiers[1] == 0x041);
+  TEST_ASSERT(&g_failures, g_tx_id_types[0] == FDCAN_STANDARD_ID);
+  TEST_ASSERT(&g_failures, g_tx_id_types[1] == FDCAN_STANDARD_ID);
+  TEST_ASSERT(&g_failures, g_tx_data_lengths[0] == FDCAN_DLC_BYTES_4);
+  TEST_ASSERT(&g_failures, g_tx_data_lengths[1] == FDCAN_DLC_BYTES_4);
+  TEST_ASSERT(&g_failures, g_tx_payload_sizes[0] == 4);
+  TEST_ASSERT(&g_failures, g_tx_payload_sizes[1] == 4);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[0], expected_payload, 4) == 0);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[1], expected_payload, 4) == 0);
+}
+
+/**
+ * @brief Validate CAN transmit returns error when a send fails.
+ *
+ * @param void
+ * @return void
+ */
+static void test_wind_sensor_can_transmit_propagates_status(void) {
+  WIND_SENSOR sensor = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+
+  reset_can_tx_capture();
+  g_tx_statuses[0] = HAL_OK;
+  g_tx_statuses[1] = HAL_ERROR;
+  g_tx_status_count = 2;
+
+  TEST_ASSERT(&g_failures,
+              WIND_SENSOR__CAN_transmit(&sensor, &hfdcan) == HAL_ERROR);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 2);
+}
+
+/**
  * @brief Stub Error_Handler for host tests.
  *
  * @param void
@@ -134,6 +241,8 @@ void Error_Handler(void) {
 int main(void) {
   test_wind_sensor_poll_parses_mwv();
   test_wind_sensor_print_format();
+  test_wind_sensor_can_transmit_payload();
+  test_wind_sensor_can_transmit_propagates_status();
 
   if (g_failures == 0) {
     printf("PASS\n");

@@ -28,7 +28,7 @@ $(WIND_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/wind_sensor_test.c \
 	$(NMEA_DIR)/NMEA0183.c \
 	$(NMEA_DIR)/WIND_SENSOR.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) $^ -o $@
+	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) -I$(CANFD_DIR) $^ -o $@
 
 $(AIS_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/ais_test.c \
 	$(ROOT_DIR)/tests/common/nmea_test_utils.c \
