@@ -35,7 +35,7 @@ $(AIS_TEST): $(ROOT_DIR)/tests/drv-modules/nmea0183/ais_test.c \
 	$(NMEA_DIR)/NMEA0183.c \
 	$(NMEA_DIR)/AIS.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) $^ -o $@
+	$(CC) $(CFLAGS) -I$(STUB_DIR) -I$(COMMON_DIR) -I$(NMEA_DIR) -I$(CANFD_DIR) $^ -o $@
 
 $(CANFD_TEST): $(ROOT_DIR)/tests/com-modules/canfd/canfd_test.c \
 	$(CANFD_DIR)/can.c

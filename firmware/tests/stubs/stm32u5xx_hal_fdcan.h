@@ -64,6 +64,13 @@ typedef struct {
 #define FDCAN_DLC_BYTES_6 6U
 #define FDCAN_DLC_BYTES_7 7U
 #define FDCAN_DLC_BYTES_8 8U
+#define FDCAN_DLC_BYTES_12 12U
+#define FDCAN_DLC_BYTES_16 16U
+#define FDCAN_DLC_BYTES_20 20U
+#define FDCAN_DLC_BYTES_24 24U
+#define FDCAN_DLC_BYTES_32 32U
+#define FDCAN_DLC_BYTES_48 48U
+#define FDCAN_DLC_BYTES_64 64U
 
 HAL_StatusTypeDef HAL_FDCAN_ConfigFilter(FDCAN_HandleTypeDef *hfdcan,
                                          FDCAN_FilterTypeDef *sFilterConfig);
