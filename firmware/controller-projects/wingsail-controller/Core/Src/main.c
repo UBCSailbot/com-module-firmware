@@ -22,10 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
-#include "NMEA0183.h"
-#include "WIND_SENSOR.h"
+#include "AIS.h"
 #include "stm32u5xx.h"
 #include "can.h"
 #include "CANSPI.h"
@@ -64,6 +64,8 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
 static uint8_t can_rx_buf[5 + 64];
+static AIS_DATA ais_data;
+static const char ais_sample[] = "133sVfPP00PD>hRMDH@jNOvN20S8";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -138,40 +140,32 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
-  NMEA0183* nmeaChannel = NMEA0183__create(&huart2);
-  WIND_SENSOR* windSensor = WIND_SENSOR__create(nmeaChannel);
-  windSensor->direction = 1230;
-  windSensor->speed = 45;
-  windSensor->reference = REFERENCE;
-  windSensor->status = VALID;
+  memset(&ais_data, 0, sizeof(ais_data));
+  memcpy(ais_data.sixBitData, ais_sample, sizeof(ais_sample) - 1U);
+  ais_data.dataLength = (uint16_t)(sizeof(ais_sample) - 1U);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    (void)WIND_SENSOR__CAN_transmit(windSensor, &hfdcan1);
+    (void)AIS__CAN_transmit_single(&ais_data, 0, 1, &hfdcan1);
     HAL_Delay(10);
-    for (uint8_t rx_count = 0; rx_count < 2; rx_count++) {
-      if (CAN_Receive(can_rx_buf) != HAL_OK) {
-        break;
-      }
+    if (CAN_Receive(can_rx_buf) == HAL_OK) {
       uint32_t id = (uint32_t)can_rx_buf[0] |
                     ((uint32_t)can_rx_buf[1] << 8) |
                     ((uint32_t)can_rx_buf[2] << 16) |
                     ((uint32_t)can_rx_buf[3] << 24);
       uint8_t len = can_rx_buf[4];
-      if (len == 4) {
-        uint16_t angle = (uint16_t)can_rx_buf[5] |
-                         ((uint16_t)can_rx_buf[6] << 8);
-        uint16_t speed = (uint16_t)can_rx_buf[7] |
-                         ((uint16_t)can_rx_buf[8] << 8);
-        printf("CAN RX id=0x%03lX angle=%u speed=%u\r\n",
-               (unsigned long)id, angle, speed);
-      } else {
-        printf("CAN RX id=0x%03lX len=%u\r\n",
-               (unsigned long)id, (unsigned int)len);
+      uint32_t mmsi = 0U;
+      if (len >= 4U) {
+        mmsi = (uint32_t)can_rx_buf[5] |
+               ((uint32_t)can_rx_buf[6] << 8) |
+               ((uint32_t)can_rx_buf[7] << 16) |
+               ((uint32_t)can_rx_buf[8] << 24);
       }
+      printf("CAN RX id=0x%03lX len=%u mmsi=%lu\r\n",
+             (unsigned long)id, (unsigned int)len, (unsigned long)mmsi);
     }
     HAL_Delay(1000);
 
