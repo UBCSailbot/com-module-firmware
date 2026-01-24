@@ -64,7 +64,7 @@ typedef struct {
 } AIS_PARSER;
 
 // Maximum number of unique ships stored in one transmit cycle.
-static const uint16_t AIS_CAN_MAX_SHIPS = 256U;
+enum { AIS_CAN_MAX_SHIPS = 256 };
 
 // AIS CAN batch storage.
 typedef struct {

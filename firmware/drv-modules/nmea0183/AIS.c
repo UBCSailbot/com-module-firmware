@@ -203,7 +203,7 @@ static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi) {
   }
 
   for (uint16_t index = 0; index < batch->ship_count; index++) {
-    if (AIS__getMMSINumber(&batch->ships[index]) == mmsi) {
+    if (AIS__getMMSINumber((AIS_DATA *)&batch->ships[index]) == mmsi) {
       return (int)index;
     }
   }
