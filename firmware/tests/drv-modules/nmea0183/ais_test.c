@@ -8,12 +8,12 @@
 #include <string.h>
 
 static int g_failures = 0;
-static uint32_t g_tx_identifiers[4];
-static uint32_t g_tx_id_types[4];
-static uint32_t g_tx_data_lengths[4];
-static uint8_t g_tx_payloads[4][32];
-static uint8_t g_tx_payload_sizes[4];
-static HAL_StatusTypeDef g_tx_statuses[4];
+static uint32_t g_tx_identifiers[200];
+static uint32_t g_tx_id_types[200];
+static uint32_t g_tx_data_lengths[200];
+static uint8_t g_tx_payloads[200][32];
+static uint8_t g_tx_payload_sizes[200];
+static HAL_StatusTypeDef g_tx_statuses[200];
 static int g_tx_status_count = 0;
 static int g_tx_call_count = 0;
 
@@ -28,6 +28,7 @@ static const uint16_t AIS_COG_UNAVAILABLE = 3600U;
 static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
 static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
+static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
 
 /**
  * @brief Reset captured CAN transmit state.
@@ -347,6 +348,124 @@ static void test_ais_can_transmit_static_defaults(void) {
 }
 
 /**
+ * @brief Validate AIS__CAN_transmit_all rejects null inputs.
+ *
+ * @param void
+ * @return void
+ */
+static void test_ais_can_transmit_all_rejects_null(void) {
+  AIS_DATA data = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+
+  reset_can_tx_capture();
+  TEST_ASSERT(&g_failures, AIS__CAN_transmit_all(NULL, 1, &hfdcan) == HAL_ERROR);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 0);
+
+  TEST_ASSERT(&g_failures,
+              AIS__CAN_transmit_all(&data, 0, &hfdcan) == HAL_ERROR);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 0);
+
+  TEST_ASSERT(&g_failures, AIS__CAN_transmit_all(&data, 1, NULL) == HAL_ERROR);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 0);
+}
+
+/**
+ * @brief Validate AIS__CAN_transmit_all sends a single batch.
+ *
+ * @param void
+ * @return void
+ */
+static void test_ais_can_transmit_all_single_batch(void) {
+  AIS_PARSER *parser = AIS__create();
+  NMEA0183Raw msg = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+  AIS_DATA ships[2] = {0};
+  uint8_t expected_payload[32] = {0};
+
+  nmea_test_build_sentence(
+      &msg, '!',
+      "AIVDM,1,1,,A,133sVfPP00PD>hRMDH@jNOvN20S8,0");
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
+  TEST_ASSERT(&g_failures, parser != NULL);
+
+  AIS_DATA *data = AIS__parseNMEAMessage(parser, &msg);
+  TEST_ASSERT(&g_failures, data != NULL);
+  ships[0] = *data;
+  ships[1] = *data;
+
+  reset_can_tx_capture();
+  TEST_ASSERT(&g_failures, AIS__CAN_transmit_all(ships, 2, &hfdcan) == HAL_OK);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 2);
+
+  build_expected_payload(&ships[0], 0, 2, expected_payload);
+  TEST_ASSERT(&g_failures, g_tx_identifiers[0] == AIS_FRAME_ID);
+  TEST_ASSERT(&g_failures, g_tx_id_types[0] == FDCAN_STANDARD_ID);
+  TEST_ASSERT(&g_failures, g_tx_data_lengths[0] == AIS_FRAME_LENGTH);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[0], expected_payload, 32) == 0);
+
+  build_expected_payload(&ships[1], 1, 2, expected_payload);
+  TEST_ASSERT(&g_failures, g_tx_identifiers[1] == AIS_FRAME_ID);
+  TEST_ASSERT(&g_failures, g_tx_id_types[1] == FDCAN_STANDARD_ID);
+  TEST_ASSERT(&g_failures, g_tx_data_lengths[1] == AIS_FRAME_LENGTH);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[1], expected_payload, 32) == 0);
+
+  AIS__destroy(parser);
+}
+
+/**
+ * @brief Validate AIS__CAN_transmit_all splits into batches.
+ *
+ * @param void
+ * @return void
+ */
+static void test_ais_can_transmit_all_multiple_batches(void) {
+  AIS_PARSER *parser = AIS__create();
+  NMEA0183Raw msg = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+  AIS_DATA ships[130] = {0};
+  uint8_t expected_payload[32] = {0};
+
+  nmea_test_build_sentence(
+      &msg, '!',
+      "AIVDM,1,1,,A,133sVfPP00PD>hRMDH@jNOvN20S8,0");
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
+  TEST_ASSERT(&g_failures, parser != NULL);
+
+  AIS_DATA *data = AIS__parseNMEAMessage(parser, &msg);
+  TEST_ASSERT(&g_failures, data != NULL);
+  for (size_t index = 0; index < 130; index++) {
+    ships[index] = *data;
+  }
+
+  reset_can_tx_capture();
+  TEST_ASSERT(&g_failures,
+              AIS__CAN_transmit_all(ships, 130, &hfdcan) == HAL_OK);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 130);
+
+  build_expected_payload(&ships[0], 0, AIS_MAX_SHIPS_PER_BATCH,
+                         expected_payload);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[0], expected_payload, 32) == 0);
+
+  build_expected_payload(&ships[126], 126, AIS_MAX_SHIPS_PER_BATCH,
+                         expected_payload);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[126], expected_payload, 32) == 0);
+
+  build_expected_payload(&ships[127], 0, 3, expected_payload);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[127], expected_payload, 32) == 0);
+
+  build_expected_payload(&ships[129], 2, 3, expected_payload);
+  TEST_ASSERT(&g_failures,
+              memcmp(g_tx_payloads[129], expected_payload, 32) == 0);
+
+  AIS__destroy(parser);
+}
+
+/**
  * @brief Stub Error_Handler for host tests.
  *
  * @param void
@@ -368,6 +487,9 @@ int main(void) {
   test_ais_can_transmit_rejects_null();
   test_ais_can_transmit_dynamic_payload();
   test_ais_can_transmit_static_defaults();
+  test_ais_can_transmit_all_rejects_null();
+  test_ais_can_transmit_all_single_batch();
+  test_ais_can_transmit_all_multiple_batches();
 
   if (g_failures == 0) {
     printf("PASS\n");
