@@ -18,7 +18,7 @@
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-//INCLUDES
+// INCLUDES
 //---------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-//STRUCTURES
+// STRUCTURES
 //---------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ typedef struct {
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-//OBJECT MANAGEMENT
+// OBJECT MANAGEMENT
 //---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -85,7 +85,7 @@ void AIS__destroy(AIS_PARSER *self);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-//AIS_PARSER METHODS
+// AIS_PARSER METHODS
 //---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -459,6 +459,8 @@ bool AIS__getVendorID(AIS_DATA *data, uint8_t output[8]);
 
 /**
  * Transmit a single AIS ship over CAN (0x060).
+ * As defined in the sailbot confluence definition.
+ * https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames
  *
  * @param data AIS data to transmit.
  * @param ship_idx Index of this ship [0, total_ships - 1].
@@ -466,8 +468,22 @@ bool AIS__getVendorID(AIS_DATA *data, uint8_t output[8]);
  * @param hfdcan1 CAN handle.
  * @return HAL_OK on success or a HAL error code.
  */
-HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint8_t ship_idx,
-                                    uint8_t total_ships,
+HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
+                                           uint8_t ship_idx,
+                                           uint8_t total_ships,
+                                           FDCAN_HandleTypeDef *hfdcan1);
+
+/**
+ * Transmit all AIS ships in one batch over CAN (0x060).
+ * As defined in the sailbot confluence definition.
+ * https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames
+ *
+ * @param data Array of AIS data to transmit.
+ * @param ship_count Number of AIS data entries in the array.
+ * @param hfdcan1 CAN handle.
+ * @return HAL_OK on success or a HAL error code.
+ */
+HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
                                     FDCAN_HandleTypeDef *hfdcan1);
 
 #endif /* INC_AIS_H_ */

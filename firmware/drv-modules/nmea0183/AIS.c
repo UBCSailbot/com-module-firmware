@@ -26,6 +26,7 @@ static const uint16_t AIS_COG_UNAVAILABLE = 3600U;
 static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
 static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
+static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
@@ -591,7 +592,7 @@ bool AIS__getVendorID(AIS_DATA *self, uint8_t output[8]) {
  * @param hfdcan1 CAN handle.
  * @return HAL_OK on success or a HAL error code.
  */
-HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint8_t ship_idx,
+HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data, uint8_t ship_idx,
                                     uint8_t total_ships,
                                     FDCAN_HandleTypeDef *hfdcan1) {
   if (!data || !hfdcan1) {
@@ -674,4 +675,40 @@ HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint8_t ship_idx,
 
   return CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID, AIS_FRAME_LENGTH,
                       payload, hfdcan1);
+}
+
+/**
+ * Transmit all AIS ships in one batch over CAN (0x060).
+ * As defined in the sailbot confluence definition.
+ * https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames
+ *
+ * @param data Array of AIS data to transmit.
+ * @param ship_count Number of AIS data entries in the array.
+ * @param hfdcan1 CAN handle.
+ * @return HAL_OK on success or a HAL error code.
+ */
+HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data,
+                                        uint16_t ship_count,
+                                        FDCAN_HandleTypeDef *hfdcan1) {
+  if (!data || !hfdcan1 || ship_count == 0U) {
+    return HAL_ERROR;
+  }
+
+  for (uint16_t batch_start = 0U; batch_start < ship_count;
+       batch_start += AIS_MAX_SHIPS_PER_BATCH) {
+    uint16_t remaining = ship_count - batch_start;
+    uint8_t total_ships = (remaining > AIS_MAX_SHIPS_PER_BATCH)
+                              ? AIS_MAX_SHIPS_PER_BATCH
+                              : (uint8_t)remaining;
+
+    for (uint8_t ship_idx = 0; ship_idx < total_ships; ship_idx++) {
+      HAL_StatusTypeDef status = AIS__CAN_transmit_single(
+          &data[batch_start + ship_idx], ship_idx, total_ships, hfdcan1);
+      if (status != HAL_OK) {
+        return status;
+      }
+    }
+  }
+
+  return HAL_OK;
 }
