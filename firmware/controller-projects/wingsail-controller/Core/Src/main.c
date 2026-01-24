@@ -150,49 +150,27 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_StatusTypeDef tx_status =
-        WIND_SENSOR__CAN_transmit(windSensor, &hfdcan1);
-    printf("CAN TX status=%u err=0x%08lX txfree=%lu\r\n",
-           (unsigned int)tx_status,
-           (unsigned long)HAL_FDCAN_GetError(&hfdcan1),
-           (unsigned long)HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1));
+    (void)WIND_SENSOR__CAN_transmit(windSensor, &hfdcan1);
     HAL_Delay(10);
-    {
-      FDCAN_RxHeaderTypeDef rx_header;
-      uint8_t rx_data[64];
-      uint32_t fifo0_level =
-          HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO0);
-      uint32_t fifo1_level =
-          HAL_FDCAN_GetRxFifoFillLevel(&hfdcan1, FDCAN_RX_FIFO1);
-      printf("CAN RX fifo0=%lu fifo1=%lu\r\n",
-             (unsigned long)fifo0_level, (unsigned long)fifo1_level);
-      if (HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0,
-                                &rx_header, rx_data) == HAL_OK) {
-        printf("CAN RX fifo0 id=0x%03lX len=%u\r\n",
-               (unsigned long)rx_header.Identifier,
-               (unsigned int)dlc_to_bytes(rx_header.DataLength));
-      } else if (HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO1,
-                                       &rx_header, rx_data) == HAL_OK) {
-        printf("CAN RX fifo1 id=0x%03lX len=%u\r\n",
-               (unsigned long)rx_header.Identifier,
-               (unsigned int)dlc_to_bytes(rx_header.DataLength));
-      } else if (CAN_Receive(can_rx_buf) == HAL_OK) {
-        uint32_t id = (uint32_t)can_rx_buf[0] |
-                      ((uint32_t)can_rx_buf[1] << 8) |
-                      ((uint32_t)can_rx_buf[2] << 16) |
-                      ((uint32_t)can_rx_buf[3] << 24);
-        uint8_t len = can_rx_buf[4];
-        if (len == 4) {
-          uint16_t angle = (uint16_t)can_rx_buf[5] |
-                           ((uint16_t)can_rx_buf[6] << 8);
-          uint16_t speed = (uint16_t)can_rx_buf[7] |
-                           ((uint16_t)can_rx_buf[8] << 8);
-          printf("CAN RX id=0x%03lX angle=%u speed=%u\r\n",
-                 (unsigned long)id, angle, speed);
-        } else {
-          printf("CAN RX id=0x%03lX len=%u\r\n",
-                 (unsigned long)id, (unsigned int)len);
-        }
+    for (uint8_t rx_count = 0; rx_count < 2; rx_count++) {
+      if (CAN_Receive(can_rx_buf) != HAL_OK) {
+        break;
+      }
+      uint32_t id = (uint32_t)can_rx_buf[0] |
+                    ((uint32_t)can_rx_buf[1] << 8) |
+                    ((uint32_t)can_rx_buf[2] << 16) |
+                    ((uint32_t)can_rx_buf[3] << 24);
+      uint8_t len = can_rx_buf[4];
+      if (len == 4) {
+        uint16_t angle = (uint16_t)can_rx_buf[5] |
+                         ((uint16_t)can_rx_buf[6] << 8);
+        uint16_t speed = (uint16_t)can_rx_buf[7] |
+                         ((uint16_t)can_rx_buf[8] << 8);
+        printf("CAN RX id=0x%03lX angle=%u speed=%u\r\n",
+               (unsigned long)id, angle, speed);
+      } else {
+        printf("CAN RX id=0x%03lX len=%u\r\n",
+               (unsigned long)id, (unsigned int)len);
       }
     }
     HAL_Delay(1000);
