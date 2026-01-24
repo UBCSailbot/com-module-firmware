@@ -27,6 +27,7 @@ static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
 static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
 static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
+static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 60000U;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
@@ -86,6 +87,7 @@ void resetTimeStamp(AIS_MULTI_SENTENCE *aisMultiData);
 
 static uint32_t AIS__convertLatitude(int32_t ais_lat);
 static uint32_t AIS__convertLongitude(int32_t ais_lon);
+static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
@@ -193,6 +195,20 @@ static uint32_t AIS__convertLongitude(int32_t ais_lon) {
     return AIS_32BIT_MAX;
   }
   return (uint32_t)scaled;
+}
+
+static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi) {
+  if (!batch) {
+    return -1;
+  }
+
+  for (uint16_t index = 0; index < batch->ship_count; index++) {
+    if (AIS__getMMSINumber(&batch->ships[index]) == mmsi) {
+      return (int)index;
+    }
+  }
+
+  return -1;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -688,8 +704,8 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data, uint8_t ship_id
  * @return HAL_OK on success or a HAL error code.
  */
 HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data,
-                                        uint16_t ship_count,
-                                        FDCAN_HandleTypeDef *hfdcan1) {
+                                    uint16_t ship_count,
+                                    FDCAN_HandleTypeDef *hfdcan1) {
   if (!data || !hfdcan1 || ship_count == 0U) {
     return HAL_ERROR;
   }
@@ -708,6 +724,49 @@ HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data,
         return status;
       }
     }
+  }
+
+  return HAL_OK;
+}
+
+/**
+ * Process a single AIS message, buffer ships, and transmit when the cycle ends.
+ *
+ * @param batch AIS CAN batch storage.
+ * @param data AIS data to buffer.
+ * @param now_ms Current time in milliseconds.
+ * @param hfdcan1 CAN handle.
+ * @return HAL_OK on success or a HAL error code.
+ */
+HAL_StatusTypeDef AIS__CAN_process(AIS_CAN_BATCH *batch, const AIS_DATA *data,
+                                   uint32_t now_ms,
+                                   FDCAN_HandleTypeDef *hfdcan1) {
+  if (!batch || !data || !hfdcan1) {
+    return HAL_ERROR;
+  }
+
+  if (batch->next_send_ms == 0U) {
+    batch->next_send_ms = now_ms + AIS_CAN_BATCH_INTERVAL_MS;
+  }
+
+  uint32_t mmsi = AIS__getMMSINumber((AIS_DATA *)data);
+  int ship_index = AIS__findShipIndex(batch, mmsi);
+  if (ship_index >= 0) {
+    batch->ships[ship_index] = *data;
+  } else {
+    if (batch->ship_count >= AIS_CAN_MAX_SHIPS) {
+      return HAL_ERROR;
+    }
+    batch->ships[batch->ship_count] = *data;
+    batch->ship_count++;
+  }
+
+  if ((int32_t)(now_ms - batch->next_send_ms) >= 0) {
+    HAL_StatusTypeDef status =
+        AIS__CAN_transmit(batch->ships, batch->ship_count, hfdcan1);
+    batch->ship_count = 0U;
+    batch->next_send_ms = now_ms + AIS_CAN_BATCH_INTERVAL_MS;
+    return status;
   }
 
   return HAL_OK;

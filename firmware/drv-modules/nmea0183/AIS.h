@@ -63,6 +63,16 @@ typedef struct {
   AIS_MULTI_SENTENCE multiSentenceHeap[10];
 } AIS_PARSER;
 
+// Maximum number of unique ships stored in one transmit cycle.
+static const uint16_t AIS_CAN_MAX_SHIPS = 256U;
+
+// AIS CAN batch storage.
+typedef struct {
+  AIS_DATA ships[AIS_CAN_MAX_SHIPS];
+  uint16_t ship_count;
+  uint32_t next_send_ms;
+} AIS_CAN_BATCH;
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 // OBJECT MANAGEMENT
@@ -485,5 +495,18 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
  */
 HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
                                     FDCAN_HandleTypeDef *hfdcan1);
+
+/**
+ * Process a single AIS message, buffer ships, and transmit when the cycle ends.
+ *
+ * @param batch AIS CAN batch storage.
+ * @param data AIS data to buffer.
+ * @param now_ms Current time in milliseconds.
+ * @param hfdcan1 CAN handle.
+ * @return HAL_OK on success or a HAL error code.
+ */
+HAL_StatusTypeDef AIS__CAN_process(AIS_CAN_BATCH *batch, const AIS_DATA *data,
+                                   uint32_t now_ms,
+                                   FDCAN_HandleTypeDef *hfdcan1);
 
 #endif /* INC_AIS_H_ */
