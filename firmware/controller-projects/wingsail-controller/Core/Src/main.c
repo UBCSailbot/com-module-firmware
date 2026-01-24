@@ -157,15 +157,45 @@ int main(void)
                     ((uint32_t)can_rx_buf[2] << 16) |
                     ((uint32_t)can_rx_buf[3] << 24);
       uint8_t len = can_rx_buf[4];
-      uint32_t mmsi = 0U;
-      if (len >= 4U) {
-        mmsi = (uint32_t)can_rx_buf[5] |
-               ((uint32_t)can_rx_buf[6] << 8) |
-               ((uint32_t)can_rx_buf[7] << 16) |
-               ((uint32_t)can_rx_buf[8] << 24);
+      if (len >= 25U) {
+        uint32_t mmsi = (uint32_t)can_rx_buf[5] |
+                        ((uint32_t)can_rx_buf[6] << 8) |
+                        ((uint32_t)can_rx_buf[7] << 16) |
+                        ((uint32_t)can_rx_buf[8] << 24);
+        uint32_t latitude_raw = (uint32_t)can_rx_buf[9] |
+                                ((uint32_t)can_rx_buf[10] << 8) |
+                                ((uint32_t)can_rx_buf[11] << 16) |
+                                ((uint32_t)can_rx_buf[12] << 24);
+        uint32_t longitude_raw = (uint32_t)can_rx_buf[13] |
+                                 ((uint32_t)can_rx_buf[14] << 8) |
+                                 ((uint32_t)can_rx_buf[15] << 16) |
+                                 ((uint32_t)can_rx_buf[16] << 24);
+        uint16_t speed_over_ground = (uint16_t)can_rx_buf[17] |
+                                      ((uint16_t)can_rx_buf[18] << 8);
+        uint16_t course_over_ground = (uint16_t)can_rx_buf[19] |
+                                       ((uint16_t)can_rx_buf[20] << 8);
+        uint16_t heading = (uint16_t)can_rx_buf[21] |
+                           ((uint16_t)can_rx_buf[22] << 8);
+        int8_t rate_of_turn = (int8_t)can_rx_buf[23];
+        uint16_t length = (uint16_t)can_rx_buf[24] |
+                          ((uint16_t)can_rx_buf[25] << 8);
+        uint16_t width = (uint16_t)can_rx_buf[26] |
+                         ((uint16_t)can_rx_buf[27] << 8);
+        uint8_t ship_index = can_rx_buf[28];
+        uint8_t total_ships = can_rx_buf[29];
+        printf(
+            "CAN RX id=0x%03lX len=%u mmsi=%lu lat=%lu lon=%lu sog=%u cog=%u "
+            "heading=%u rot=%d length=%u width=%u ship_idx=%u total=%u\r\n",
+            (unsigned long)id, (unsigned int)len, (unsigned long)mmsi,
+            (unsigned long)latitude_raw, (unsigned long)longitude_raw,
+            (unsigned int)speed_over_ground, (unsigned int)course_over_ground,
+            (unsigned int)heading, (int)rate_of_turn, (unsigned int)length,
+            (unsigned int)width, (unsigned int)ship_index,
+            (unsigned int)total_ships);
+      } else {
+        printf("CAN RX id=0x%03lX len=%u\r\n", (unsigned long)id,
+               (unsigned int)len);
       }
-      printf("CAN RX id=0x%03lX len=%u mmsi=%lu\r\n",
-             (unsigned long)id, (unsigned int)len, (unsigned long)mmsi);
     }
     HAL_Delay(1000);
 
