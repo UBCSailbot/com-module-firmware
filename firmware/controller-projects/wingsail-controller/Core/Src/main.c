@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include <stdio.h>
+#include <stdio.h>
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
 #include "NMEA0183.h"
@@ -63,7 +63,7 @@ DMA_HandleTypeDef handle_GPDMA1_Channel15;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-
+static uint8_t can_rx_buf[5 + 64];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -140,16 +140,38 @@ int main(void)
   CAN_Init(&hfdcan1);
   NMEA0183* nmeaChannel = NMEA0183__create(&huart2);
   WIND_SENSOR* windSensor = WIND_SENSOR__create(nmeaChannel);
+  windSensor->direction = 1230;
+  windSensor->speed = 45;
+  windSensor->reference = REFERENCE;
+  windSensor->status = VALID;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(100);
-    if (WIND_SENSOR__poll(windSensor)) {
-      WIND_SENSOR__print(windSensor);
+    (void)WIND_SENSOR__CAN_transmit(windSensor, &hfdcan1);
+    printf("CAN TX\r\n");
+    HAL_Delay(10);
+    if (CAN_Receive(can_rx_buf) == HAL_OK) {
+      uint32_t id = (uint32_t)can_rx_buf[0] |
+                    ((uint32_t)can_rx_buf[1] << 8) |
+                    ((uint32_t)can_rx_buf[2] << 16) |
+                    ((uint32_t)can_rx_buf[3] << 24);
+      uint8_t len = can_rx_buf[4];
+      if (len == 4) {
+        uint16_t angle = (uint16_t)can_rx_buf[5] |
+                         ((uint16_t)can_rx_buf[6] << 8);
+        uint16_t speed = (uint16_t)can_rx_buf[7] |
+                         ((uint16_t)can_rx_buf[8] << 8);
+        printf("CAN RX id=0x%03lX angle=%u speed=%u\r\n",
+               (unsigned long)id, angle, speed);
+      } else {
+        printf("CAN RX id=0x%03lX len=%u\r\n",
+               (unsigned long)id, (unsigned int)len);
+      }
     }
+    HAL_Delay(1000);
 
     
     /* USER CODE END WHILE */
@@ -299,8 +321,8 @@ static void MX_FDCAN1_Init(void)
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
-  hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
-  hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
+  hfdcan1.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
@@ -312,8 +334,8 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 1;
   hfdcan1.Init.DataTimeSeg2 = 1;
-  hfdcan1.Init.StdFiltersNbr = 0;
-  hfdcan1.Init.ExtFiltersNbr = 0;
+  hfdcan1.Init.StdFiltersNbr = 1;
+  hfdcan1.Init.ExtFiltersNbr = 1;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
   {
