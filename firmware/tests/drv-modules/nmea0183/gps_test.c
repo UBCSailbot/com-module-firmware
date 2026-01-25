@@ -101,6 +101,32 @@ static void test_gps_poll_gll(void) {
 }
 
 /**
+ * @brief Validate GPS__parseMessage does not consume the channel buffer.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_parse_message_non_consuming(void) {
+  NMEA0183Raw gll_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+  NMEA0183Raw *message = NULL;
+
+  nmea_test_build_sentence(
+      &gll_message, '$', "GPGLL,3723.2475,N,12158.3416,W,225444,A");
+  nmea_test_set_channel_message(&channel, &gll_message);
+  message = NMEA0183__getTopBufferItem(&channel);
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+  TEST_ASSERT(&g_failures, message != NULL);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 0);
+  TEST_ASSERT(&g_failures, GPS__parseMessage(gps, message) == true);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 0);
+
+  GPS__destroy(gps);
+}
+
+/**
  * @brief Validate GPS__poll parses a VTG message.
  *
  * @param void
@@ -119,6 +145,29 @@ static void test_gps_poll_vtg(void) {
   TEST_ASSERT(&g_failures, GPS__poll(gps) == true);
   TEST_ASSERT(&g_failures, gps->speed_valid == true);
   TEST_ASSERT(&g_failures, gps->speed_kmh_thousandths == 10200U);
+
+  GPS__destroy(gps);
+}
+
+/**
+ * @brief Validate GPS__poll consumes one message.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_poll_consumes_message(void) {
+  NMEA0183Raw gll_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+
+  nmea_test_build_sentence(
+      &gll_message, '$', "GPGLL,3723.2475,N,12158.3416,W,225444,A");
+  nmea_test_set_channel_message(&channel, &gll_message);
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 0);
+  TEST_ASSERT(&g_failures, GPS__poll(gps) == true);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 1);
 
   GPS__destroy(gps);
 }
@@ -152,6 +201,46 @@ static void test_gps_can_transmit_requires_valid(void) {
 
   TEST_ASSERT(&g_failures, GPS__CAN_transmit(gps, &hfdcan) == HAL_OK);
   TEST_ASSERT(&g_failures, g_tx_call_count == 1);
+
+  GPS__destroy(gps);
+}
+
+/**
+ * @brief Validate GPS__parseMessage and shared channel dispatching.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_shared_channel_dispatch(void) {
+  NMEA0183Raw gll_message = {0};
+  NMEA0183Raw vtg_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+
+  nmea_test_build_sentence(
+      &gll_message, '$', "GPGLL,3723.2475,N,12158.3416,W,225444,A");
+  nmea_test_build_sentence(
+      &vtg_message, '$', "GPVTG,054.7,T,034.4,M,005.5,N,010.2,K");
+
+  memset(&channel, 0, sizeof(channel));
+  memcpy(&channel.dataBuffer[0], &gll_message, sizeof(gll_message));
+  memcpy(&channel.dataBuffer[1], &vtg_message, sizeof(vtg_message));
+  channel.dataBufferReadIndex = 0;
+  channel.dataBufferWriteIndex = 2;
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+
+  for (uint8_t index = 0; index < 2; index++) {
+    NMEA0183Raw *message = NMEA0183__getTopBufferItem(&channel);
+    TEST_ASSERT(&g_failures, message != NULL);
+    TEST_ASSERT(&g_failures, GPS__parseMessage(gps, message) == true);
+    NMEA0183__incrementReadIndex(&channel);
+  }
+
+  TEST_ASSERT(&g_failures, gps->position_valid == true);
+  TEST_ASSERT(&g_failures, gps->time_valid == true);
+  TEST_ASSERT(&g_failures, gps->speed_valid == true);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 2);
 
   GPS__destroy(gps);
 }
@@ -238,8 +327,11 @@ void Error_Handler(void) {
  */
 int main(void) {
   test_gps_poll_gll();
+  test_gps_parse_message_non_consuming();
   test_gps_poll_vtg();
+  test_gps_poll_consumes_message();
   test_gps_can_transmit_requires_valid();
+  test_gps_shared_channel_dispatch();
   test_gps_can_transmit_payload();
 
   if (g_failures == 0) {

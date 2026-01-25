@@ -148,6 +148,77 @@ static void test_wind_sensor_poll_parses_mwv(void) {
 }
 
 /**
+ * @brief Validate WIND_SENSOR__parseMessage handles MWV without consuming.
+ *
+ * @param void
+ * @return void
+ */
+static void test_wind_sensor_parse_message_mwv(void) {
+  NMEA0183 channel = {0};
+  NMEA0183Raw msg = {0};
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
+  nmea_test_set_channel_message(&channel, &msg);
+
+  WIND_SENSOR *sensor = WIND_SENSOR__create(&channel);
+  TEST_ASSERT(&g_failures, sensor != NULL);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 0);
+
+  TEST_ASSERT(&g_failures,
+              WIND_SENSOR__parseMessage(sensor, &channel.dataBuffer[0]) ==
+                  true);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 0);
+  TEST_ASSERT(&g_failures, sensor->direction == (wind_direction_deg_t)450);
+  TEST_ASSERT(&g_failures, sensor->speed == (wind_speed_knots_t)102);
+
+  WIND_SENSOR__destroy(sensor);
+}
+
+/**
+ * @brief Validate WIND_SENSOR__parseMessage handles XDR temperature.
+ *
+ * @param void
+ * @return void
+ */
+static void test_wind_sensor_parse_message_xdr(void) {
+  NMEA0183 channel = {0};
+  NMEA0183Raw msg = {0};
+  nmea_test_build_sentence(&msg, '$', "IIXDR,C,19.6,C,ENV_OUT_T");
+  nmea_test_set_channel_message(&channel, &msg);
+
+  WIND_SENSOR *sensor = WIND_SENSOR__create(&channel);
+  TEST_ASSERT(&g_failures, sensor != NULL);
+
+  TEST_ASSERT(&g_failures,
+              WIND_SENSOR__parseMessage(sensor, &channel.dataBuffer[0]) ==
+                  true);
+  TEST_ASSERT(&g_failures, sensor->temp == (wind_temp_C_t)196);
+
+  WIND_SENSOR__destroy(sensor);
+}
+
+/**
+ * @brief Validate WIND_SENSOR__poll consumes one message.
+ *
+ * @param void
+ * @return void
+ */
+static void test_wind_sensor_poll_consumes_message(void) {
+  NMEA0183 channel = {0};
+  NMEA0183Raw msg = {0};
+  nmea_test_build_sentence(&msg, '$', "IIMWV,045.0,R,10.2,N,A");
+  nmea_test_set_channel_message(&channel, &msg);
+
+  WIND_SENSOR *sensor = WIND_SENSOR__create(&channel);
+  TEST_ASSERT(&g_failures, sensor != NULL);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 0);
+
+  TEST_ASSERT(&g_failures, WIND_SENSOR__poll(sensor) == true);
+  TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 1);
+
+  WIND_SENSOR__destroy(sensor);
+}
+
+/**
  * @brief Validate formatted output from WIND_SENSOR__print.
  *
  * @param void
@@ -240,6 +311,9 @@ void Error_Handler(void) {
  */
 int main(void) {
   test_wind_sensor_poll_parses_mwv();
+  test_wind_sensor_parse_message_mwv();
+  test_wind_sensor_parse_message_xdr();
+  test_wind_sensor_poll_consumes_message();
   test_wind_sensor_print_format();
   test_wind_sensor_can_transmit_payload();
   test_wind_sensor_can_transmit_propagates_status();
