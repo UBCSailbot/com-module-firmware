@@ -77,11 +77,21 @@ void WIND_SENSOR__destroy(WIND_SENSOR *self);
 /**
  * Polls the NMEA channel and updates the WIND_SENSOR object with the most
  * recent data.
+ * This function consumes one message from the channel buffer.
  *
  * @param self must be an initialized WIND_SENSOR object (probably connected to
  * a wind sensor if you want it to do anything useful...)
  */
 bool WIND_SENSOR__poll(WIND_SENSOR *self);
+
+/**
+ * Parse a single NMEA0183 message without consuming the channel buffer.
+ *
+ * @param self must be an initialized WIND_SENSOR object.
+ * @param message must be a valid NMEA0183 message.
+ * @return true if a supported message was parsed, false otherwise.
+ */
+bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message);
 
 /**
  * Prints the current wind sensor values to stdout.

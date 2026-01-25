@@ -247,10 +247,21 @@ bool GPS__poll(GPS *self) {
   }
 
   NMEA0183Raw *message = NMEA0183__getTopBufferItem(self->channel);
-  if (!message || NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
-    if (message) {
-      NMEA0183__incrementReadIndex(self->channel);
-    }
+  if (!message) {
+    return false;
+  }
+
+  bool parsed = GPS__parseMessage(self, message);
+  NMEA0183__incrementReadIndex(self->channel);
+  return parsed;
+}
+
+bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
+  if (!self || !message) {
+    return false;
+  }
+
+  if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
     return false;
   }
 
@@ -313,10 +324,8 @@ bool GPS__poll(GPS *self) {
     }
   }
 
-  NMEA0183__incrementReadIndex(self->channel);
   return parsed;
 }
-
 HAL_StatusTypeDef GPS__CAN_transmit(const GPS *self,
                                     FDCAN_HandleTypeDef *hfdcan1) {
   if (!self || !hfdcan1) {

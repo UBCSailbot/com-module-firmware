@@ -51,6 +51,7 @@ void GPS__destroy(GPS *self);
 
 /**
  * Polls the NMEA channel and updates the GPS object with the most recent data.
+ * This function consumes one message from the channel buffer.
  *
  * @param self Must be an initialized GPS object.
  * @return True if a supported message was parsed, false otherwise.
@@ -59,6 +60,7 @@ bool GPS__poll(GPS *self);
 
 /**
  * Parse a single NMEA0183 message without consuming the channel buffer.
+ * Use this when multiple parsers share one NMEA0183 channel.
  *
  * @param self Must be an initialized GPS object.
  * @param message Must be a valid NMEA0183 message.

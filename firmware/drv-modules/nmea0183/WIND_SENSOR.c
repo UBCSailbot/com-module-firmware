@@ -167,45 +167,54 @@ void WIND_SENSOR__destroy(WIND_SENSOR *self) {
  * a wind sensor if you want it to do anything useful...)
  */
 bool WIND_SENSOR__poll(WIND_SENSOR *self) {
-  bool result = false;
-
-  if (!self) {
+  if (!self || !self->channel) {
     return false;
   }
 
-  NMEA0183 *channel = self->channel;
-  NMEA0183Raw *message = NMEA0183__getTopBufferItem(channel);
-
-  if (message != NULL && NMEA0183__checkMessage(message) == GOOD_MESSAGE) {
-    uint32_t sentenceType = NMEA0183__getScentenceType(message);
-
-    if (sentenceType == MESSAGE_MWV) {
-      const char *direction = getField(message, WIND_DIRECTION_INDEX);
-      const char *reference = getField(message, WIND_REFERENCE_INDEX);
-      const char *speed = getField(message, WIND_SPEED_INDEX);
-      const char *status = getField(message, WIND_STATUS_INDEX);
-
-      self->direction = parseTenths(direction);
-      self->speed = parseTenths(speed);
-      self->reference =
-          reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
-      self->status = status ? (wind_status_t)status[0] : UNKNOWN;
-
-      result = true;
-    } else if (sentenceType == MESSAGE_XDR) {
-      const char *temp = getField(message, WIND_TEMP_INDEX);
-
-      self->temp = parseTenths(temp);
-      result = true;
-
-    } else {
-      result = false;
-    }
+  NMEA0183Raw *message = NMEA0183__getTopBufferItem(self->channel);
+  if (!message) {
+    return false;
   }
 
-  // Advance ring buffer
-  NMEA0183__incrementReadIndex(channel);
+  bool result = WIND_SENSOR__parseMessage(self, message);
+  NMEA0183__incrementReadIndex(self->channel);
   return result;
+}
+
+bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message) {
+  if (!self || !message) {
+    return false;
+  }
+
+  if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
+    return false;
+  }
+
+  uint32_t sentenceType = NMEA0183__getScentenceType(message);
+
+  if (sentenceType == MESSAGE_MWV) {
+    const char *direction = getField(message, WIND_DIRECTION_INDEX);
+    const char *reference = getField(message, WIND_REFERENCE_INDEX);
+    const char *speed = getField(message, WIND_SPEED_INDEX);
+    const char *status = getField(message, WIND_STATUS_INDEX);
+
+    self->direction = parseTenths(direction);
+    self->speed = parseTenths(speed);
+    self->reference =
+        reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
+    self->status = status ? (wind_status_t)status[0] : UNKNOWN;
+
+    return true;
+  }
+
+  if (sentenceType == MESSAGE_XDR) {
+    const char *temp = getField(message, WIND_TEMP_INDEX);
+
+    self->temp = parseTenths(temp);
+    return true;
+  }
+
+  return false;
 }
 
 /**
