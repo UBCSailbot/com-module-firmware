@@ -2,7 +2,7 @@
  * GPS.h
  *
  *  Created on: Jan 25, 2026
- *      Author: codex
+ *      Author: George Sleen
  */
 
 #ifndef INC_GPS_H_
