@@ -26,6 +26,7 @@
 #include "can.h"
 #include "string.h"
 #include "stdbool.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,11 +51,11 @@ FDCAN_HandleTypeDef hfdcan1;
 
 I2C_HandleTypeDef hi2c2;
 
+IWDG_HandleTypeDef hiwdg;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef handle_GPDMA1_Channel15;
-
-PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
 
@@ -65,7 +66,11 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 char uart_buffer[64];
 volatile uint32_t max600_clock = 0;
 volatile uint32_t max800_clock = 0;
+volatile uint32_t last_reset_time = 0;
+volatile uint32_t last_wind_msg_tick = 0;
+volatile uint8_t consecutive_i2c_errors = 0;
 
+static void MX_USART1_UART_Init(void);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,12 +79,12 @@ static void SystemPower_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
 static void MX_ICACHE_Init(void);
-static void MX_USART1_UART_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 int read_rtd();
 int read_ec();
@@ -129,23 +134,31 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  MX_USART1_UART_Init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_GPDMA1_Init();
   MX_ICACHE_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
   MX_FDCAN1_Init();
   MX_I2C2_Init();
   MX_ADC1_Init();
-  MX_USB_OTG_FS_PCD_Init();
+  MX_USART2_UART_Init();
+  MX_USART1_UART_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   CAN_Init(&hfdcan1);
   NMEA0183 * windsensor = NMEA0183__create(&huart2);
   uint8_t output_wind_data[4];
+
+  HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USART2_IRQn);
+
+
+  printf("It gets to here\r\n");
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 
   max600_clock = 0;
   max800_clock = 0;
@@ -160,6 +173,9 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 //	HAL_Delay(10);
+
+	HAL_IWDG_Refresh(&hiwdg);
+	//HAL_Delay(100); // Give the sensor a moment to wake up
 	uint8_t itemsInBuffer = NMEA0183__itemsInBuffer(windsensor);
 	if (itemsInBuffer == 0)
 		//printf("No items in buffer.\r\n");
@@ -182,6 +198,9 @@ int main(void)
 	  		if (NMEA0183__getScentenceType(raw_msg) == MESSAGE_MWV){
 	  			uint16_t processedAngle = atof((char *)NMEA0183__getField(raw_msg, 1));
 	  			uint16_t processedSpeed = atof((char *)NMEA0183__getField(raw_msg, 3)) * 10.0;
+
+	  			last_wind_msg_tick = HAL_GetTick(); // We got data!
+	  			HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET); // Green LED On = Healthy
 	  			printf("Wind Dir: %u Wind Speed: %u\r\n", processedAngle,processedSpeed);
 
 	  			output_wind_data[0] = (uint8_t) (processedAngle & 0xFF);
@@ -195,6 +214,7 @@ int main(void)
 	  		}
 
 	  		NMEA0183__incrementReadIndex(windsensor);
+
 	  	}
 	}
 
@@ -213,8 +233,8 @@ int main(void)
 //    if (CAN_Transmit(0x100, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_3, TxData_temp, &hfdcan1) != HAL_OK) {
 //    	Error_Handler();
 //	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
-
+	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
+	//HAL_GPIO_TogglePin(GPIOG, GPIO_PIN_1);
 	if (temp_val != -1) {
 		printf("Temperature Value: %u\r\n", temp_val);
 	}
@@ -230,7 +250,7 @@ int main(void)
 //	if (CAN_Transmit(0x110, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, TxData_ph, &hfdcan1) != HAL_OK) {
 //		Error_Handler();
 //	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
 	if (ph_val != -1) {
 		printf("PH Value: %u\r\n", ph_val);
 	}
@@ -247,7 +267,7 @@ int main(void)
 //	if (CAN_Transmit(0x120, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, TxData_ec, &hfdcan1) != HAL_OK) {
 //		Error_Handler();
 //	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
 
 	if (ec_val != -1) {
 		printf("Salinity Value: %u\r\n", ec_val);
@@ -259,6 +279,35 @@ int main(void)
 	max800_clock++;
 
 	HAL_Delay(1);
+
+	uint32_t current_time = HAL_GetTick();
+
+	// If no data for 5 seconds (5000ms), alert!
+	if (current_time - last_wind_msg_tick > 5000) {
+	    printf("ALERT: Wind Sensor Disconnected!\r\n");
+	    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET); // Green LED Off
+	    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin); // Flash Red
+	}
+
+	// Check if Wind Sensor is dead (> 10 seconds silence)
+	if ((current_time - last_wind_msg_tick > 10000) && (current_time - last_reset_time > 20000)) {
+	    printf("WATCHDOG: Wind sensor dead. Performing Hard Reset...\r\n");
+
+	    // 1. Cut Power
+	    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_RESET);
+
+	    // 2. Wait 500ms (Blocking delay is okay here since we are already broken)
+	    HAL_Delay(500);
+
+	    // 3. Power On
+	    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_SET);
+
+	    // 4. Reset timestamp so we don't loop reset immediately
+	    last_wind_msg_tick = HAL_GetTick();
+	    last_reset_time = HAL_GetTick();
+	}
+
+	//printf("Ok something works\r\n");
 
   }
   /* USER CODE END 3 */
@@ -282,14 +331,15 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
                               |RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_4;
+  RCC_OscInitStruct.LSIDiv = RCC_LSI_DIV1;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
   RCC_OscInitStruct.PLL.PLLMBOOST = RCC_PLLMBOOST_DIV1;
@@ -542,6 +592,36 @@ static void MX_ICACHE_Init(void)
 }
 
 /**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
+  hiwdg.Init.Window = 4095;
+  hiwdg.Init.Reload = 4095;
+  hiwdg.Init.EWI = 0;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -609,13 +689,12 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_RX;
+  huart2.Init.Mode = UART_MODE_TX_RX;
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT;
-  huart2.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
@@ -639,42 +718,6 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
-  * @brief USB_OTG_FS Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USB_OTG_FS_PCD_Init(void)
-{
-
-  /* USER CODE BEGIN USB_OTG_FS_Init 0 */
-
-  /* USER CODE END USB_OTG_FS_Init 0 */
-
-  /* USER CODE BEGIN USB_OTG_FS_Init 1 */
-
-  /* USER CODE END USB_OTG_FS_Init 1 */
-  hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
-  hpcd_USB_OTG_FS.Init.dev_endpoints = 6;
-  hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
-  hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-  hpcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
-  hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
-  hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
-  hpcd_USB_OTG_FS.Init.battery_charging_enable = DISABLE;
-  hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
-  hpcd_USB_OTG_FS.Init.vbus_sensing_enable = DISABLE;
-  hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
-  if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USB_OTG_FS_Init 2 */
-
-  /* USER CODE END USB_OTG_FS_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -689,13 +732,17 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0|LED_RED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1|LED_RED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
@@ -709,25 +756,33 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PG0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  /*Configure GPIO pins : PA0 PA1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PG1 LED_RED_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|LED_RED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PE15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB15 */
   GPIO_InitStruct.Pin = GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : LED_RED_Pin */
-  GPIO_InitStruct.Pin = LED_RED_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED_RED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_GREEN_Pin */
   GPIO_InitStruct.Pin = LED_GREEN_Pin;
@@ -755,6 +810,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void Recover_I2C_Bus(void) {
+    printf("I2C Critical Failure! Resetting Peripheral...\r\n");
+    HAL_I2C_DeInit(&hi2c2);
+    HAL_Delay(10);
+    MX_I2C2_Init();
+}
+
 int read_rtd() {
 
 	char response[32] = {0};
@@ -789,7 +852,7 @@ int read_ec() { //0.07 -> 500,000; resolution decreases as conductivity increase
 
 	    float response_f = simple_atof(response);
 	    max600_clock = 0;
-	    return response_f * 1000;
+	    return response_f;
 
 	}
 
@@ -822,12 +885,27 @@ int read_ph() { //0.001 -> 14.000, returns 1-> 14000
 
 }
 
-/* I2C Transmit and Receive for sensors */
 void SendSensorCommand(const char *cmd, uint16_t address) {
-    HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c2, address, (uint8_t *)cmd, strlen(cmd), 1000); // timeout 1s
+    // 1. Try to transmit
+    HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c2, address, (uint8_t *)cmd, strlen(cmd), 100);
+
+    // 2. Check the result
     if (status != HAL_OK) {
-		printf("I2C TX failed! ErrorCode: %ld\r\n", hi2c2.ErrorCode);
-	}
+        // FAILURE CASE
+        printf("I2C TX failed on addr 0x%X! Error: %ld\r\n", address, hi2c2.ErrorCode);
+        consecutive_i2c_errors++; // Count the error
+
+        // If we failed 5 times in a row, kick the hardware
+        if (consecutive_i2c_errors >= 5) {
+            Recover_I2C_Bus();
+            consecutive_i2c_errors = 0; // Reset counter after kicking
+        }
+    }
+    else {
+        // SUCCESS CASE
+        // If it worked, we reset the error counter because the bus is healthy
+        consecutive_i2c_errors = 0;
+    }
 }
 
 void ReadSensorResponse(char *buffer, uint8_t len, uint16_t address) {
@@ -916,10 +994,14 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-//  while (1)
-//  {
-//  }
-  printf("reset\r\n");
+  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
+
+    // Try to print (This will only work if we moved UART1 Init to the top!)
+  printf("CRITICAL FAILURE! Stuck in Error_Handler.\r\n");
+  while (1)
+  {
+  }
+  //printf("reset\r\n");
   NVIC_SystemReset();
 
   /* USER CODE END Error_Handler_Debug */

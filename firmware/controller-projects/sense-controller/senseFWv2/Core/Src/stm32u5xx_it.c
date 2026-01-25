@@ -237,7 +237,7 @@ void I2C2_ER_IRQHandler(void)
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
-  NMEA0183__IRQHandler(&huart2);
+  NMEA0183__IRQHandler(&huart2); // Must be here!
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
