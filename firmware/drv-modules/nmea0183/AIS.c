@@ -608,9 +608,10 @@ bool AIS__getVendorID(AIS_DATA *self, uint8_t output[8]) {
  * @param hfdcan1 CAN handle.
  * @return HAL_OK on success or a HAL error code.
  */
-HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data, uint8_t ship_idx,
-                                    uint8_t total_ships,
-                                    FDCAN_HandleTypeDef *hfdcan1) {
+HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
+                                           uint8_t ship_idx,
+                                           uint8_t total_ships,
+                                           FDCAN_HandleTypeDef *hfdcan1) {
   if (!data || !hfdcan1) {
     return HAL_ERROR;
   }
@@ -703,8 +704,7 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data, uint8_t ship_id
  * @param hfdcan1 CAN handle.
  * @return HAL_OK on success or a HAL error code.
  */
-HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data,
-                                    uint16_t ship_count,
+HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
                                     FDCAN_HandleTypeDef *hfdcan1) {
   if (!data || !hfdcan1 || ship_count == 0U) {
     return HAL_ERROR;

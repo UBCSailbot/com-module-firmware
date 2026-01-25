@@ -55,8 +55,8 @@ static uint32_t parseDigits(const char *value, uint8_t max_digits,
   return result;
 }
 
-static bool parseTime(const char *value, uint32_t *seconds_ms,
-                      uint8_t *minutes, uint8_t *hours) {
+static bool parseTime(const char *value, uint32_t *seconds_ms, uint8_t *minutes,
+                      uint8_t *hours) {
   if (!value || !seconds_ms || !minutes || !hours) {
     return false;
   }
@@ -87,8 +87,7 @@ static bool parseTime(const char *value, uint32_t *seconds_ms,
 
   *hours = hour_value;
   *minutes = minute_value;
-  *seconds_ms =
-      ((uint32_t)second_value * GPS_TIME_SCALE) + fractional_ms;
+  *seconds_ms = ((uint32_t)second_value * GPS_TIME_SCALE) + fractional_ms;
   return true;
 }
 
@@ -111,8 +110,7 @@ static bool parseLatitudeLongitude(const char *latitude_value,
 
   uint8_t latitude_digits = 0;
   uint8_t longitude_digits = 0;
-  uint32_t latitude_integer =
-      parseDigits(latitude_value, 10, &latitude_digits);
+  uint32_t latitude_integer = parseDigits(latitude_value, 10, &latitude_digits);
   uint32_t longitude_integer =
       parseDigits(longitude_value, 10, &longitude_digits);
 
@@ -151,9 +149,11 @@ static bool parseLatitudeLongitude(const char *latitude_value,
   }
 
   uint32_t latitude_minutes_scaled =
-      (latitude_minutes_integer * GPS_MINUTES_SCALE) + latitude_minutes_fraction;
+      (latitude_minutes_integer * GPS_MINUTES_SCALE) +
+      latitude_minutes_fraction;
   uint32_t longitude_minutes_scaled =
-      (longitude_minutes_integer * GPS_MINUTES_SCALE) + longitude_minutes_fraction;
+      (longitude_minutes_integer * GPS_MINUTES_SCALE) +
+      longitude_minutes_fraction;
 
   int64_t latitude_decimal_scaled =
       ((int64_t)latitude_degrees * GPS_DEGREES_SCALE) +
@@ -177,8 +177,7 @@ static bool parseLatitudeLongitude(const char *latitude_value,
   }
 
   latitude_decimal_scaled += (int64_t)GPS_LATITUDE_OFFSET * GPS_DEGREES_SCALE;
-  longitude_decimal_scaled +=
-      (int64_t)GPS_LONGITUDE_OFFSET * GPS_DEGREES_SCALE;
+  longitude_decimal_scaled += (int64_t)GPS_LONGITUDE_OFFSET * GPS_DEGREES_SCALE;
 
   if (latitude_decimal_scaled < 0 || longitude_decimal_scaled < 0) {
     return false;
@@ -269,16 +268,14 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
   bool parsed = false;
 
   if (sentence_type == MESSAGE_GLL) {
-    const char *latitude = (const char *)NMEA0183__getField(
-        message, GLL_LATITUDE_INDEX);
-    const char *latitude_hemisphere =
-        (const char *)NMEA0183__getField(message,
-                                         GLL_LATITUDE_HEMISPHERE_INDEX);
-    const char *longitude = (const char *)NMEA0183__getField(
-        message, GLL_LONGITUDE_INDEX);
-    const char *longitude_hemisphere =
-        (const char *)NMEA0183__getField(message,
-                                         GLL_LONGITUDE_HEMISPHERE_INDEX);
+    const char *latitude =
+        (const char *)NMEA0183__getField(message, GLL_LATITUDE_INDEX);
+    const char *latitude_hemisphere = (const char *)NMEA0183__getField(
+        message, GLL_LATITUDE_HEMISPHERE_INDEX);
+    const char *longitude =
+        (const char *)NMEA0183__getField(message, GLL_LONGITUDE_INDEX);
+    const char *longitude_hemisphere = (const char *)NMEA0183__getField(
+        message, GLL_LONGITUDE_HEMISPHERE_INDEX);
     const char *time_str =
         (const char *)NMEA0183__getField(message, GLL_TIME_INDEX);
     const char *status =

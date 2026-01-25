@@ -41,7 +41,6 @@ typedef struct {
  * @param now_ms Current time in milliseconds.
  * @return True if a supported message was parsed, false otherwise.
  */
-bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler,
-                              uint32_t now_ms);
+bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms);
 
 #endif /* INC_NMEA0183_SCHEDULER_H_ */
