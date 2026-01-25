@@ -26,6 +26,8 @@
 //#include "BRITER.h"
 //#include "WINDSENSOR.h"
 #include "AIS.h"
+#include "GPS.h"
+#include "NMEA0183_scheduler.h"
 #include "stm32u5xx.h"
 #include "can.h"
 #include "CANSPI.h"
@@ -64,8 +66,12 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
 static uint8_t can_rx_buf[5 + 64];
-static AIS_DATA ais_data;
-static const char ais_sample[] = "133sVfPP00PD>hRMDH@jNOvN20S8";
+static AIS_PARSER *ais_parser;
+static AIS_CAN_BATCH ais_batch;
+static GPS *gps;
+static WIND_SENSOR *wind_sensor;
+static NMEA0183 *nmea_channel;
+static NMEA0183_Scheduler nmea_scheduler;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -140,64 +146,26 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
-  memset(&ais_data, 0, sizeof(ais_data));
-  memcpy(ais_data.sixBitData, ais_sample, sizeof(ais_sample) - 1U);
-  ais_data.dataLength = (uint16_t)(sizeof(ais_sample) - 1U);
+  nmea_channel = NMEA0183__create(&huart2);
+  ais_parser = AIS__create();
+  memset(&ais_batch, 0, sizeof(ais_batch));
+  gps = GPS__create(nmea_channel);
+  wind_sensor = WIND_SENSOR__create(nmea_channel);
+
+  memset(&nmea_scheduler, 0, sizeof(nmea_scheduler));
+  nmea_scheduler.channel = nmea_channel;
+  nmea_scheduler.ais_parser = ais_parser;
+  nmea_scheduler.ais_batch = &ais_batch;
+  nmea_scheduler.gps = gps;
+  nmea_scheduler.wind_sensor = wind_sensor;
+  nmea_scheduler.hfdcan1 = &hfdcan1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    (void)AIS__CAN_transmit_single(&ais_data, 0, 1, &hfdcan1);
-    HAL_Delay(10);
-    if (CAN_Receive(can_rx_buf) == HAL_OK) {
-      uint32_t id = (uint32_t)can_rx_buf[0] |
-                    ((uint32_t)can_rx_buf[1] << 8) |
-                    ((uint32_t)can_rx_buf[2] << 16) |
-                    ((uint32_t)can_rx_buf[3] << 24);
-      uint8_t len = can_rx_buf[4];
-      if (len >= 25U) {
-        uint32_t mmsi = (uint32_t)can_rx_buf[5] |
-                        ((uint32_t)can_rx_buf[6] << 8) |
-                        ((uint32_t)can_rx_buf[7] << 16) |
-                        ((uint32_t)can_rx_buf[8] << 24);
-        uint32_t latitude_raw = (uint32_t)can_rx_buf[9] |
-                                ((uint32_t)can_rx_buf[10] << 8) |
-                                ((uint32_t)can_rx_buf[11] << 16) |
-                                ((uint32_t)can_rx_buf[12] << 24);
-        uint32_t longitude_raw = (uint32_t)can_rx_buf[13] |
-                                 ((uint32_t)can_rx_buf[14] << 8) |
-                                 ((uint32_t)can_rx_buf[15] << 16) |
-                                 ((uint32_t)can_rx_buf[16] << 24);
-        uint16_t speed_over_ground = (uint16_t)can_rx_buf[17] |
-                                      ((uint16_t)can_rx_buf[18] << 8);
-        uint16_t course_over_ground = (uint16_t)can_rx_buf[19] |
-                                       ((uint16_t)can_rx_buf[20] << 8);
-        uint16_t heading = (uint16_t)can_rx_buf[21] |
-                           ((uint16_t)can_rx_buf[22] << 8);
-        int8_t rate_of_turn = (int8_t)can_rx_buf[23];
-        uint16_t length = (uint16_t)can_rx_buf[24] |
-                          ((uint16_t)can_rx_buf[25] << 8);
-        uint16_t width = (uint16_t)can_rx_buf[26] |
-                         ((uint16_t)can_rx_buf[27] << 8);
-        uint8_t ship_index = can_rx_buf[28];
-        uint8_t total_ships = can_rx_buf[29];
-        printf(
-            "CAN RX id=0x%03lX len=%u mmsi=%lu lat=%lu lon=%lu sog=%u cog=%u "
-            "heading=%u rot=%d length=%u width=%u ship_idx=%u total=%u\r\n",
-            (unsigned long)id, (unsigned int)len, (unsigned long)mmsi,
-            (unsigned long)latitude_raw, (unsigned long)longitude_raw,
-            (unsigned int)speed_over_ground, (unsigned int)course_over_ground,
-            (unsigned int)heading, (int)rate_of_turn, (unsigned int)length,
-            (unsigned int)width, (unsigned int)ship_index,
-            (unsigned int)total_ships);
-      } else {
-        printf("CAN RX id=0x%03lX len=%u\r\n", (unsigned long)id,
-               (unsigned int)len);
-      }
-    }
-    HAL_Delay(1000);
+    (void)NMEA0183__scheduler_step(&nmea_scheduler, HAL_GetTick());
 
     
     /* USER CODE END WHILE */
