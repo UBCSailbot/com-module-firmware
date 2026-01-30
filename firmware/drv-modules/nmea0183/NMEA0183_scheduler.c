@@ -24,15 +24,14 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
     return false;
   }
 
-  if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
-    NMEA0183__incrementReadIndex(scheduler->channel);
-    return false;
-  }
-
   bool parsed = false;
   uint32_t sentence_type = NMEA0183__getScentenceType(message);
 
   if (sentence_type == MESSAGE_VDM) {
+    if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
+      NMEA0183__incrementReadIndex(scheduler->channel);
+      return false;
+    }
     if (scheduler->ais_parser && scheduler->ais_batch && scheduler->hfdcan1) {
       AIS_DATA *data = AIS__parseNMEAMessage(scheduler->ais_parser, message);
       if (data) {

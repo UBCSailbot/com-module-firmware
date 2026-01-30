@@ -48,6 +48,19 @@ static uint32_t scale_lat_lon(uint32_t degrees, uint32_t minutes_scaled,
   return (uint32_t)scaled;
 }
 
+static uint32_t scale_lat_lon_signed(uint32_t degrees, uint32_t minutes_scaled,
+                                     uint32_t offset, char hemisphere) {
+  int64_t scaled =
+      ((int64_t)degrees * GPS_DEGREES_SCALE) +
+      ((int64_t)minutes_scaled * GPS_DEGREES_SCALE) /
+          (GPS_MINUTES_DIVISOR * GPS_MINUTES_SCALE);
+  if (hemisphere == 'S' || hemisphere == 'W') {
+    scaled = -scaled;
+  }
+  scaled += (int64_t)offset * GPS_DEGREES_SCALE;
+  return (uint32_t)scaled;
+}
+
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType,
                                uint32_t DataLength, uint8_t *DataBuffer,
                                FDCAN_HandleTypeDef *hfdcan1) {
@@ -89,7 +102,7 @@ static void test_gps_poll_gll(void) {
   uint32_t expected_lat =
       scale_lat_lon(37U, 232475U, GPS_LATITUDE_OFFSET);
   uint32_t expected_lon =
-      scale_lat_lon(121U, 583416U, GPS_LONGITUDE_OFFSET);
+      scale_lat_lon_signed(121U, 583416U, GPS_LONGITUDE_OFFSET, 'W');
 
   TEST_ASSERT(&g_failures, gps->latitude == expected_lat);
   TEST_ASSERT(&g_failures, gps->longitude == expected_lon);
@@ -278,7 +291,7 @@ static void test_gps_can_transmit_payload(void) {
   uint32_t expected_lat =
       scale_lat_lon(37U, 232475U, GPS_LATITUDE_OFFSET);
   uint32_t expected_lon =
-      scale_lat_lon(121U, 583416U, GPS_LONGITUDE_OFFSET);
+      scale_lat_lon_signed(121U, 583416U, GPS_LONGITUDE_OFFSET, 'W');
 
   uint32_t payload_lat = (uint32_t)g_tx_payload[0] |
                          ((uint32_t)g_tx_payload[1] << 8) |
