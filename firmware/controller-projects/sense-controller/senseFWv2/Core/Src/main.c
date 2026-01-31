@@ -207,9 +207,9 @@ int main(void)
 	  			output_wind_data[1] = (uint8_t) ((processedAngle >> 8) & 0xFF);
 	  			output_wind_data[2] = (uint8_t) (processedSpeed & 0xFF);
 	  			output_wind_data[3] = (uint8_t) ((processedSpeed >> 8) & 0xFF);
-//	  			if (CAN_Transmit(WIND_SENSOR_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, output_wind_data, &hfdcan1) != HAL_OK) {
-//					Error_Handler();
-//				}
+	  			if (CAN_Transmit(WIND_SENSOR_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, output_wind_data, &hfdcan1) != HAL_OK) {
+					Error_Handler();
+				}
 
 	  		}
 
@@ -230,16 +230,20 @@ int main(void)
 	TxData_temp[1] = (uint8_t)((temp_val >> 8) & 0xFF);
 	TxData_temp[2] = (uint8_t)((temp_val >> 16) & 0xFF);
 
-//    if (CAN_Transmit(0x100, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_3, TxData_temp, &hfdcan1) != HAL_OK) {
-//    	Error_Handler();
-//	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
-	//HAL_GPIO_TogglePin(GPIOG, GPIO_PIN_1);
 	if (temp_val != -1) {
-		printf("Temperature Value: %u\r\n", temp_val);
+	    if (CAN_Transmit(0x100, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_3, TxData_temp, &hfdcan1) != HAL_OK) {
+	    	printf("Its this one");
+	    	Error_Handler();
+		} else HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 	}
 
-	//HAL_UART_Transmit(&huart1, (uint8_t*)&temp_val, sizeof(temp_val), HAL_MAX_DELAY);
+
+	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
+	//HAL_GPIO_TogglePin(GPIOG, GPIO_PIN_1);
+//	if (temp_val != -1) {
+//		printf("Temperature Value: %u\r\n", temp_val);
+//	}
+
 
 
 	// PH
@@ -247,15 +251,18 @@ int main(void)
 	TxData_ph[0] = (uint8_t)(ph_val & 0xFF);
 	TxData_ph[1] = (uint8_t)((ph_val >> 8) & 0xFF);
 
-//	if (CAN_Transmit(0x110, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, TxData_ph, &hfdcan1) != HAL_OK) {
-//		Error_Handler();
-//	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
 	if (ph_val != -1) {
-		printf("PH Value: %u\r\n", ph_val);
+		if (CAN_Transmit(0x110, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, TxData_ph, &hfdcan1) != HAL_OK) {
+			Error_Handler();
+		} else HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 	}
 
-	//HAL_UART_Transmit(&huart1, (uint8_t*)&ph_val, sizeof(ph_val), HAL_MAX_DELAY);
+
+	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
+//	if (ph_val != -1) {
+//		printf("PH Value: %u\r\n", ph_val);
+//	}
+
 
 	// SALINITY
 	int ec_val = read_ec();
@@ -264,16 +271,19 @@ int main(void)
 	TxData_ec[2] = (uint8_t)((ec_val >> 16) & 0xFF);
 	TxData_ec[3] = (uint8_t)((ec_val >> 24) & 0xFF);
 
-//	if (CAN_Transmit(0x120, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, TxData_ec, &hfdcan1) != HAL_OK) {
-//		Error_Handler();
-//	} else HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
-
 	if (ec_val != -1) {
-		printf("Salinity Value: %u\r\n", ec_val);
+		if (CAN_Transmit(0x120, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, TxData_ec, &hfdcan1) != HAL_OK) {
+			Error_Handler();
+		} else HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 	}
 
-	//HAL_UART_Transmit(&huart1, (uint8_t*)&ec_val, sizeof(ec_val), HAL_MAX_DELAY);
+
+	//HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_RESET);
+
+//	if (ec_val != -1) {
+//		printf("Salinity Value: %u\r\n", ec_val);
+//	}
+
 
 	max600_clock++;
 	max800_clock++;
@@ -282,7 +292,7 @@ int main(void)
 
 	uint32_t current_time = HAL_GetTick();
 
-	// If no data for 5 seconds (5000ms), alert!
+	// If no data for 5 seconds (5000ms)
 	if (current_time - last_wind_msg_tick > 5000) {
 	    printf("ALERT: Wind Sensor Disconnected!\r\n");
 	    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET); // Green LED Off
@@ -293,16 +303,15 @@ int main(void)
 	if ((current_time - last_wind_msg_tick > 10000) && (current_time - last_reset_time > 20000)) {
 	    printf("WATCHDOG: Wind sensor dead. Performing Hard Reset...\r\n");
 
-	    // 1. Cut Power
+
 	    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_RESET);
 
-	    // 2. Wait 500ms (Blocking delay is okay here since we are already broken)
+
 	    HAL_Delay(500);
 
-	    // 3. Power On
+
 	    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_SET);
 
-	    // 4. Reset timestamp so we don't loop reset immediately
 	    last_wind_msg_tick = HAL_GetTick();
 	    last_reset_time = HAL_GetTick();
 	}
