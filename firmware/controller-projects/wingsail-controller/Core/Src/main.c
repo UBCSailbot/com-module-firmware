@@ -165,7 +165,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    (void)NMEA0183__scheduler_step(&nmea_scheduler, HAL_GetTick());
+    (void) NMEA0183__scheduler_step(&nmea_scheduler, HAL_GetTick());
 
     
     /* USER CODE END WHILE */

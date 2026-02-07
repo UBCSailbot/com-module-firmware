@@ -1,25 +1,7 @@
 CompileFlags:
-  CompilationDatabase: .
-  Add: [
-    "--target=arm-none-eabi",
-
-    # Newlib (math.h, stdio, etc.)
-    "-isystem", "/opt/arm-toolchain/arm-none-eabi/include",
-    "-isystem", "/opt/arm-toolchain/lib/gcc/arm-none-eabi/13.2.1/include",
-
-    # Project-local includes (relative to firmware/)
-    "-I./Core/Inc",
-    "-I./Drivers/STM32U5xx_HAL_Driver/Inc",
-    "-I./Drivers/CMSIS/Include",
-    "-I./Drivers/CMSIS/Device/ST/STM32U5xx/Include",
-
-    # Shared driver modules (relative to firmware/)
-    "-I./drv-modules/nmea0183",
-    "-I./drv-modules/CV7-windsensor",
-    "-I./drv-modules/briter-encoders",
-    "-I./drv-modules/motor-base-PID",
-    "-I./drv-modules/servo-solenoid"
-  ]
-
-Index:
-  ExternalFiles: true
+  # Use the ARM GCC toolchain for system headers to avoid host glibc includes.
+  Compiler: /run/current-system/sw/bin/arm-none-eabi-gcc
+  Add:
+    - --target=arm-none-eabi
+    - --gcc-toolchain=/nix/store/xixg6bjakn3ymzc3qs0c6nd0ymwav6ha-gcc-arm-embedded-14.3.rel1/bin/..
+    - --sysroot=/nix/store/xixg6bjakn3ymzc3qs0c6nd0ymwav6ha-gcc-arm-embedded-14.3.rel1/bin/../arm-none-eabi
