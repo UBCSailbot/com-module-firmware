@@ -175,6 +175,7 @@ int main(void)
 //	HAL_Delay(10);
 
 	HAL_IWDG_Refresh(&hiwdg);
+	Monitor_and_Recover_CAN();
 	//HAL_Delay(100); // Give the sensor a moment to wake up
 	uint8_t itemsInBuffer = NMEA0183__itemsInBuffer(windsensor);
 	if (itemsInBuffer == 0)
@@ -208,7 +209,7 @@ int main(void)
 	  			output_wind_data[2] = (uint8_t) (processedSpeed & 0xFF);
 	  			output_wind_data[3] = (uint8_t) ((processedSpeed >> 8) & 0xFF);
 	  			if (CAN_Transmit(WIND_SENSOR_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, output_wind_data, &hfdcan1) != HAL_OK) {
-					Error_Handler();
+					printf("Wind sensor CAN transmit error detected");
 				}
 
 	  		}
@@ -230,10 +231,12 @@ int main(void)
 	TxData_temp[1] = (uint8_t)((temp_val >> 8) & 0xFF);
 	TxData_temp[2] = (uint8_t)((temp_val >> 16) & 0xFF);
 
+
+
 	if (temp_val != -1) {
+		printf("Temp val: %u", temp_val);
 	    if (CAN_Transmit(0x100, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_3, TxData_temp, &hfdcan1) != HAL_OK) {
-	    	printf("Its this one");
-	    	Error_Handler();
+	    	printf("Temperature sensor CAN tramsit failed");
 		} else HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 	}
 
@@ -251,9 +254,12 @@ int main(void)
 	TxData_ph[0] = (uint8_t)(ph_val & 0xFF);
 	TxData_ph[1] = (uint8_t)((ph_val >> 8) & 0xFF);
 
+
+
 	if (ph_val != -1) {
+		printf("\nph val: %u", ph_val);
 		if (CAN_Transmit(0x110, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, TxData_ph, &hfdcan1) != HAL_OK) {
-			Error_Handler();
+			printf("PH sensor CAN tramsit failed");
 		} else HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 	}
 
@@ -272,8 +278,9 @@ int main(void)
 	TxData_ec[3] = (uint8_t)((ec_val >> 24) & 0xFF);
 
 	if (ec_val != -1) {
+		printf("\nEc val: %u", ec_val);
 		if (CAN_Transmit(0x120, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_4, TxData_ec, &hfdcan1) != HAL_OK) {
-			Error_Handler();
+			printf("EC sensor CAN tramsit failed");
 		} else HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET);
 	}
 
@@ -302,6 +309,8 @@ int main(void)
 	// Check if Wind Sensor is dead (> 10 seconds silence)
 	if ((current_time - last_wind_msg_tick > 10000) && (current_time - last_reset_time > 20000)) {
 	    printf("WATCHDOG: Wind sensor dead. Performing Hard Reset...\r\n");
+
+	    NVIC_SystemReset();
 
 
 	    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_RESET);
@@ -921,6 +930,34 @@ void ReadSensorResponse(char *buffer, uint8_t len, uint16_t address) {
     HAL_I2C_Master_Receive(&hi2c2, address, (uint8_t*)buffer, len, HAL_MAX_DELAY);
 }
 
+void Monitor_and_Recover_CAN(void) {
+    FDCAN_ProtocolStatusTypeDef ProtocolStatus;
+
+    // 1. Get the current status of the CAN bus
+    HAL_FDCAN_GetProtocolStatus(&hfdcan1, &ProtocolStatus);
+
+    // 2. Check if we are in "Bus Off" state (Total Failure)
+    // The hardware automatically turns off to protect the bus if too many errors occur.
+    if (ProtocolStatus.BusOff) {
+        printf("CAN Error: Bus Off detected! Resetting CAN...\r\n");
+
+        // Force a restart of the CAN peripheral
+        HAL_FDCAN_Stop(&hfdcan1);
+        HAL_Delay(10); // Brief pause
+        HAL_FDCAN_Start(&hfdcan1);
+        return;
+    }
+
+    // 3. Check if the Outbox (Tx FIFO) is stuck/full
+    // If free level is 0, the queue is full.
+    if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0) {
+        printf("CAN Error: Tx Queue Full! Flushing old messages...\r\n");
+
+        // Cancel all pending messages (flush the toilet) so new data can get in
+        HAL_FDCAN_AbortTxRequest(&hfdcan1, FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2);
+    }
+}
+
 float simple_atof(char *str) {
     float result = 0.0f;
     float sign = 1.0f;
@@ -1006,10 +1043,7 @@ void Error_Handler(void)
   HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
 
     // Try to print (This will only work if we moved UART1 Init to the top!)
-  printf("CRITICAL FAILURE! Stuck in Error_Handler.\r\n");
-  while (1)
-  {
-  }
+  printf("CRITICAL FAILURE! Error_Handler.\r\n");
   //printf("reset\r\n");
   NVIC_SystemReset();
 
