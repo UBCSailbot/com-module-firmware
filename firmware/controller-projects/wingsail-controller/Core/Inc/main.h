@@ -99,6 +99,8 @@ void Error_Handler(void);
 /* Placeholder CAN CS pin for MCP2515 builds without board pinout. */
 #define CAN_CS_Pin GPIO_PIN_6
 #define CAN_CS_GPIO_Port GPIOB
+#define WIND_GATE_Pin GPIO_PIN_3
+#define WIND_GATE_GPIO_Port GPIOF
 
 /* USER CODE END Private defines */
 

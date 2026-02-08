@@ -149,6 +149,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
+  HAL_GPIO_WritePin(WIND_GATE_GPIO_Port, WIND_GATE_Pin, GPIO_PIN_SET);
   nmea_channel_ais_gps = NMEA0183__create(&huart2);
   nmea_channel_wind = NMEA0183__create(&huart5);
   ais_parser = AIS__create();
