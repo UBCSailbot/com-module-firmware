@@ -133,7 +133,9 @@ static void test_scheduler_invalid_ais_message(void) {
               NMEA0183__scheduler_step(&scheduler, 1234U) == false);
   TEST_ASSERT(&g_failures, channel.dataBufferReadIndex == 1);
   TEST_ASSERT(&g_failures, ais_batch.ship_count == 0);
-  TEST_ASSERT(&g_failures, g_tx_call_count == 0);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 1);
+  TEST_ASSERT(&g_failures, g_tx_payloads[0][23] == 0U);
+  TEST_ASSERT(&g_failures, g_tx_payloads[0][24] == 0U);
 
   AIS__destroy(ais_parser);
 }
@@ -150,7 +152,7 @@ static void test_scheduler_unsupported_sentence(void) {
   NMEA0183_Scheduler scheduler = {0};
 
   nmea_test_build_sentence(
-      &rmc, '$', "GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194");
+      &rmc, '$', "GPGSA,A,3,04,05,,09,12,,,,,1.8,1.0,1.5");
   nmea_test_set_channel_message(&channel, &rmc);
 
   scheduler.channel = &channel;

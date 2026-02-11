@@ -163,6 +163,76 @@ static void test_gps_poll_vtg(void) {
 }
 
 /**
+ * @brief Validate GPS__poll parses a GGA message.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_poll_gga(void) {
+  NMEA0183Raw gga_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+
+  nmea_test_build_sentence(
+      &gga_message, '$', "GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,");
+  nmea_test_set_channel_message(&channel, &gga_message);
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+  TEST_ASSERT(&g_failures, GPS__poll(gps) == true);
+  TEST_ASSERT(&g_failures, gps->position_valid == true);
+  TEST_ASSERT(&g_failures, gps->time_valid == true);
+
+  uint32_t expected_lat =
+      scale_lat_lon(48U, 70380U, GPS_LATITUDE_OFFSET);
+  uint32_t expected_lon =
+      scale_lat_lon(11U, 310000U, GPS_LONGITUDE_OFFSET);
+
+  TEST_ASSERT(&g_failures, gps->latitude == expected_lat);
+  TEST_ASSERT(&g_failures, gps->longitude == expected_lon);
+  TEST_ASSERT(&g_failures, gps->utc_hours == 12U);
+  TEST_ASSERT(&g_failures, gps->utc_minutes == 35U);
+  TEST_ASSERT(&g_failures, gps->utc_seconds_ms == 19000U);
+
+  GPS__destroy(gps);
+}
+
+/**
+ * @brief Validate GPS__poll parses an RMC message.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_poll_rmc(void) {
+  NMEA0183Raw rmc_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+
+  nmea_test_build_sentence(
+      &rmc_message, '$', "GPRMC,123520,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W");
+  nmea_test_set_channel_message(&channel, &rmc_message);
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+  TEST_ASSERT(&g_failures, GPS__poll(gps) == true);
+  TEST_ASSERT(&g_failures, gps->position_valid == true);
+  TEST_ASSERT(&g_failures, gps->time_valid == true);
+  TEST_ASSERT(&g_failures, gps->speed_valid == true);
+
+  uint32_t expected_lat =
+      scale_lat_lon(48U, 70380U, GPS_LATITUDE_OFFSET);
+  uint32_t expected_lon =
+      scale_lat_lon(11U, 310000U, GPS_LONGITUDE_OFFSET);
+
+  TEST_ASSERT(&g_failures, gps->latitude == expected_lat);
+  TEST_ASSERT(&g_failures, gps->longitude == expected_lon);
+  TEST_ASSERT(&g_failures, gps->utc_hours == 12U);
+  TEST_ASSERT(&g_failures, gps->utc_minutes == 35U);
+  TEST_ASSERT(&g_failures, gps->utc_seconds_ms == 20000U);
+  TEST_ASSERT(&g_failures, gps->speed_kmh_thousandths == 41485U);
+
+  GPS__destroy(gps);
+}
+
+/**
  * @brief Validate GPS__poll consumes one message.
  *
  * @param void
@@ -342,6 +412,8 @@ int main(void) {
   test_gps_poll_gll();
   test_gps_parse_message_non_consuming();
   test_gps_poll_vtg();
+  test_gps_poll_gga();
+  test_gps_poll_rmc();
   test_gps_poll_consumes_message();
   test_gps_can_transmit_requires_valid();
   test_gps_shared_channel_dispatch();

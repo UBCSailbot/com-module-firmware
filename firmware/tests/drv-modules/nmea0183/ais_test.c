@@ -29,7 +29,7 @@ static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
 static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
 static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
-static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 60000U;
+static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 500U;
 
 /**
  * @brief Reset captured CAN transmit state.
@@ -217,6 +217,30 @@ static void test_ais_single_sentence_parse(void) {
 }
 
 /**
+ * @brief Validate parsing of a single-part AIS VDO message.
+ *
+ * @param void
+ * @return void
+ */
+static void test_ais_single_sentence_parse_vdo(void) {
+  AIS_PARSER *parser = AIS__create();
+  NMEA0183Raw msg = {0};
+
+  nmea_test_build_sentence(
+      &msg, '!',
+      "AIVDO,1,1,,A,13aG?P0000o?;88MD5P<4?wV0<1R,0");
+
+  TEST_ASSERT(&g_failures, parser != NULL);
+  TEST_ASSERT(&g_failures, NMEA0183__checkMessage(&msg) == GOOD_MESSAGE);
+
+  AIS_DATA *data = AIS__parseNMEAMessage(parser, &msg);
+  TEST_ASSERT(&g_failures, data != NULL);
+  TEST_ASSERT(&g_failures, AIS__getMessageID(data) == 1);
+
+  AIS__destroy(parser);
+}
+
+/**
  * @brief Validate multi-sentence AIS assembly and length checks.
  *
  * @param void
@@ -368,6 +392,25 @@ static void test_ais_can_transmit_rejects_null(void) {
 
   TEST_ASSERT(&g_failures, AIS__CAN_transmit(&data, 1, NULL) == HAL_ERROR);
   TEST_ASSERT(&g_failures, g_tx_call_count == 0);
+}
+
+/**
+ * @brief Validate AIS__CAN_transmit_empty sends a zero-ships frame.
+ *
+ * @param void
+ * @return void
+ */
+static void test_ais_can_transmit_empty_frame(void) {
+  FDCAN_HandleTypeDef hfdcan = {0};
+
+  reset_can_tx_capture();
+  TEST_ASSERT(&g_failures, AIS__CAN_transmit_empty(&hfdcan) == HAL_OK);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 1);
+  TEST_ASSERT(&g_failures, g_tx_identifiers[0] == AIS_FRAME_ID);
+  TEST_ASSERT(&g_failures, g_tx_data_lengths[0] == AIS_FRAME_LENGTH);
+  TEST_ASSERT(&g_failures, g_tx_payload_sizes[0] == 32);
+  TEST_ASSERT(&g_failures, g_tx_payloads[0][23] == 0U);
+  TEST_ASSERT(&g_failures, g_tx_payloads[0][24] == 0U);
 }
 
 /**
@@ -523,11 +566,13 @@ void Error_Handler(void) {
  */
 int main(void) {
   test_ais_single_sentence_parse();
+  test_ais_single_sentence_parse_vdo();
   test_ais_multi_sentence_parse();
   test_ais_can_transmit_single_rejects_null();
   test_ais_can_transmit_single_dynamic_payload();
   test_ais_can_transmit_single_static_defaults();
   test_ais_can_transmit_rejects_null();
+  test_ais_can_transmit_empty_frame();
   test_ais_can_transmit_single_batch();
   test_ais_can_transmit_multiple_batches();
   test_ais_can_process_cycle();

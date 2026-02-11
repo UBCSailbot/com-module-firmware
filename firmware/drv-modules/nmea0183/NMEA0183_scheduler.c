@@ -7,6 +7,7 @@
 
 #include "NMEA0183_scheduler.h"
 #include "main.h"
+#include <stdio.h>
 
 /*
  * Constants
@@ -47,6 +48,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
           if ((status == HAL_OK) && (prev_next_send_ms != 0U) &&
               ((int32_t)(now_ms - prev_next_send_ms) >= 0)) {
             scheduler->last_ais_send_ms = now_ms;
+            printf("CAN TX AIS batch\r\n");
             NMEA0183__toggle_can_led();
           }
           parsed = true;
@@ -63,6 +65,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
               WIND_SENSOR__CAN_transmit(scheduler->wind_sensor,
                                         scheduler->hfdcan1);
           if (status == HAL_OK) {
+            printf("CAN TX WIND\r\n");
             NMEA0183__toggle_can_led();
           }
         }
@@ -77,6 +80,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
               GPS__CAN_transmit(scheduler->gps, scheduler->hfdcan1);
           if (status == HAL_OK) {
             scheduler->last_gps_send_ms = now_ms;
+            printf("CAN TX GPS\r\n");
             NMEA0183__toggle_can_led();
           }
         }
@@ -96,6 +100,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
                                                  scheduler->hfdcan1);
     if (status == HAL_OK) {
       scheduler->last_gps_send_ms = now_ms;
+      printf("CAN TX GPS\r\n");
       NMEA0183__toggle_can_led();
     }
   }
@@ -106,6 +111,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       HAL_StatusTypeDef status = AIS__CAN_transmit_empty(scheduler->hfdcan1);
       if (status == HAL_OK) {
         scheduler->last_ais_send_ms = now_ms;
+        printf("CAN TX AIS empty\r\n");
         NMEA0183__toggle_can_led();
       }
     }
