@@ -27,7 +27,7 @@ static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
 static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
 static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
-static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 60000U;
+static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 500U;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
@@ -220,7 +220,9 @@ static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi) {
 AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
   uint8_t *aisBinary = NMEA0183__getField(data, 5);
 
-  if (NMEA0183__getScentenceType(data) == MESSAGE_VDM && aisBinary != NULL) {
+  uint32_t sentence_type = NMEA0183__getScentenceType(data);
+  if ((sentence_type == MESSAGE_VDM || sentence_type == MESSAGE_VDO) &&
+      aisBinary != NULL) {
     uint8_t totalSentenceSegments = NMEA0183__getField(data, 1)[0] - '0';
     uint8_t aisBinaryLength = strlen((char *)aisBinary);
 
@@ -727,6 +729,20 @@ HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
   }
 
   return HAL_OK;
+}
+
+HAL_StatusTypeDef AIS__CAN_transmit_empty(FDCAN_HandleTypeDef *hfdcan1) {
+  if (!hfdcan1) {
+    return HAL_ERROR;
+  }
+
+  uint8_t payload[32];
+  memset(payload, 0, sizeof(payload));
+  payload[23] = 0U; // ship_idx
+  payload[24] = 0U; // total_ships
+
+  return CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID, AIS_FRAME_LENGTH,
+                      payload, hfdcan1);
 }
 
 /**

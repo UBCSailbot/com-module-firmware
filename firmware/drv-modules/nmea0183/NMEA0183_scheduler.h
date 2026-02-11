@@ -27,6 +27,8 @@ typedef struct {
   GPS *gps;
   WIND_SENSOR *wind_sensor;
   FDCAN_HandleTypeDef *hfdcan1;
+  uint32_t last_ais_send_ms;
+  uint32_t last_gps_send_ms;
 } NMEA0183_Scheduler;
 
 /*

@@ -15,6 +15,8 @@
 
 static const uint32_t MESSAGE_GLL = 0x4C4C47;
 static const uint32_t MESSAGE_VTG = 0x475456;
+static const uint32_t MESSAGE_GGA = 0x414747;
+static const uint32_t MESSAGE_RMC = 0x434D52;
 
 static const uint8_t GLL_LATITUDE_INDEX = 1;
 static const uint8_t GLL_LATITUDE_HEMISPHERE_INDEX = 2;
@@ -22,6 +24,21 @@ static const uint8_t GLL_LONGITUDE_INDEX = 3;
 static const uint8_t GLL_LONGITUDE_HEMISPHERE_INDEX = 4;
 static const uint8_t GLL_TIME_INDEX = 5;
 static const uint8_t GLL_STATUS_INDEX = 6;
+
+static const uint8_t GGA_TIME_INDEX = 1;
+static const uint8_t GGA_LATITUDE_INDEX = 2;
+static const uint8_t GGA_LATITUDE_HEMISPHERE_INDEX = 3;
+static const uint8_t GGA_LONGITUDE_INDEX = 4;
+static const uint8_t GGA_LONGITUDE_HEMISPHERE_INDEX = 5;
+static const uint8_t GGA_FIX_QUALITY_INDEX = 6;
+
+static const uint8_t RMC_TIME_INDEX = 1;
+static const uint8_t RMC_STATUS_INDEX = 2;
+static const uint8_t RMC_LATITUDE_INDEX = 3;
+static const uint8_t RMC_LATITUDE_HEMISPHERE_INDEX = 4;
+static const uint8_t RMC_LONGITUDE_INDEX = 5;
+static const uint8_t RMC_LONGITUDE_HEMISPHERE_INDEX = 6;
+static const uint8_t RMC_SPEED_KNOTS_INDEX = 7;
 
 static const uint8_t VTG_SPEED_KMH_INDEX = 7;
 
@@ -215,6 +232,17 @@ static bool parseSpeedKmh(const char *value, uint32_t *speed_thousandths) {
   return true;
 }
 
+static bool parseSpeedKnotsToKmh(const char *value,
+                                 uint32_t *speed_kmh_thousandths) {
+  uint32_t knots_thousandths = 0U;
+  if (!parseSpeedKmh(value, &knots_thousandths)) {
+    return false;
+  }
+  // Convert knots to km/h with rounding: km/h = knots * 1.852
+  uint64_t scaled = (uint64_t)knots_thousandths * 1852ULL;
+  *speed_kmh_thousandths = (uint32_t)((scaled + 500ULL) / 1000ULL);
+  return true;
+}
 /*
  * Management
  */
@@ -307,6 +335,96 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
     } else {
       self->position_valid = false;
       self->time_valid = false;
+    }
+  } else if (sentence_type == MESSAGE_GGA) {
+    const char *time_str =
+        (const char *)NMEA0183__getField(message, GGA_TIME_INDEX);
+    const char *latitude =
+        (const char *)NMEA0183__getField(message, GGA_LATITUDE_INDEX);
+    const char *latitude_hemisphere = (const char *)NMEA0183__getField(
+        message, GGA_LATITUDE_HEMISPHERE_INDEX);
+    const char *longitude =
+        (const char *)NMEA0183__getField(message, GGA_LONGITUDE_INDEX);
+    const char *longitude_hemisphere = (const char *)NMEA0183__getField(
+        message, GGA_LONGITUDE_HEMISPHERE_INDEX);
+    const char *fix_quality =
+        (const char *)NMEA0183__getField(message, GGA_FIX_QUALITY_INDEX);
+
+    if (fix_quality && fix_quality[0] != '0') {
+      uint32_t latitude_scaled = 0U;
+      uint32_t longitude_scaled = 0U;
+      uint32_t seconds_ms = 0U;
+      uint8_t minutes = 0U;
+      uint8_t hours = 0U;
+
+      if (parseLatitudeLongitude(latitude, latitude_hemisphere, longitude,
+                                 longitude_hemisphere, &latitude_scaled,
+                                 &longitude_scaled) &&
+          parseTime(time_str, &seconds_ms, &minutes, &hours)) {
+        self->latitude = latitude_scaled;
+        self->longitude = longitude_scaled;
+        self->utc_seconds_ms = seconds_ms;
+        self->utc_minutes = minutes;
+        self->utc_hours = hours;
+        self->position_valid = true;
+        self->time_valid = true;
+        parsed = true;
+      } else {
+        self->position_valid = false;
+        self->time_valid = false;
+      }
+    } else {
+      self->position_valid = false;
+      self->time_valid = false;
+    }
+  } else if (sentence_type == MESSAGE_RMC) {
+    const char *time_str =
+        (const char *)NMEA0183__getField(message, RMC_TIME_INDEX);
+    const char *status =
+        (const char *)NMEA0183__getField(message, RMC_STATUS_INDEX);
+    const char *latitude =
+        (const char *)NMEA0183__getField(message, RMC_LATITUDE_INDEX);
+    const char *latitude_hemisphere = (const char *)NMEA0183__getField(
+        message, RMC_LATITUDE_HEMISPHERE_INDEX);
+    const char *longitude =
+        (const char *)NMEA0183__getField(message, RMC_LONGITUDE_INDEX);
+    const char *longitude_hemisphere = (const char *)NMEA0183__getField(
+        message, RMC_LONGITUDE_HEMISPHERE_INDEX);
+    const char *speed_knots =
+        (const char *)NMEA0183__getField(message, RMC_SPEED_KNOTS_INDEX);
+
+    if (status && status[0] == 'A') {
+      uint32_t latitude_scaled = 0U;
+      uint32_t longitude_scaled = 0U;
+      uint32_t seconds_ms = 0U;
+      uint8_t minutes = 0U;
+      uint8_t hours = 0U;
+      uint32_t speed_kmh_thousandths = 0U;
+
+      bool ok = parseLatitudeLongitude(latitude, latitude_hemisphere, longitude,
+                                       longitude_hemisphere, &latitude_scaled,
+                                       &longitude_scaled) &&
+                parseTime(time_str, &seconds_ms, &minutes, &hours);
+      if (ok && parseSpeedKnotsToKmh(speed_knots, &speed_kmh_thousandths)) {
+        self->latitude = latitude_scaled;
+        self->longitude = longitude_scaled;
+        self->utc_seconds_ms = seconds_ms;
+        self->utc_minutes = minutes;
+        self->utc_hours = hours;
+        self->speed_kmh_thousandths = speed_kmh_thousandths;
+        self->position_valid = true;
+        self->time_valid = true;
+        self->speed_valid = true;
+        parsed = true;
+      } else {
+        self->position_valid = false;
+        self->time_valid = false;
+        self->speed_valid = false;
+      }
+    } else {
+      self->position_valid = false;
+      self->time_valid = false;
+      self->speed_valid = false;
     }
   } else if (sentence_type == MESSAGE_VTG) {
     const char *speed_kmh =

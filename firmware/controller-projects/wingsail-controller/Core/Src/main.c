@@ -175,18 +175,14 @@ int main(void)
   while (1)
   {
     uint32_t now_ms = HAL_GetTick();
-    static uint32_t last_hello_ms = 0U;
     if (NMEA0183__scheduler_step(&nmea_scheduler_ais_gps, now_ms)) {
       HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+      printf("AIS/GPS parsed\r\n");
     }
 
     if (NMEA0183__scheduler_step(&nmea_scheduler_wind, now_ms)) {
       HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
-    }
-
-    if ((now_ms - last_hello_ms) >= 1000U) {
-      printf("Hello\r\n");
-      last_hello_ms = now_ms;
+      printf("WIND parsed\r\n");
     }
 
     

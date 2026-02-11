@@ -495,6 +495,7 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
  */
 HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
                                     FDCAN_HandleTypeDef *hfdcan1);
+HAL_StatusTypeDef AIS__CAN_transmit_empty(FDCAN_HandleTypeDef *hfdcan1);
 
 /**
  * Process a single AIS message, buffer ships, and transmit when the cycle ends.

@@ -1,0 +1,12 @@
+# NMEA 0183 example sentences with validated checksums.
+# Generated via firmware/tests/gen_nmea.py
+
+# GPS
+$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47
+$GPRMC,123520,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*60
+$GPVTG,084.4,T,081.2,M,022.4,N,041.5,K*49
+
+# AIS (VDM)
+!AIVDM,1,1,,A,13aG?P0000o?;88MD5P<4?wV0<1R,0*13
+!AIVDM,1,1,,A,15MuqR001rG?mKpE`B0@wvvl0<0t,0*10
+!AIVDM,1,1,,A,33aG?P0000o?;88MD5P<4?wV0<1R,0*11
