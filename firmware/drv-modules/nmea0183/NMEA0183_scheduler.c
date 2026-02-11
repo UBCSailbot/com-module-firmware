@@ -16,7 +16,6 @@ static const uint32_t MESSAGE_GLL = 0x4C4C47;
 static const uint32_t MESSAGE_VTG = 0x475456;
 static const uint32_t MESSAGE_GGA = 0x414747;
 static const uint32_t MESSAGE_RMC = 0x434D52;
-static const uint32_t MESSAGE_VDO = 0x4F4456;
 static const uint32_t CAN_SEND_INTERVAL_MS = 500U;
 
 static void NMEA0183__toggle_can_led(void) {
@@ -35,7 +34,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
   if (message) {
     uint32_t sentence_type = NMEA0183__getScentenceType(message);
 
-    if (sentence_type == MESSAGE_VDM || sentence_type == MESSAGE_VDO) {
+  if (sentence_type == MESSAGE_VDM || sentence_type == MESSAGE_VDO) {
       if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
         NMEA0183__incrementReadIndex(scheduler->channel);
       } else if (scheduler->ais_parser && scheduler->ais_batch &&
