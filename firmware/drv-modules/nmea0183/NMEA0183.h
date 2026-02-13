@@ -39,9 +39,10 @@
 
 //Constants for different NMEA data types. This is encoded as follows:
 //		00000000aaaaaaaabbbbbbbbcccccccc Where the bits are the ASCII abbreviation of the data type: "CBA".
-#define MESSAGE_VDM 0x4D4456
-#define MESSAGE_MWV 0x56574D
-#define MESSAGE_XDR 0x524458
+static const uint32_t MESSAGE_VDM = 0x4D4456;
+static const uint32_t MESSAGE_VDO = 0x4F4456;
+static const uint32_t MESSAGE_MWV = 0x56574D;
+static const uint32_t MESSAGE_XDR = 0x524458;
 
 //enum for the result of the checks conducted on a message
 typedef enum {

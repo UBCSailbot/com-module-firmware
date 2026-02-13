@@ -5,6 +5,9 @@
  *      Author: george-sleen
  */
 
+#include "can.h"
+#include "stm32u5xx_hal_def.h"
+#include "stm32u5xx_hal_fdcan.h"
 #include <NMEA0183.h>
 #include <WIND_SENSOR.h>
 #include <stdio.h>
@@ -15,12 +18,19 @@
  * Constants
  */
 
+// Temperature messages
 static const uint8_t WIND_TEMP_INDEX = 2;
 
+// Wind data messages
 static const uint8_t WIND_DIRECTION_INDEX = 1;
 static const uint8_t WIND_REFERENCE_INDEX = 2;
 static const uint8_t WIND_SPEED_INDEX = 3;
 static const uint8_t WIND_STATUS_INDEX = 5;
+
+// CAN communication
+static const can_frame_id_t SAIL_WIND_ID = 0x040;
+static const can_frame_id_t DATA_WIND_ID = 0x041;
+static const uint32_t WIND_DATA_LENGTH = FDCAN_DLC_BYTES_4;
 
 /*
  * Helper functions
@@ -157,48 +167,57 @@ void WIND_SENSOR__destroy(WIND_SENSOR *self) {
  * a wind sensor if you want it to do anything useful...)
  */
 bool WIND_SENSOR__poll(WIND_SENSOR *self) {
-  bool result = false;
-
-  if (!self) {
+  if (!self || !self->channel) {
     return false;
   }
 
-  NMEA0183 *channel = self->channel;
-  NMEA0183Raw *message = NMEA0183__getTopBufferItem(channel);
-
-  if (message != NULL && NMEA0183__checkMessage(message) == GOOD_MESSAGE) {
-    uint32_t sentenceType = NMEA0183__getScentenceType(message);
-
-    if (sentenceType == MESSAGE_MWV) {
-      const char *direction = getField(message, WIND_DIRECTION_INDEX);
-      const char *reference = getField(message, WIND_REFERENCE_INDEX);
-      const char *speed = getField(message, WIND_SPEED_INDEX);
-      const char *status = getField(message, WIND_STATUS_INDEX);
-
-      self->direction = parseTenths(direction);
-      self->speed = parseTenths(speed);
-      self->reference =
-          reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
-      self->status = status ? (wind_status_t)status[0] : UNKNOWN;
-
-      result = true;
-    } else if (sentenceType == MESSAGE_XDR) {
-      const char *temp = getField(message, WIND_TEMP_INDEX);
-
-      self->temp = parseTenths(temp);
-      result = true;
-
-    } else {
-      result = false;
-    }
+  NMEA0183Raw *message = NMEA0183__getTopBufferItem(self->channel);
+  if (!message) {
+    return false;
   }
 
-  // Advance ring buffer
-  NMEA0183__incrementReadIndex(channel);
+  bool result = WIND_SENSOR__parseMessage(self, message);
+  NMEA0183__incrementReadIndex(self->channel);
   return result;
 }
 
-/*
+bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message) {
+  if (!self || !message) {
+    return false;
+  }
+
+  if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
+    return false;
+  }
+
+  uint32_t sentenceType = NMEA0183__getScentenceType(message);
+
+  if (sentenceType == MESSAGE_MWV) {
+    const char *direction = getField(message, WIND_DIRECTION_INDEX);
+    const char *reference = getField(message, WIND_REFERENCE_INDEX);
+    const char *speed = getField(message, WIND_SPEED_INDEX);
+    const char *status = getField(message, WIND_STATUS_INDEX);
+
+    self->direction = parseTenths(direction);
+    self->speed = parseTenths(speed);
+    self->reference =
+        reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
+    self->status = status ? (wind_status_t)status[0] : UNKNOWN;
+
+    return true;
+  }
+
+  if (sentenceType == MESSAGE_XDR) {
+    const char *temp = getField(message, WIND_TEMP_INDEX);
+
+    self->temp = parseTenths(temp);
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Prints the current wind sensor values to stdout.
  */
 void WIND_SENSOR__print(const WIND_SENSOR *self) {
@@ -212,4 +231,46 @@ void WIND_SENSOR__print(const WIND_SENSOR *self) {
   printf(" kt status=%c ", statusToChar(self->status));
   printTenths("temp", self->temp);
   printf(" C\r\n");
+}
+
+/**
+ *  Transmit SAIL_WIND or DATA_WIND over CANFD
+ */
+static HAL_StatusTypeDef
+WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
+                                 FDCAN_HandleTypeDef *hfdcan1) {
+  uint8_t data[4];
+  uint16_t angle_deg = (uint16_t)(self->direction / 10U);
+  uint16_t speed_tenths = (uint16_t)(self->speed);
+
+  // Pack angle into [15:0]
+  data[0] = (uint8_t)(angle_deg & 0xFF);
+  data[1] = (uint8_t)((angle_deg >> 8) & 0xFF);
+  // Pack speed into [31:16]
+  data[2] = (uint8_t)(speed_tenths & 0xFF);
+  data[3] = (uint8_t)((speed_tenths >> 8) & 0xFF);
+
+  return CAN_Transmit((uint32_t)CAN_ID, FDCAN_STANDARD_ID, WIND_DATA_LENGTH,
+                      data, hfdcan1);
+}
+
+/**
+ *  Transmit both SAIL_WIND and DATA_WIND over CANFD
+ *  as defined in [Sailbot's Confluence Page]
+ *  (https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
+ *
+ *  @param self an initialized WIND_SENSOR object.
+ *  @param hfdcan1 a can channel.
+ *  @return HAL_OK if successful, a HAL error code otherwise.
+ */
+HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self,
+                                            FDCAN_HandleTypeDef *hfdcan1) {
+  HAL_StatusTypeDef sailTransmitted =
+      WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND_ID, hfdcan1);
+  HAL_StatusTypeDef dataTransmitted =
+      WIND_SENSOR__CAN_transmit_single(self, DATA_WIND_ID, hfdcan1);
+
+  if (sailTransmitted != HAL_OK)
+    return sailTransmitted;
+  return dataTransmitted;
 }

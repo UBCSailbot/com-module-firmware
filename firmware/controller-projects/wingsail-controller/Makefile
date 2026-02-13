@@ -118,6 +118,7 @@ flash: build
 	fi
 	$(OPENOCD) $(OPENOCD_S_ARG) -f $(OPENOCD_CFG) -c "program $(ELF) verify reset exit"
 
+
 debug-server:
 	$(OPENOCD) $(OPENOCD_S_ARG) -f $(OPENOCD_CFG)
 
