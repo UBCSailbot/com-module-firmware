@@ -7,7 +7,6 @@
 
 #include "NMEA0183_scheduler.h"
 #include "main.h"
-#include <stdio.h>
 
 /*
  * Constants

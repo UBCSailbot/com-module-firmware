@@ -43,8 +43,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-volatile uint32_t g_uart5_irq_count = 0;
-volatile uint32_t g_uart5_cmf_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -226,10 +224,6 @@ void UART5_IRQHandler(void)
 {
   /* USER CODE BEGIN UART5_IRQn 0 */
   NMEA0183__IRQHandler(&huart5);
-  g_uart5_irq_count++;
-  if (READ_BIT(huart5.Instance->ISR, USART_ISR_CMF)) {
-    g_uart5_cmf_count++;
-  }
   /* USER CODE END UART5_IRQn 0 */
   HAL_UART_IRQHandler(&huart5);
   /* USER CODE BEGIN UART5_IRQn 1 */
