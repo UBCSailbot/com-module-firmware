@@ -139,18 +139,18 @@ int main(void)
   canBuffer = (uint8_t *) malloc(9);
   while (1)
   {
-    HAL_Delay(500);
-    if (CAN_Receive(canBuffer) == HAL_OK){
-    	printf("Rec");
+    HAL_Delay(10);
+    while (CAN_Receive(canBuffer) == HAL_OK){
     	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
     	if (id == 0x002 && canBuffer[4] == 4){
+    		printf("Rec");
     		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
     		angle = ((float) value) / 1000.0 - 90.0;
     	}
     }
 
     set_servo_angle(angle);
-    printf("This is a test print %f\r\n", angle);
+    printf("Commanded angle is: %f\r\n", angle);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
