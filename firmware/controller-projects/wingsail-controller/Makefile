@@ -9,6 +9,7 @@ TARGET_NAME ?= $(notdir $(abspath $(PROJECT_ROOT)))
 ELF ?= $(BUILD_DIR)/$(TARGET_NAME).elf
 BIN ?= $(BUILD_DIR)/$(TARGET_NAME).bin
 OPENOCD_CFG ?= $(PROJECT_ROOT)/$(TARGET_NAME).cfg
+GIT_ROOT ?= $(shell git -C $(PROJECT_ROOT) rev-parse --show-toplevel 2>/dev/null)
 
 MAKE_JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 OBJCOPY ?= arm-none-eabi-objcopy
@@ -102,6 +103,11 @@ else
 	$(BEAR) --output $(BUILD_DIR)/compile_commands.json -- $(MAKE) $(MAKE_SILENT) -C $(BUILD_DIR) main-build -j$(MAKE_JOBS)
 endif
 	ln -sf $(BUILD_CONFIG)/compile_commands.json $(PROJECT_ROOT)/compile_commands.json
+ifneq ($(GIT_ROOT),)
+	@if [ "$(GIT_ROOT)" != "$(PROJECT_ROOT)" ]; then \
+		ln -sf $(BUILD_DIR)/compile_commands.json $(GIT_ROOT)/compile_commands.json; \
+	fi
+endif
 
 # ------------------------------------------------------------
 # Binary + Flash
