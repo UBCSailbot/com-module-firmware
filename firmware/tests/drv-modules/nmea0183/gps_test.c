@@ -233,6 +233,53 @@ static void test_gps_poll_rmc(void) {
 }
 
 /**
+ * @brief Validate GPS__poll rejects invalid GGA fix quality.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_poll_gga_invalid_fix(void) {
+  NMEA0183Raw gga_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+
+  nmea_test_build_sentence(
+      &gga_message, '$', "GPGGA,123519,4807.038,N,01131.000,E,0,08,0.9,545.4,M,46.9,M,,");
+  nmea_test_set_channel_message(&channel, &gga_message);
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+  TEST_ASSERT(&g_failures, GPS__poll(gps) == false);
+  TEST_ASSERT(&g_failures, gps->position_valid == false);
+  TEST_ASSERT(&g_failures, gps->time_valid == false);
+
+  GPS__destroy(gps);
+}
+
+/**
+ * @brief Validate GPS__poll rejects invalid RMC status.
+ *
+ * @param void
+ * @return void
+ */
+static void test_gps_poll_rmc_invalid_status(void) {
+  NMEA0183Raw rmc_message = {0};
+  NMEA0183 channel = {0};
+  GPS *gps = GPS__create(&channel);
+
+  nmea_test_build_sentence(
+      &rmc_message, '$', "GPRMC,123520,V,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W");
+  nmea_test_set_channel_message(&channel, &rmc_message);
+
+  TEST_ASSERT(&g_failures, gps != NULL);
+  TEST_ASSERT(&g_failures, GPS__poll(gps) == false);
+  TEST_ASSERT(&g_failures, gps->position_valid == false);
+  TEST_ASSERT(&g_failures, gps->time_valid == false);
+  TEST_ASSERT(&g_failures, gps->speed_valid == false);
+
+  GPS__destroy(gps);
+}
+
+/**
  * @brief Validate GPS__poll consumes one message.
  *
  * @param void
@@ -414,6 +461,8 @@ int main(void) {
   test_gps_poll_vtg();
   test_gps_poll_gga();
   test_gps_poll_rmc();
+  test_gps_poll_gga_invalid_fix();
+  test_gps_poll_rmc_invalid_status();
   test_gps_poll_consumes_message();
   test_gps_can_transmit_requires_valid();
   test_gps_shared_channel_dispatch();

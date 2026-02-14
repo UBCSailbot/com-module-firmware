@@ -260,6 +260,76 @@ static void test_scheduler_dispatches_messages(void) {
 }
 
 /**
+ * @brief Validate scheduler periodic GPS CAN sends at 2 Hz when valid.
+ *
+ * @param void
+ * @return void
+ */
+static void test_scheduler_periodic_gps_send(void) {
+  NMEA0183Raw gll = {0};
+  NMEA0183Raw vtg = {0};
+  NMEA0183 channel = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+  GPS *gps = GPS__create(&channel);
+  NMEA0183_Scheduler scheduler = {0};
+
+  nmea_test_build_sentence(
+      &gll, '$', "GPGLL,3723.2475,N,12158.3416,W,225444,A");
+  nmea_test_build_sentence(
+      &vtg, '$', "GPVTG,054.7,T,034.4,M,005.5,N,010.2,K");
+
+  memset(&channel, 0, sizeof(channel));
+  memcpy(&channel.dataBuffer[0], &gll, sizeof(gll));
+  memcpy(&channel.dataBuffer[1], &vtg, sizeof(vtg));
+  channel.dataBufferReadIndex = 0;
+  channel.dataBufferWriteIndex = 2;
+
+  scheduler.channel = &channel;
+  scheduler.gps = gps;
+  scheduler.hfdcan1 = &hfdcan;
+
+  reset_can_tx_capture();
+  TEST_ASSERT(&g_failures, NMEA0183__scheduler_step(&scheduler, 0) == true);
+  TEST_ASSERT(&g_failures, NMEA0183__scheduler_step(&scheduler, 0) == true);
+
+  // First periodic send at t=500 ms.
+  TEST_ASSERT(&g_failures, NMEA0183__scheduler_step(&scheduler, 500U) == false);
+  TEST_ASSERT(&g_failures, g_tx_call_count >= 1);
+
+  // Another periodic send at t=1000 ms.
+  TEST_ASSERT(&g_failures, NMEA0183__scheduler_step(&scheduler, 1000U) == false);
+  TEST_ASSERT(&g_failures, g_tx_call_count >= 2);
+
+  GPS__destroy(gps);
+}
+
+/**
+ * @brief Validate scheduler sends AIS empty frame at 2 Hz when no ships.
+ *
+ * @param void
+ * @return void
+ */
+static void test_scheduler_periodic_ais_empty_send(void) {
+  NMEA0183 channel = {0};
+  FDCAN_HandleTypeDef hfdcan = {0};
+  AIS_CAN_BATCH ais_batch = {0};
+  NMEA0183_Scheduler scheduler = {0};
+
+  scheduler.channel = &channel;
+  scheduler.ais_batch = &ais_batch;
+  scheduler.hfdcan1 = &hfdcan;
+
+  reset_can_tx_capture();
+  TEST_ASSERT(&g_failures, NMEA0183__scheduler_step(&scheduler, 500U) == false);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 1);
+  TEST_ASSERT(&g_failures, g_tx_payloads[0][23] == 0U);
+  TEST_ASSERT(&g_failures, g_tx_payloads[0][24] == 0U);
+
+  TEST_ASSERT(&g_failures, NMEA0183__scheduler_step(&scheduler, 1000U) == false);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 2);
+}
+
+/**
  * @brief Stub Error_Handler for host tests.
  *
  * @param void
@@ -282,6 +352,8 @@ int main(void) {
   test_scheduler_unsupported_sentence();
   test_scheduler_missing_gps_dependencies();
   test_scheduler_dispatches_messages();
+  test_scheduler_periodic_gps_send();
+  test_scheduler_periodic_ais_empty_send();
 
   if (g_failures == 0) {
     printf("PASS\n");
