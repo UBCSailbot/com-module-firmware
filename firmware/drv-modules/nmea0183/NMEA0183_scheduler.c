@@ -34,7 +34,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
   if (message) {
     uint32_t sentence_type = NMEA0183__getScentenceType(message);
 
-  if (sentence_type == MESSAGE_VDM || sentence_type == MESSAGE_VDO) {
+    if (sentence_type == MESSAGE_VDM || sentence_type == MESSAGE_VDO) {
       if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
         NMEA0183__incrementReadIndex(scheduler->channel);
       } else if (scheduler->ais_parser && scheduler->ais_batch &&
@@ -59,9 +59,8 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       if (scheduler->wind_sensor && scheduler->hfdcan1) {
         parsed = WIND_SENSOR__parseMessage(scheduler->wind_sensor, message);
         if (parsed) {
-          HAL_StatusTypeDef status =
-              WIND_SENSOR__CAN_transmit(scheduler->wind_sensor,
-                                        scheduler->hfdcan1);
+          HAL_StatusTypeDef status = WIND_SENSOR__CAN_transmit(
+              scheduler->wind_sensor, scheduler->hfdcan1);
           if (status == HAL_OK) {
             NMEA0183__toggle_can_led();
           }
@@ -88,12 +87,11 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
   }
 
   // Periodic CAN sends at 2 Hz.
-  if (scheduler->gps && scheduler->hfdcan1 &&
-      scheduler->gps->position_valid && scheduler->gps->time_valid &&
-      scheduler->gps->speed_valid &&
+  if (scheduler->gps && scheduler->hfdcan1 && scheduler->gps->position_valid &&
+      scheduler->gps->time_valid && scheduler->gps->speed_valid &&
       (now_ms - scheduler->last_gps_send_ms) >= CAN_SEND_INTERVAL_MS) {
-    HAL_StatusTypeDef status = GPS__CAN_transmit(scheduler->gps,
-                                                 scheduler->hfdcan1);
+    HAL_StatusTypeDef status =
+        GPS__CAN_transmit(scheduler->gps, scheduler->hfdcan1);
     if (status == HAL_OK) {
       scheduler->last_gps_send_ms = now_ms;
       NMEA0183__toggle_can_led();

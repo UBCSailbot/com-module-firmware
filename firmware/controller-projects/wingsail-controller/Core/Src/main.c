@@ -153,10 +153,13 @@ int main(void)
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
   HAL_GPIO_WritePin(WIND_GATE_GPIO_Port, WIND_GATE_Pin, GPIO_PIN_SET);
+
   nmea_channel_ais_gps = NMEA0183__create(&huart2);
   nmea_channel_wind = NMEA0183__create(&huart5);
+
   ais_parser = AIS__create();
   memset(&ais_batch, 0, sizeof(ais_batch));
+
   gps = GPS__create(nmea_channel_ais_gps);
   wind_sensor = WIND_SENSOR__create(nmea_channel_wind);
 
