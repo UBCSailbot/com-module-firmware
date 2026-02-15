@@ -154,7 +154,11 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
+  HAL_GPIO_WritePin(LIGHT_GATE_GPIO_Port, LIGHT_GATE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(WIND_GATE_GPIO_Port, WIND_GATE_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(SERVO_GATE_GPIO_Port, SERVO_GATE_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(SOL_GATE_GPIO_Port, SOL_GATE_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
 
   nmea_channel_ais_gps = NMEA0183__create(&huart2);
   nmea_channel_wind = NMEA0183__create(&huart5);
@@ -203,7 +207,6 @@ int main(void)
     	}
     }
     set_servo_angle(angle);
-    printf("Commanded angle is: %f\r\n", angle);
 
     /* USER CODE END WHILE */
 
