@@ -43,6 +43,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TRIM_TAB_MIN_DEG (-90.0f)
+#define TRIM_TAB_MAX_DEG (90.0f)
+#define TRIM_TAB_CMD_TIMEOUT_MS 1000U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -77,6 +80,8 @@ static NMEA0183_Scheduler nmea_scheduler_ais_gps;
 static NMEA0183_Scheduler nmea_scheduler_wind;
 static uint8_t canBuffer[5 + 64];
 static float angle = 0.0f;
+static uint32_t last_trim_tab_cmd_ms = 0;
+volatile uint8_t g_servo_step = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -106,6 +111,16 @@ static void MX_LPUART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static float clampf(float value, float min_value, float max_value)
+{
+  if (value < min_value) {
+    return min_value;
+  }
+  if (value > max_value) {
+    return max_value;
+  }
+  return value;
+}
 /* USER CODE END 0 */
 
 /**
@@ -167,6 +182,9 @@ int main(void)
   HAL_GPIO_WritePin(SERVO_GATE_GPIO_Port, SERVO_GATE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(SOL_GATE_GPIO_Port, SOL_GATE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
+  HAL_Delay(100);
+  servo_init();
+  last_trim_tab_cmd_ms = HAL_GetTick();
 
   nmea_channel_ais_gps = NMEA0183__create(&huart5);
   nmea_channel_wind = NMEA0183__create(&huart2);
@@ -211,8 +229,13 @@ int main(void)
     	if (id == 0x002 && canBuffer[4] == 4){
     		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
     		angle = ((float) value) / 1000.0 - 90.0;
+        last_trim_tab_cmd_ms = now_ms;
     	}
     }
+    if ((now_ms - last_trim_tab_cmd_ms) > TRIM_TAB_CMD_TIMEOUT_MS) {
+      angle = 0.0f;
+    }
+    angle = clampf(angle, TRIM_TAB_MIN_DEG, TRIM_TAB_MAX_DEG);
     set_servo_angle(angle);
 
     /* USER CODE END WHILE */
