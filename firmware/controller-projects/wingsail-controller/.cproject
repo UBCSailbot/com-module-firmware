@@ -57,6 +57,7 @@
 									<listOptionValue builtIn="false" value="../../../drv-modules/nmea0183"/>
 									<listOptionValue builtIn="false" value="../../../com-modules/CANFD"/>
 									<listOptionValue builtIn="false" value="../../../drv-modules/MDB961WP"/>
+									<listOptionValue builtIn="false" value="../../../drv-modules/can-servo"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.1886560281" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
@@ -83,11 +84,12 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="MDB961WP"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="CANFD"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="nmea0183"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="MDB961WP"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="can-servo"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="nmea0183"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

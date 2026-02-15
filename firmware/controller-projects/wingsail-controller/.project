@@ -43,6 +43,11 @@
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/MDB961WP</locationURI>
 		</link>
 		<link>
+			<name>can-servo</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/can-servo</locationURI>
+		</link>
+		<link>
 			<name>nmea0183</name>
 			<type>2</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/nmea0183</locationURI>
