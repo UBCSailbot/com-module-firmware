@@ -160,8 +160,8 @@ int main(void)
   HAL_GPIO_WritePin(SOL_GATE_GPIO_Port, SOL_GATE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
 
-  nmea_channel_ais_gps = NMEA0183__create(&huart2);
-  nmea_channel_wind = NMEA0183__create(&huart5);
+  nmea_channel_ais_gps = NMEA0183__create(&huart5);
+  nmea_channel_wind = NMEA0183__create(&huart2);
 
   ais_parser = AIS__create();
   memset(&ais_batch, 0, sizeof(ais_batch));
@@ -201,7 +201,6 @@ int main(void)
     while (CAN_Receive(canBuffer) == HAL_OK){
     	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
     	if (id == 0x002 && canBuffer[4] == 4){
-    		printf("Rec");
     		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
     		angle = ((float) value) / 1000.0 - 90.0;
     	}
@@ -354,13 +353,13 @@ static void MX_FDCAN1_Init(void)
 
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
-  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV4;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = ENABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
-  hfdcan1.Init.NominalPrescaler = 16;
+  hfdcan1.Init.NominalPrescaler = 4;
   hfdcan1.Init.NominalSyncJumpWidth = 3;
   hfdcan1.Init.NominalTimeSeg1 = 16;
   hfdcan1.Init.NominalTimeSeg2 = 3;
@@ -508,7 +507,7 @@ static void MX_UART5_Init(void)
 
   /* USER CODE END UART5_Init 1 */
   huart5.Instance = UART5;
-  huart5.Init.BaudRate = 4800;
+  huart5.Init.BaudRate = 38400;
   huart5.Init.WordLength = UART_WORDLENGTH_8B;
   huart5.Init.StopBits = UART_STOPBITS_1;
   huart5.Init.Parity = UART_PARITY_NONE;
