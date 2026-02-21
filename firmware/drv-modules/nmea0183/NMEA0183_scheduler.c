@@ -44,9 +44,13 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
                  scheduler->hfdcan1) {
         AIS_DATA *data = AIS__parseNMEAMessage(scheduler->ais_parser, message);
         if (data) {
+          DEBUG_PRINTF("AIS parsed\r\n");
           uint32_t prev_next_send_ms = scheduler->ais_batch->next_send_ms;
           HAL_StatusTypeDef status = AIS__CAN_process(
               scheduler->ais_batch, data, now_ms, scheduler->hfdcan1);
+          if (status == HAL_OK) {
+            DEBUG_PRINTF("CAN TX AIS batch\r\n");
+          }
           if ((status == HAL_OK) && (prev_next_send_ms != 0U) &&
               ((int32_t)(now_ms - prev_next_send_ms) >= 0)) {
             scheduler->last_ais_send_ms = now_ms;
@@ -87,8 +91,12 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       if (scheduler->gps && scheduler->hfdcan1) {
         parsed = GPS__parseMessage(scheduler->gps, message);
         if (parsed) {
+          DEBUG_PRINTF("GPS parsed\r\n");
           HAL_StatusTypeDef status =
               GPS__CAN_transmit(scheduler->gps, scheduler->hfdcan1);
+          if (status == HAL_OK) {
+            DEBUG_PRINTF("CAN TX GPS\r\n");
+          }
           DEBUG_PRINTF("[GPS] parsed+tx status=%d lat=%lu lon=%lu speed=%lu\r\n",
                        (int)status, (unsigned long)scheduler->gps->latitude,
                        (unsigned long)scheduler->gps->longitude,
@@ -114,6 +122,9 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       (now_ms - scheduler->last_gps_send_ms) >= CAN_SEND_INTERVAL_MS) {
     HAL_StatusTypeDef status =
         GPS__CAN_transmit(scheduler->gps, scheduler->hfdcan1);
+    if (status == HAL_OK) {
+      DEBUG_PRINTF("CAN TX GPS\r\n");
+    }
     DEBUG_PRINTF("[GPS] periodic tx status=%d\r\n", (int)status);
     if (status == HAL_OK) {
       scheduler->last_gps_send_ms = now_ms;
@@ -125,6 +136,9 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       (now_ms - scheduler->last_ais_send_ms) >= CAN_SEND_INTERVAL_MS) {
     if (scheduler->ais_batch->ship_count == 0U) {
       HAL_StatusTypeDef status = AIS__CAN_transmit_empty(scheduler->hfdcan1);
+      if (status == HAL_OK) {
+        DEBUG_PRINTF("CAN TX AIS empty\r\n");
+      }
       DEBUG_PRINTF("[AIS] periodic empty tx status=%d\r\n", (int)status);
       if (status == HAL_OK) {
         scheduler->last_ais_send_ms = now_ms;

@@ -7,6 +7,7 @@
 
 #include "NMEA0183.h"
 #include "main.h"
+#include "debug_log.h"
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -105,6 +106,9 @@ void NMEA0183__IRQHandler(UART_HandleTypeDef *huart){
                 if(receivedLength > MAX_SENTENCE_LENGTH){
                     Error_Handler();
                 }
+
+                DEBUG_PRINTF("RX NMEA: %.*s\r\n\r\n", (int)(receivedLength - 2),
+                             nmea->receiveBuffers[1 - nmea->receiveBufferPosition]);
 
                 // Next write index in ring buffer
                 uint8_t next = (nmea->dataBufferWriteIndex + 1) % MAX_DATA_BUFFER_SIZE;
