@@ -26,7 +26,7 @@ typedef struct {
 } CAN_Frame;
 
 /* Function prototypes ------------------------------------------------------------------*/
-void CAN_Init(FDCAN_HandleTypeDef *hfdcan1);
+HAL_StatusTypeDef CAN_Init(FDCAN_HandleTypeDef *hfdcan1);
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1);
 HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);

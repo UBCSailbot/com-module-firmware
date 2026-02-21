@@ -21,24 +21,29 @@ BEAR ?= bear
 
 # Prefer system OpenOCD if available (avoids CubeIDE recursion bug)
 SYSTEM_OPENOCD_SCRIPTS := $(wildcard /usr/share/openocd/scripts)
+RUN_SYSTEM_OPENOCD_SCRIPTS := $(wildcard /run/current-system/sw/share/openocd/scripts)
 NIX_OPENOCD_SCRIPTS := $(firstword $(shell if command -v openocd >/dev/null 2>&1; then d=$$(dirname "$$(readlink -f "$$(command -v openocd)")")/../share/openocd/scripts; [ -d "$$d" ] && echo "$$d"; fi))
 NIX_STORE_OPENOCD_SCRIPTS := $(firstword $(wildcard /nix/store/*openocd*/share/openocd/scripts))
 CUBEIDE_SCRIPTS := $(firstword $(wildcard /opt/st/stm32cubeide_*/plugins/com.st.stm32cube.ide.mcu.debug.openocd_*/resources/openocd/st_scripts))
 
 ifeq ($(SYSTEM_OPENOCD_SCRIPTS),)
-  ifeq ($(NIX_OPENOCD_SCRIPTS),)
-    ifeq ($(NIX_STORE_OPENOCD_SCRIPTS),)
-      ifeq ($(CUBEIDE_SCRIPTS),)
-        $(warning No OpenOCD scripts found — flash/debug may fail.)
-        OPENOCD_SCRIPT_DIR :=
+  ifeq ($(RUN_SYSTEM_OPENOCD_SCRIPTS),)
+    ifeq ($(NIX_OPENOCD_SCRIPTS),)
+      ifeq ($(NIX_STORE_OPENOCD_SCRIPTS),)
+        ifeq ($(CUBEIDE_SCRIPTS),)
+          $(warning No OpenOCD scripts found — flash/debug may fail.)
+          OPENOCD_SCRIPT_DIR :=
+        else
+          OPENOCD_SCRIPT_DIR := $(CUBEIDE_SCRIPTS)
+        endif
       else
-        OPENOCD_SCRIPT_DIR := $(CUBEIDE_SCRIPTS)
+        OPENOCD_SCRIPT_DIR := $(NIX_STORE_OPENOCD_SCRIPTS)
       endif
     else
-      OPENOCD_SCRIPT_DIR := $(NIX_STORE_OPENOCD_SCRIPTS)
+      OPENOCD_SCRIPT_DIR := $(NIX_OPENOCD_SCRIPTS)
     endif
   else
-    OPENOCD_SCRIPT_DIR := $(NIX_OPENOCD_SCRIPTS)
+    OPENOCD_SCRIPT_DIR := $(RUN_SYSTEM_OPENOCD_SCRIPTS)
   endif
 else
   OPENOCD_SCRIPT_DIR := $(SYSTEM_OPENOCD_SCRIPTS)

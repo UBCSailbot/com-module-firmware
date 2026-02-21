@@ -84,6 +84,7 @@ static float angle = 0.0f;
 static uint32_t last_trim_tab_cmd_ms = 0;
 static float last_commanded_angle = 0.0f;
 static uint8_t servo_timeout_active = 0;
+static uint8_t can_servo_available = 0;
 volatile uint8_t g_servo_step = 0;
 /* USER CODE END PV */
 
@@ -170,8 +171,19 @@ int main(void)
   MX_UART5_Init();
   MX_LPUART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  CANSPI_Initialize();
-  CAN_Init(&hfdcan1);
+  printf("\r\n[BOOT] early uart alive\r\n");
+  HAL_Delay(20);
+
+  if (!CANSPI_Initialize()) {
+    DEBUG_PRINTF("[BOOT] CANSPI init failed\r\n");
+  } else {
+    can_servo_available = 1;
+    DEBUG_PRINTF("[BOOT] CANSPI init ok\r\n");
+  }
+
+  if (CAN_Init(&hfdcan1) != HAL_OK) {
+    DEBUG_PRINTF("[BOOT] CANFD init failed (continuing)\r\n");
+  }
 
   // Power cycle all attached sensors
   HAL_GPIO_WritePin(LIGHT_GATE_GPIO_Port, LIGHT_GATE_Pin, GPIO_PIN_RESET);
@@ -186,7 +198,12 @@ int main(void)
   HAL_GPIO_WritePin(SOL_GATE_GPIO_Port, SOL_GATE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
   HAL_Delay(100);
-  servo_init();
+  if (can_servo_available) {
+    servo_init();
+    DEBUG_PRINTF("[BOOT] Servo init complete\r\n");
+  } else {
+    DEBUG_PRINTF("[BOOT] Servo init skipped (CANSPI unavailable)\r\n");
+  }
   DEBUG_PRINTF("[BOOT] wingsail-controller logging path active\r\n");
   last_trim_tab_cmd_ms = HAL_GetTick();
   last_commanded_angle = angle;
@@ -232,32 +249,34 @@ int main(void)
       HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
     }
 
-   // CANSERVO 
-    while (CAN_Receive(canBuffer) == HAL_OK){
-    	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
-      DEBUG_PRINTF("[CANFD] rx id=0x%03lX dlc=%u\r\n", (unsigned long)id,
-                   (unsigned)canBuffer[4]);
-    	if (id == 0x002 && canBuffer[4] == 4){
-    		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
-    		angle = ((float) value) / 1000.0 - 90.0;
-        last_trim_tab_cmd_ms = now_ms;
-        servo_timeout_active = 0;
-        DEBUG_PRINTF("[SERVO] MAIN_TR_TAB raw=%lu angle=%.2f\r\n", (unsigned long)value, (double)angle);
-    	}
-    }
-    if ((now_ms - last_trim_tab_cmd_ms) > TRIM_TAB_CMD_TIMEOUT_MS) {
-      if (!servo_timeout_active) {
-        DEBUG_PRINTF("[SERVO] Trim tab command timeout, forcing neutral\r\n");
+   // CANSERVO
+    if (can_servo_available) {
+      while (CAN_Receive(canBuffer) == HAL_OK){
+        uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
+        DEBUG_PRINTF("[CANFD] rx id=0x%03lX dlc=%u\r\n", (unsigned long)id,
+                     (unsigned)canBuffer[4]);
+        if (id == 0x002 && canBuffer[4] == 4){
+          uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
+          angle = ((float) value) / 1000.0 - 90.0;
+          last_trim_tab_cmd_ms = now_ms;
+          servo_timeout_active = 0;
+          DEBUG_PRINTF("[SERVO] MAIN_TR_TAB raw=%lu angle=%.2f\r\n", (unsigned long)value, (double)angle);
+        }
       }
-      servo_timeout_active = 1;
-      angle = 0.0f;
+      if ((now_ms - last_trim_tab_cmd_ms) > TRIM_TAB_CMD_TIMEOUT_MS) {
+        if (!servo_timeout_active) {
+          DEBUG_PRINTF("[SERVO] Trim tab command timeout, forcing neutral\r\n");
+        }
+        servo_timeout_active = 1;
+        angle = 0.0f;
+      }
+      angle = clampf(angle, TRIM_TAB_MIN_DEG, TRIM_TAB_MAX_DEG);
+      if ((angle != last_commanded_angle) || servo_timeout_active) {
+        DEBUG_PRINTF("[SERVO] Command angle=%.2f\r\n", (double)angle);
+        last_commanded_angle = angle;
+      }
+      set_servo_angle(angle);
     }
-    angle = clampf(angle, TRIM_TAB_MIN_DEG, TRIM_TAB_MAX_DEG);
-    if ((angle != last_commanded_angle) || servo_timeout_active) {
-      DEBUG_PRINTF("[SERVO] Command angle=%.2f\r\n", (double)angle);
-      last_commanded_angle = angle;
-    }
-    set_servo_angle(angle);
 
     /* USER CODE END WHILE */
 
@@ -510,7 +529,7 @@ static void MX_LPUART1_UART_Init(void)
 
   /* USER CODE END LPUART1_Init 1 */
   hlpuart1.Instance = LPUART1;
-  hlpuart1.Init.BaudRate = 209700;
+  hlpuart1.Init.BaudRate = 115200;
   hlpuart1.Init.WordLength = UART_WORDLENGTH_8B;
   hlpuart1.Init.StopBits = UART_STOPBITS_1;
   hlpuart1.Init.Parity = UART_PARITY_NONE;
@@ -932,9 +951,10 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 PUTCHAR_PROTOTYPE
 {
-  /* Place your implementation of fputc here */
-  /* e.g. write a character to the USART1 and Loop until the end of transmission */
-  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
+  uint8_t byte = (uint8_t)ch;
+  /* Mirror debug output to both UARTs used across board revisions. */
+  (void)HAL_UART_Transmit(&huart1, &byte, 1, 100);
+  (void)HAL_UART_Transmit(&hlpuart1, &byte, 1, 100);
 
   return ch;
 }

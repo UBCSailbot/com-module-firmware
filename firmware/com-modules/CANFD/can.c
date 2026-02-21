@@ -16,6 +16,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "can.h"
 #include "main.h"
+#include "debug_log.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -44,7 +45,7 @@ uint8_t dlc_to_bytes(uint8_t dlc);
  * 			Activates Notifications
  * @note    Calls Error_Handler() if any configuration step fails.
  */
-void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
+HAL_StatusTypeDef CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	/*##-1 Configures FDCAN meta data and controllers*/
 	FDCAN_FilterTypeDef sFilterConfig;
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -55,7 +56,8 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	sFilterConfig.FilterID2 = 0x7FF;
 	if (HAL_FDCAN_ConfigFilter(hfdcan1, &sFilterConfig) != HAL_OK)
 	{
-	Error_Handler();
+    DEBUG_PRINTF("[CANFD] HAL_FDCAN_ConfigFilter STD failed\r\n");
+    return HAL_ERROR;
 	}
 
 	sFilterConfig.IdType = FDCAN_EXTENDED_ID;
@@ -66,30 +68,38 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	sFilterConfig.FilterID2 = 0x2222222;
 	if (HAL_FDCAN_ConfigFilter(hfdcan1, &sFilterConfig) != HAL_OK)
 	{
-	Error_Handler();
+    DEBUG_PRINTF("[CANFD] HAL_FDCAN_ConfigFilter EXT failed\r\n");
+    return HAL_ERROR;
 	}
 
 	if (HAL_FDCAN_ConfigGlobalFilter(hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
 	{
-	  Error_Handler();
+      DEBUG_PRINTF("[CANFD] HAL_FDCAN_ConfigGlobalFilter failed\r\n");
+      return HAL_ERROR;
 	}
 
 	/*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
 	CanStartStatus = HAL_FDCAN_Start(hfdcan1);
 	if (CanStartStatus != HAL_OK)
 	{
-	Error_Handler();
+    DEBUG_PRINTF("[CANFD] HAL_FDCAN_Start failed\r\n");
+    return HAL_ERROR;
 	}
 
 	if (HAL_FDCAN_ActivateNotification(hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
 	{
-	Error_Handler();
+    DEBUG_PRINTF("[CANFD] ActivateNotification FIFO0 failed\r\n");
+    return HAL_ERROR;
 	}
 
 	if (HAL_FDCAN_ActivateNotification(hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
 	{
-	Error_Handler();
+    DEBUG_PRINTF("[CANFD] ActivateNotification FIFO1 failed\r\n");
+    return HAL_ERROR;
 	}
+
+  DEBUG_PRINTF("[CANFD] Init OK\r\n");
+  return HAL_OK;
 }
 
 /**
