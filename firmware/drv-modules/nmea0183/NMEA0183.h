@@ -24,12 +24,17 @@
 //--------------------------------------------------------------------------- INCLUDES ---------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#include "stm32u5xx_hal.h"
+#include "main.h"
 #include <stdbool.h>
 #include <stdio.h>
 
-#if defined(DEBUG) || defined(NMEA_DEBUG)
-#define NMEA_DEBUG_PRINT(...) printf(__VA_ARGS__)
+#if defined(NMEA_DEBUG) || defined(DEBUG)
+#define NMEA_DEBUG_PRINT(...)                                                  \
+  do {                                                                         \
+    if (g_fw_enable_debug_prints != 0U) {                                      \
+      printf(__VA_ARGS__);                                                     \
+    }                                                                          \
+  } while (0)
 #else
 #define NMEA_DEBUG_PRINT(...) ((void)0)
 #endif

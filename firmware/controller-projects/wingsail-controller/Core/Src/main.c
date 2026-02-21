@@ -75,8 +75,9 @@ static NMEA0183 *nmea_channel_ais_gps;
 static NMEA0183 *nmea_channel_wind;
 static NMEA0183_Scheduler nmea_scheduler_ais_gps;
 static NMEA0183_Scheduler nmea_scheduler_wind;
-static uint8_t canBuffer[5 + 64];
+static CAN_Frame canRxFrame;
 static float angle = 0.0f;
+uint8_t g_fw_enable_debug_prints = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -206,13 +207,16 @@ int main(void)
       HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
     }
 
-   // CANSERVO 
-    while (CAN_Receive(canBuffer) == HAL_OK){
-    	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
-    	if (id == 0x002 && canBuffer[4] == 4){
-    		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
-    		angle = ((float) value) / 1000.0 - 90.0;
-    	}
+   // CANSERVO
+    while (CAN_Receive(&canRxFrame) == HAL_OK){
+      uint32_t id = canRxFrame.RxData1_Identifier;
+      if (id == 0x002 && canRxFrame.RxData1_BufferLength == 4){
+        uint32_t value = (((uint32_t)canRxFrame.RxData1[3]) << 24) |
+                         (((uint32_t)canRxFrame.RxData1[2]) << 16) |
+                         (((uint32_t)canRxFrame.RxData1[1]) << 8) |
+                         ((uint32_t)canRxFrame.RxData1[0]);
+        angle = ((float) value) / 1000.0 - 90.0;
+      }
     }
     set_servo_angle(angle);
 
@@ -667,7 +671,7 @@ static void MX_SPI1_Init(void)
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
@@ -808,6 +812,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0|GPIO_PIN_1|LED_RED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CAN_CS_GPIO_Port, CAN_CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, LED_GREEN_Pin|GPIO_PIN_10, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -846,6 +853,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(UCPD_FLT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CAN_CS_Pin */
+  GPIO_InitStruct.Pin = CAN_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CAN_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_RED_Pin */
   GPIO_InitStruct.Pin = LED_RED_Pin;

@@ -22,6 +22,8 @@ static const uint32_t AIS_LATITUDE_OFFSET = 90U;
 static const uint32_t AIS_LONGITUDE_OFFSET = 180U;
 static const uint32_t AIS_DEGREES_SCALE = 1000000U;
 static const uint32_t AIS_AIS_SCALE = 600000U;
+static const int32_t AIS_LATITUDE_UNAVAILABLE = 91 * 600000;
+static const int32_t AIS_LONGITUDE_UNAVAILABLE = 181 * 600000;
 static const uint16_t AIS_SOG_UNAVAILABLE = 1023U;
 static const uint16_t AIS_COG_UNAVAILABLE = 3600U;
 static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
@@ -89,6 +91,7 @@ void resetTimeStamp(AIS_MULTI_SENTENCE *aisMultiData);
 static uint32_t AIS__convertLatitude(int32_t ais_lat);
 static uint32_t AIS__convertLongitude(int32_t ais_lon);
 static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi);
+static bool AIS__hasValidPosition(const AIS_DATA *data);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------
@@ -210,6 +213,26 @@ static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi) {
   }
 
   return -1;
+}
+
+static bool AIS__hasValidPosition(const AIS_DATA *data) {
+  if (!data || !AIS__isDynamicMessage((AIS_DATA *)data)) {
+    return false;
+  }
+
+  int32_t ais_lat = AIS__getLatitude((AIS_DATA *)data);
+  int32_t ais_lon = AIS__getLongitude((AIS_DATA *)data);
+  if (ais_lat == INT32_MAX || ais_lon == INT32_MAX) {
+    return false;
+  }
+
+  if (ais_lat == AIS_LATITUDE_UNAVAILABLE ||
+      ais_lon == AIS_LONGITUDE_UNAVAILABLE) {
+    return false;
+  }
+
+  return AIS__convertLatitude(ais_lat) != AIS_32BIT_MAX &&
+         AIS__convertLongitude(ais_lon) != AIS_32BIT_MAX;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -661,6 +684,13 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
     return HAL_ERROR;
   }
 
+  // Drop AIS entries that do not have a valid position so we never emit
+  // 0xFFFFFFFF sentinels for lat/lon on CAN.
+  if (!AIS__hasValidPosition(data)) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] tx single skipped: invalid position\r\n");
+    return HAL_OK;
+  }
+
   uint32_t mmsi = AIS__getMMSINumber((AIS_DATA *)data);
   uint32_t latitude = AIS__convertLatitude(AIS__getLatitude((AIS_DATA *)data));
   uint32_t longitude =
@@ -823,6 +853,13 @@ HAL_StatusTypeDef AIS__CAN_process(AIS_CAN_BATCH *batch, const AIS_DATA *data,
   if (!batch || !data || !hfdcan1) {
     NMEA_DEBUG_PRINT("[AIS][CAN] process skipped: null input\r\n");
     return HAL_ERROR;
+  }
+
+  // Ignore positionless AIS updates in the batch so they never get transmitted
+  // with 0xFFFFFFFF lat/lon placeholder values.
+  if (!AIS__hasValidPosition(data)) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] process skipped: invalid position\r\n");
+    return HAL_OK;
   }
 
   if (batch->next_send_ms == 0U) {
