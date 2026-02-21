@@ -75,7 +75,7 @@ static NMEA0183 *nmea_channel_ais_gps;
 static NMEA0183 *nmea_channel_wind;
 static NMEA0183_Scheduler nmea_scheduler_ais_gps;
 static NMEA0183_Scheduler nmea_scheduler_wind;
-static uint8_t canBuffer[5 + 64];
+static CAN_Frame canRxFrame;
 static float angle = 0.0f;
 uint8_t g_fw_enable_debug_prints = 0;
 /* USER CODE END PV */
@@ -207,13 +207,16 @@ int main(void)
       HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
     }
 
-   // CANSERVO 
-    while (CAN_Receive(canBuffer) == HAL_OK){
-    	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
-    	if (id == 0x002 && canBuffer[4] == 4){
-    		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
-    		angle = ((float) value) / 1000.0 - 90.0;
-    	}
+   // CANSERVO
+    while (CAN_Receive(&canRxFrame) == HAL_OK){
+      uint32_t id = canRxFrame.RxData1_Identifier;
+      if (id == 0x002 && canRxFrame.RxData1_BufferLength == 4){
+        uint32_t value = (((uint32_t)canRxFrame.RxData1[3]) << 24) |
+                         (((uint32_t)canRxFrame.RxData1[2]) << 16) |
+                         (((uint32_t)canRxFrame.RxData1[1]) << 8) |
+                         ((uint32_t)canRxFrame.RxData1[0]);
+        angle = ((float) value) / 1000.0 - 90.0;
+      }
     }
     set_servo_angle(angle);
 
