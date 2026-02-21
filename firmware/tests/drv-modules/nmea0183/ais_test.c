@@ -330,7 +330,7 @@ static void test_ais_can_transmit_single_dynamic_payload(void) {
 }
 
 /**
- * @brief Validate AIS__CAN_transmit_single packs defaults for static messages.
+ * @brief Validate AIS__CAN_transmit_single skips static messages without position.
  *
  * @param void
  * @return void
@@ -340,7 +340,6 @@ static void test_ais_can_transmit_single_static_defaults(void) {
   NMEA0183Raw part1 = {0};
   NMEA0183Raw part2 = {0};
   FDCAN_HandleTypeDef hfdcan = {0};
-  uint8_t expected_payload[32] = {0};
 
   nmea_test_build_sentence(
       &part1, '!',
@@ -357,17 +356,9 @@ static void test_ais_can_transmit_single_static_defaults(void) {
   TEST_ASSERT(&g_failures, data != NULL);
 
   reset_can_tx_capture();
-  build_expected_payload(data, 1, 3, expected_payload);
-
   TEST_ASSERT(&g_failures,
               AIS__CAN_transmit_single(data, 1, 3, &hfdcan) == HAL_OK);
-  TEST_ASSERT(&g_failures, g_tx_call_count == 1);
-  TEST_ASSERT(&g_failures, g_tx_identifiers[0] == AIS_FRAME_ID);
-  TEST_ASSERT(&g_failures, g_tx_id_types[0] == FDCAN_STANDARD_ID);
-  TEST_ASSERT(&g_failures, g_tx_data_lengths[0] == AIS_FRAME_LENGTH);
-  TEST_ASSERT(&g_failures, g_tx_payload_sizes[0] == 32);
-  TEST_ASSERT(&g_failures,
-              memcmp(g_tx_payloads[0], expected_payload, 32) == 0);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 0);
 
   AIS__destroy(parser);
 }
