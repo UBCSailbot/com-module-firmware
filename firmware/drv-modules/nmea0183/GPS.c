@@ -285,15 +285,21 @@ bool GPS__poll(GPS *self) {
 
 bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
   if (!self || !message) {
+    NMEA_DEBUG_PRINT("[GPS] parse skipped: null self/message\r\n");
     return false;
   }
 
-  if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
+  MESSAGE_STATUS status = NMEA0183__checkMessage(message);
+  if (status != GOOD_MESSAGE) {
+    NMEA_DEBUG_PRINT("[GPS] invalid message status=%u len=%u\r\n", status,
+                     message->scentenceLength);
     return false;
   }
 
   uint32_t sentence_type = NMEA0183__getScentenceType(message);
   bool parsed = false;
+  NMEA_DEBUG_PRINT("[GPS] sentence type=0x%06lX\r\n",
+                   (unsigned long)sentence_type);
 
   if (sentence_type == MESSAGE_GLL) {
     const char *latitude =
@@ -308,6 +314,13 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         (const char *)NMEA0183__getField(message, GLL_TIME_INDEX);
     const char *status =
         (const char *)NMEA0183__getField(message, GLL_STATUS_INDEX);
+
+    NMEA_DEBUG_PRINT("[GPS][GLL] status=%c lat=%s %s lon=%s %s time=%s\r\n",
+                     status ? status[0] : '?', latitude ? latitude : "(null)",
+                     latitude_hemisphere ? latitude_hemisphere : "(null)",
+                     longitude ? longitude : "(null)",
+                     longitude_hemisphere ? longitude_hemisphere : "(null)",
+                     time_str ? time_str : "(null)");
 
     if (status && status[0] == 'A') {
       uint32_t latitude_scaled = 0U;
@@ -328,13 +341,20 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         self->position_valid = true;
         self->time_valid = true;
         parsed = true;
+        NMEA_DEBUG_PRINT(
+            "[GPS][GLL] parsed lat=%lu lon=%lu utc=%02u:%02u:%lu\r\n",
+            (unsigned long)self->latitude, (unsigned long)self->longitude,
+            self->utc_hours, self->utc_minutes,
+            (unsigned long)self->utc_seconds_ms);
       } else {
         self->position_valid = false;
         self->time_valid = false;
+        NMEA_DEBUG_PRINT("[GPS][GLL] parse failed despite active status\r\n");
       }
     } else {
       self->position_valid = false;
       self->time_valid = false;
+      NMEA_DEBUG_PRINT("[GPS][GLL] inactive status\r\n");
     }
   } else if (sentence_type == MESSAGE_GGA) {
     const char *time_str =
@@ -349,6 +369,14 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         message, GGA_LONGITUDE_HEMISPHERE_INDEX);
     const char *fix_quality =
         (const char *)NMEA0183__getField(message, GGA_FIX_QUALITY_INDEX);
+
+    NMEA_DEBUG_PRINT("[GPS][GGA] fix=%c lat=%s %s lon=%s %s time=%s\r\n",
+                     fix_quality ? fix_quality[0] : '?',
+                     latitude ? latitude : "(null)",
+                     latitude_hemisphere ? latitude_hemisphere : "(null)",
+                     longitude ? longitude : "(null)",
+                     longitude_hemisphere ? longitude_hemisphere : "(null)",
+                     time_str ? time_str : "(null)");
 
     if (fix_quality && fix_quality[0] != '0') {
       uint32_t latitude_scaled = 0U;
@@ -369,13 +397,20 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         self->position_valid = true;
         self->time_valid = true;
         parsed = true;
+        NMEA_DEBUG_PRINT(
+            "[GPS][GGA] parsed lat=%lu lon=%lu utc=%02u:%02u:%lu\r\n",
+            (unsigned long)self->latitude, (unsigned long)self->longitude,
+            self->utc_hours, self->utc_minutes,
+            (unsigned long)self->utc_seconds_ms);
       } else {
         self->position_valid = false;
         self->time_valid = false;
+        NMEA_DEBUG_PRINT("[GPS][GGA] parse failed with non-zero fix\r\n");
       }
     } else {
       self->position_valid = false;
       self->time_valid = false;
+      NMEA_DEBUG_PRINT("[GPS][GGA] no valid fix\r\n");
     }
   } else if (sentence_type == MESSAGE_RMC) {
     const char *time_str =
@@ -392,6 +427,14 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         message, RMC_LONGITUDE_HEMISPHERE_INDEX);
     const char *speed_knots =
         (const char *)NMEA0183__getField(message, RMC_SPEED_KNOTS_INDEX);
+
+    NMEA_DEBUG_PRINT(
+        "[GPS][RMC] status=%c lat=%s %s lon=%s %s time=%s sog_kn=%s\r\n",
+        status ? status[0] : '?', latitude ? latitude : "(null)",
+        latitude_hemisphere ? latitude_hemisphere : "(null)",
+        longitude ? longitude : "(null)",
+        longitude_hemisphere ? longitude_hemisphere : "(null)",
+        time_str ? time_str : "(null)", speed_knots ? speed_knots : "(null)");
 
     if (status && status[0] == 'A') {
       uint32_t latitude_scaled = 0U;
@@ -416,27 +459,44 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         self->time_valid = true;
         self->speed_valid = true;
         parsed = true;
+        NMEA_DEBUG_PRINT(
+            "[GPS][RMC] parsed lat=%lu lon=%lu utc=%02u:%02u:%lu speed=%lu "
+            "milli-kmh\r\n",
+            (unsigned long)self->latitude, (unsigned long)self->longitude,
+            self->utc_hours, self->utc_minutes,
+            (unsigned long)self->utc_seconds_ms,
+            (unsigned long)self->speed_kmh_thousandths);
       } else {
         self->position_valid = false;
         self->time_valid = false;
         self->speed_valid = false;
+        NMEA_DEBUG_PRINT("[GPS][RMC] parse failed with active status\r\n");
       }
     } else {
       self->position_valid = false;
       self->time_valid = false;
       self->speed_valid = false;
+      NMEA_DEBUG_PRINT("[GPS][RMC] inactive status\r\n");
     }
   } else if (sentence_type == MESSAGE_VTG) {
     const char *speed_kmh =
         (const char *)NMEA0183__getField(message, VTG_SPEED_KMH_INDEX);
     uint32_t speed_thousandths = 0U;
+    NMEA_DEBUG_PRINT("[GPS][VTG] speed_kmh=%s\r\n",
+                     speed_kmh ? speed_kmh : "(null)");
     if (parseSpeedKmh(speed_kmh, &speed_thousandths)) {
       self->speed_kmh_thousandths = speed_thousandths;
       self->speed_valid = true;
       parsed = true;
+      NMEA_DEBUG_PRINT("[GPS][VTG] parsed speed=%lu milli-kmh\r\n",
+                       (unsigned long)self->speed_kmh_thousandths);
     } else {
       self->speed_valid = false;
+      NMEA_DEBUG_PRINT("[GPS][VTG] parse failed\r\n");
     }
+  } else {
+    NMEA_DEBUG_PRINT("[GPS] ignored sentence type=0x%06lX\r\n",
+                     (unsigned long)sentence_type);
   }
 
   return parsed;
@@ -444,10 +504,14 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
 HAL_StatusTypeDef GPS__CAN_transmit(const GPS *self,
                                     FDCAN_HandleTypeDef *hfdcan1) {
   if (!self || !hfdcan1) {
+    NMEA_DEBUG_PRINT("[GPS][CAN] transmit skipped: null input\r\n");
     return HAL_ERROR;
   }
 
   if (!self->position_valid || !self->time_valid || !self->speed_valid) {
+    NMEA_DEBUG_PRINT(
+        "[GPS][CAN] transmit blocked: valid flags pos=%u time=%u speed=%u\r\n",
+        self->position_valid, self->time_valid, self->speed_valid);
     return HAL_ERROR;
   }
 
@@ -477,6 +541,16 @@ HAL_StatusTypeDef GPS__CAN_transmit(const GPS *self,
   payload[18] = (uint8_t)((self->speed_kmh_thousandths >> 16) & 0xFF);
   payload[19] = (uint8_t)((self->speed_kmh_thousandths >> 24) & 0xFF);
 
-  return CAN_Transmit(GPS_FRAME_ID, FDCAN_STANDARD_ID, GPS_FRAME_LENGTH,
-                      payload, hfdcan1);
+  NMEA_DEBUG_PRINT(
+      "[GPS][CAN] tx id=0x%03lX lat=%lu lon=%lu utc=%02u:%02u:%lu speed=%lu "
+      "milli-kmh\r\n",
+      (unsigned long)GPS_FRAME_ID, (unsigned long)self->latitude,
+      (unsigned long)self->longitude, self->utc_hours, self->utc_minutes,
+      (unsigned long)self->utc_seconds_ms,
+      (unsigned long)self->speed_kmh_thousandths);
+
+  HAL_StatusTypeDef status = CAN_Transmit(GPS_FRAME_ID, FDCAN_STANDARD_ID,
+                                          GPS_FRAME_LENGTH, payload, hfdcan1);
+  NMEA_DEBUG_PRINT("[GPS][CAN] tx status=%d\r\n", status);
+  return status;
 }

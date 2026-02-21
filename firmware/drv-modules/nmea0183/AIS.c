@@ -8,6 +8,7 @@
 #include "AIS.h"
 #include "can.h"
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -218,6 +219,11 @@ static int AIS__findShipIndex(const AIS_CAN_BATCH *batch, uint32_t mmsi) {
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
+  if (!self || !data) {
+    NMEA_DEBUG_PRINT("[AIS] parse skipped: null self/data\r\n");
+    return NULL;
+  }
+
   uint8_t *aisBinary = NMEA0183__getField(data, 5);
 
   uint32_t sentence_type = NMEA0183__getScentenceType(data);
@@ -225,12 +231,24 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
       aisBinary != NULL) {
     uint8_t totalSentenceSegments = NMEA0183__getField(data, 1)[0] - '0';
     uint8_t aisBinaryLength = strlen((char *)aisBinary);
+    NMEA_DEBUG_PRINT(
+        "[AIS] type=0x%06lX parts=%u part=%c seq=%c ch=%c payload_len=%u\r\n",
+        (unsigned long)sentence_type, totalSentenceSegments,
+        NMEA0183__getField(data, 2) ? NMEA0183__getField(data, 2)[0] : '?',
+        NMEA0183__getField(data, 3) ? NMEA0183__getField(data, 3)[0] : '?',
+        NMEA0183__getField(data, 4) ? NMEA0183__getField(data, 4)[0] : '?',
+        aisBinaryLength);
 
     if (totalSentenceSegments == 1) {
       // If this is a single sentence message then just copy it and return it.
       self->singleSentenceData.dataLength = aisBinaryLength;
       memcpy(self->singleSentenceData.sixBitData, aisBinary,
              self->singleSentenceData.dataLength);
+      NMEA_DEBUG_PRINT("[AIS] single-part ready len=%u msg_id=%u mmsi=%lu\r\n",
+                       self->singleSentenceData.dataLength,
+                       AIS__getMessageID(&self->singleSentenceData),
+                       (unsigned long)AIS__getMMSINumber(
+                           &self->singleSentenceData));
       return &self->singleSentenceData;
     } else {
       uint8_t sequentialMessageIdentifier =
@@ -238,6 +256,9 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
 
       // Check that the sequential identifier is in range, or else we will
       // access unallocated memory
+      if (sequentialMessageIdentifier > 9)
+        NMEA_DEBUG_PRINT("[AIS] drop: invalid multi sequence id=%u\r\n",
+                         sequentialMessageIdentifier);
       if (sequentialMessageIdentifier > 9)
         return NULL;
 
@@ -254,6 +275,9 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
         dictData->lastSentenceIndex = 0;
         dictData->aisData.dataLength = 0;
         dictData->vhfChannel = vhfChannel;
+        NMEA_DEBUG_PRINT("[AIS] multi start seq=%u parts=%u channel=%c\r\n",
+                         sequentialMessageIdentifier, totalSentenceSegments,
+                         vhfChannel);
       }
 
       // Make sure the dictionary element matches the incoming message
@@ -263,6 +287,13 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
           HAL_GetTick() - dictData->timeStamp > MULTI_SENTENCE_TIME_WINDOW ||
           dictData->aisData.dataLength + aisBinaryLength > MAX_LENGTH ||
           sentenceNumber > totalSentenceSegments) {
+        NMEA_DEBUG_PRINT(
+            "[AIS] drop multi seq=%u part=%u/%u last=%u ch=%c expected_ch=%c "
+            "age=%lu len=%u\r\n",
+            sequentialMessageIdentifier, sentenceNumber, totalSentenceSegments,
+            dictData->lastSentenceIndex, vhfChannel, dictData->vhfChannel,
+            (unsigned long)(HAL_GetTick() - dictData->timeStamp),
+            dictData->aisData.dataLength + aisBinaryLength);
         resetTimeStamp(dictData);
         return NULL;
       }
@@ -272,9 +303,20 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
              aisBinary, aisBinaryLength);
       dictData->aisData.dataLength += aisBinaryLength;
       if (sentenceNumber == totalSentenceSegments) {
+        NMEA_DEBUG_PRINT(
+            "[AIS] multi complete seq=%u len=%u msg_id=%u mmsi=%lu\r\n",
+            sequentialMessageIdentifier, dictData->aisData.dataLength,
+            AIS__getMessageID(&dictData->aisData),
+            (unsigned long)AIS__getMMSINumber(&dictData->aisData));
         return &dictData->aisData;
       }
+      NMEA_DEBUG_PRINT("[AIS] multi progress seq=%u part=%u/%u len=%u\r\n",
+                       sequentialMessageIdentifier, sentenceNumber,
+                       totalSentenceSegments, dictData->aisData.dataLength);
     }
+  } else {
+    NMEA_DEBUG_PRINT("[AIS] ignored sentence type=0x%06lX payload=%p\r\n",
+                     (unsigned long)sentence_type, (void *)aisBinary);
   }
   return NULL;
 }
@@ -615,6 +657,7 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
                                            uint8_t total_ships,
                                            FDCAN_HandleTypeDef *hfdcan1) {
   if (!data || !hfdcan1) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] tx single skipped: null input\r\n");
     return HAL_ERROR;
   }
 
@@ -692,8 +735,17 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
   payload[23] = ship_idx;
   payload[24] = total_ships;
 
-  return CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID, AIS_FRAME_LENGTH,
-                      payload, hfdcan1);
+  NMEA_DEBUG_PRINT(
+      "[AIS][CAN] tx ship idx=%u/%u mmsi=%lu lat=%lu lon=%lu sog=%u cog=%u "
+      "hdg=%u rot=%d len=%u wid=%u\r\n",
+      ship_idx, total_ships, (unsigned long)mmsi, (unsigned long)latitude,
+      (unsigned long)longitude, speed_over_ground, course_over_ground, heading,
+      rate_of_turn, length, width);
+
+  HAL_StatusTypeDef status = CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID,
+                                          AIS_FRAME_LENGTH, payload, hfdcan1);
+  NMEA_DEBUG_PRINT("[AIS][CAN] tx single status=%d\r\n", status);
+  return status;
 }
 
 /**
@@ -709,8 +761,12 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
 HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
                                     FDCAN_HandleTypeDef *hfdcan1) {
   if (!data || !hfdcan1 || ship_count == 0U) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] tx batch skipped data=%p hfdcan=%p count=%u\r\n",
+                     (void *)data, (void *)hfdcan1, ship_count);
     return HAL_ERROR;
   }
+
+  NMEA_DEBUG_PRINT("[AIS][CAN] tx batch count=%u\r\n", ship_count);
 
   for (uint16_t batch_start = 0U; batch_start < ship_count;
        batch_start += AIS_MAX_SHIPS_PER_BATCH) {
@@ -723,16 +779,21 @@ HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
       HAL_StatusTypeDef status = AIS__CAN_transmit_single(
           &data[batch_start + ship_idx], ship_idx, total_ships, hfdcan1);
       if (status != HAL_OK) {
+        NMEA_DEBUG_PRINT(
+            "[AIS][CAN] tx batch failed at global_idx=%u status=%d\r\n",
+            (unsigned int)(batch_start + ship_idx), status);
         return status;
       }
     }
   }
 
+  NMEA_DEBUG_PRINT("[AIS][CAN] tx batch complete\r\n");
   return HAL_OK;
 }
 
 HAL_StatusTypeDef AIS__CAN_transmit_empty(FDCAN_HandleTypeDef *hfdcan1) {
   if (!hfdcan1) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] tx empty skipped: null can handle\r\n");
     return HAL_ERROR;
   }
 
@@ -741,8 +802,10 @@ HAL_StatusTypeDef AIS__CAN_transmit_empty(FDCAN_HandleTypeDef *hfdcan1) {
   payload[23] = 0U; // ship_idx
   payload[24] = 0U; // total_ships
 
-  return CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID, AIS_FRAME_LENGTH,
-                      payload, hfdcan1);
+  HAL_StatusTypeDef status = CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID,
+                                          AIS_FRAME_LENGTH, payload, hfdcan1);
+  NMEA_DEBUG_PRINT("[AIS][CAN] tx empty status=%d\r\n", status);
+  return status;
 }
 
 /**
@@ -758,32 +821,49 @@ HAL_StatusTypeDef AIS__CAN_process(AIS_CAN_BATCH *batch, const AIS_DATA *data,
                                    uint32_t now_ms,
                                    FDCAN_HandleTypeDef *hfdcan1) {
   if (!batch || !data || !hfdcan1) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] process skipped: null input\r\n");
     return HAL_ERROR;
   }
 
   if (batch->next_send_ms == 0U) {
     batch->next_send_ms = now_ms + AIS_CAN_BATCH_INTERVAL_MS;
+    NMEA_DEBUG_PRINT("[AIS][CAN] start batch window now=%lu send_at=%lu\r\n",
+                     (unsigned long)now_ms, (unsigned long)batch->next_send_ms);
   }
 
   uint32_t mmsi = AIS__getMMSINumber((AIS_DATA *)data);
   int ship_index = AIS__findShipIndex(batch, mmsi);
   if (ship_index >= 0) {
     batch->ships[ship_index] = *data;
+    NMEA_DEBUG_PRINT("[AIS][CAN] update ship idx=%d mmsi=%lu\r\n", ship_index,
+                     (unsigned long)mmsi);
   } else {
     if (batch->ship_count >= AIS_CAN_MAX_SHIPS) {
+      NMEA_DEBUG_PRINT("[AIS][CAN] drop mmsi=%lu batch full=%u\r\n",
+                       (unsigned long)mmsi, batch->ship_count);
       return HAL_ERROR;
     }
     batch->ships[batch->ship_count] = *data;
     batch->ship_count++;
+    NMEA_DEBUG_PRINT("[AIS][CAN] add ship idx=%u mmsi=%lu\r\n",
+                     (unsigned int)(batch->ship_count - 1U),
+                     (unsigned long)mmsi);
   }
 
   if ((int32_t)(now_ms - batch->next_send_ms) >= 0) {
+    NMEA_DEBUG_PRINT("[AIS][CAN] flush batch now=%lu count=%u\r\n",
+                     (unsigned long)now_ms, batch->ship_count);
     HAL_StatusTypeDef status =
         AIS__CAN_transmit(batch->ships, batch->ship_count, hfdcan1);
     batch->ship_count = 0U;
     batch->next_send_ms = now_ms + AIS_CAN_BATCH_INTERVAL_MS;
+    NMEA_DEBUG_PRINT("[AIS][CAN] next window send_at=%lu status=%d\r\n",
+                     (unsigned long)batch->next_send_ms, status);
     return status;
   }
 
+  NMEA_DEBUG_PRINT("[AIS][CAN] hold batch now=%lu send_at=%lu count=%u\r\n",
+                   (unsigned long)now_ms, (unsigned long)batch->next_send_ms,
+                   batch->ship_count);
   return HAL_OK;
 }

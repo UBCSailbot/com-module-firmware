@@ -183,14 +183,20 @@ bool WIND_SENSOR__poll(WIND_SENSOR *self) {
 
 bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message) {
   if (!self || !message) {
+    NMEA_DEBUG_PRINT("[WIND] parse skipped: null self/message\r\n");
     return false;
   }
 
-  if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
+  MESSAGE_STATUS status = NMEA0183__checkMessage(message);
+  if (status != GOOD_MESSAGE) {
+    NMEA_DEBUG_PRINT("[WIND] invalid message status=%u len=%u\r\n", status,
+                     message->scentenceLength);
     return false;
   }
 
   uint32_t sentenceType = NMEA0183__getScentenceType(message);
+  NMEA_DEBUG_PRINT("[WIND] sentence type=0x%06lX\r\n",
+                   (unsigned long)sentenceType);
 
   if (sentenceType == MESSAGE_MWV) {
     const char *direction = getField(message, WIND_DIRECTION_INDEX);
@@ -198,22 +204,35 @@ bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message) {
     const char *speed = getField(message, WIND_SPEED_INDEX);
     const char *status = getField(message, WIND_STATUS_INDEX);
 
+    NMEA_DEBUG_PRINT(
+        "[WIND][MWV] dir=%s ref=%s speed=%s status=%s\r\n",
+        direction ? direction : "(null)", reference ? reference : "(null)",
+        speed ? speed : "(null)", status ? status : "(null)");
+
     self->direction = parseTenths(direction);
     self->speed = parseTenths(speed);
     self->reference =
         reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
     self->status = status ? (wind_status_t)status[0] : UNKNOWN;
 
+    NMEA_DEBUG_PRINT("[WIND][MWV] parsed dir=%u speed=%u ref=%c status=%c\r\n",
+                     self->direction, self->speed,
+                     referenceToChar(self->reference), statusToChar(self->status));
+
     return true;
   }
 
   if (sentenceType == MESSAGE_XDR) {
     const char *temp = getField(message, WIND_TEMP_INDEX);
+    NMEA_DEBUG_PRINT("[WIND][XDR] temp=%s\r\n", temp ? temp : "(null)");
 
     self->temp = parseTenths(temp);
+    NMEA_DEBUG_PRINT("[WIND][XDR] parsed temp=%u\r\n", self->temp);
     return true;
   }
 
+  NMEA_DEBUG_PRINT("[WIND] ignored sentence type=0x%06lX\r\n",
+                   (unsigned long)sentenceType);
   return false;
 }
 
@@ -239,6 +258,11 @@ void WIND_SENSOR__print(const WIND_SENSOR *self) {
 static HAL_StatusTypeDef
 WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
                                  FDCAN_HandleTypeDef *hfdcan1) {
+  if (!self || !hfdcan1) {
+    NMEA_DEBUG_PRINT("[WIND][CAN] tx single skipped: null input\r\n");
+    return HAL_ERROR;
+  }
+
   uint8_t data[4];
   uint16_t angle_deg = (uint16_t)(self->direction / 10U);
   uint16_t speed_tenths = (uint16_t)(self->speed);
@@ -250,8 +274,14 @@ WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
   data[2] = (uint8_t)(speed_tenths & 0xFF);
   data[3] = (uint8_t)((speed_tenths >> 8) & 0xFF);
 
-  return CAN_Transmit((uint32_t)CAN_ID, FDCAN_STANDARD_ID, WIND_DATA_LENGTH,
-                      data, hfdcan1);
+  NMEA_DEBUG_PRINT("[WIND][CAN] tx id=0x%03lX angle_deg=%u speed_tenths=%u\r\n",
+                   (unsigned long)CAN_ID, angle_deg, speed_tenths);
+
+  HAL_StatusTypeDef status =
+      CAN_Transmit((uint32_t)CAN_ID, FDCAN_STANDARD_ID, WIND_DATA_LENGTH, data,
+                   hfdcan1);
+  NMEA_DEBUG_PRINT("[WIND][CAN] tx status=%d\r\n", status);
+  return status;
 }
 
 /**
@@ -265,10 +295,18 @@ WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
  */
 HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self,
                                             FDCAN_HandleTypeDef *hfdcan1) {
+  if (!self || !hfdcan1) {
+    NMEA_DEBUG_PRINT("[WIND][CAN] tx skipped: null input\r\n");
+    return HAL_ERROR;
+  }
+
   HAL_StatusTypeDef sailTransmitted =
       WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND_ID, hfdcan1);
   HAL_StatusTypeDef dataTransmitted =
       WIND_SENSOR__CAN_transmit_single(self, DATA_WIND_ID, hfdcan1);
+
+  NMEA_DEBUG_PRINT("[WIND][CAN] combined status sail=%d data=%d\r\n",
+                   sailTransmitted, dataTransmitted);
 
   if (sailTransmitted != HAL_OK)
     return sailTransmitted;
