@@ -99,9 +99,6 @@ extern uint8_t g_fw_enable_debug_prints;
 #define LED_BLUE_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-/* Placeholder CAN CS pin for MCP2515 builds without board pinout. */
-#define CAN_CS_Pin GPIO_PIN_6
-#define CAN_CS_GPIO_Port GPIOB
 #define LIGHT_GATE_Pin GPIO_PIN_14
 #define LIGHT_GATE_GPIO_Port GPIOF
 #define WIND_GATE_Pin GPIO_PIN_3
