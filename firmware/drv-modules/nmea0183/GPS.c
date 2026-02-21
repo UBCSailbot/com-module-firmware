@@ -46,7 +46,6 @@ static const uint32_t GPS_FRAME_ID = 0x070U;
 static const uint32_t GPS_FRAME_LENGTH = FDCAN_DLC_BYTES_20;
 
 static const uint32_t GPS_DEGREES_SCALE = 1000000U;
-static const uint32_t GPS_MINUTES_SCALE = 10000U;
 static const uint32_t GPS_MINUTES_DIVISOR = 60U;
 static const uint32_t GPS_LATITUDE_OFFSET = 90U;
 static const uint32_t GPS_LONGITUDE_OFFSET = 180U;
@@ -138,48 +137,28 @@ static bool parseLatitudeLongitude(const char *latitude_value,
   uint32_t latitude_degrees = latitude_integer / 100U;
   uint32_t longitude_degrees = longitude_integer / 100U;
 
-  uint32_t latitude_minutes_integer = latitude_integer % 100U;
-  uint32_t longitude_minutes_integer = longitude_integer % 100U;
+  double latitude_raw = strtod(latitude_value, NULL);
+  double longitude_raw = strtod(longitude_value, NULL);
 
-  uint32_t latitude_minutes_fraction = 0U;
-  uint32_t longitude_minutes_fraction = 0U;
+  double latitude_minutes = latitude_raw - (double)(latitude_degrees * 100U);
+  double longitude_minutes =
+      longitude_raw - (double)(longitude_degrees * 100U);
 
-  const char *latitude_dot = strchr(latitude_value, '.');
-  const char *longitude_dot = strchr(longitude_value, '.');
-  if (latitude_dot != NULL) {
-    uint8_t frac_digits = 0;
-    uint32_t frac_value = parseDigits(latitude_dot + 1, 4, &frac_digits);
-    while (frac_digits < 4U) {
-      frac_value *= 10U;
-      frac_digits++;
-    }
-    latitude_minutes_fraction = frac_value;
+  if (latitude_minutes < 0.0 || latitude_minutes >= 60.0 ||
+      longitude_minutes < 0.0 || longitude_minutes >= 60.0) {
+    return false;
   }
-  if (longitude_dot != NULL) {
-    uint8_t frac_digits = 0;
-    uint32_t frac_value = parseDigits(longitude_dot + 1, 4, &frac_digits);
-    while (frac_digits < 4U) {
-      frac_value *= 10U;
-      frac_digits++;
-    }
-    longitude_minutes_fraction = frac_value;
-  }
-
-  uint32_t latitude_minutes_scaled =
-      (latitude_minutes_integer * GPS_MINUTES_SCALE) +
-      latitude_minutes_fraction;
-  uint32_t longitude_minutes_scaled =
-      (longitude_minutes_integer * GPS_MINUTES_SCALE) +
-      longitude_minutes_fraction;
 
   int64_t latitude_decimal_scaled =
       ((int64_t)latitude_degrees * GPS_DEGREES_SCALE) +
-      ((int64_t)latitude_minutes_scaled * GPS_DEGREES_SCALE) /
-          (GPS_MINUTES_DIVISOR * GPS_MINUTES_SCALE);
+      (int64_t)(((latitude_minutes * (double)GPS_DEGREES_SCALE) /
+                 (double)GPS_MINUTES_DIVISOR) +
+                0.5);
   int64_t longitude_decimal_scaled =
       ((int64_t)longitude_degrees * GPS_DEGREES_SCALE) +
-      ((int64_t)longitude_minutes_scaled * GPS_DEGREES_SCALE) /
-          (GPS_MINUTES_DIVISOR * GPS_MINUTES_SCALE);
+      (int64_t)(((longitude_minutes * (double)GPS_DEGREES_SCALE) /
+                 (double)GPS_MINUTES_DIVISOR) +
+                0.5);
 
   if (latitude_hemisphere[0] == 'S') {
     latitude_decimal_scaled = -latitude_decimal_scaled;
