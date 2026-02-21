@@ -188,6 +188,7 @@ int main(void)
   nmea_scheduler_wind.channel = nmea_channel_wind;
   nmea_scheduler_wind.wind_sensor = wind_sensor;
   nmea_scheduler_wind.hfdcan1 = &hfdcan1;
+  printf("BOOT: wingsail-controller started\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
