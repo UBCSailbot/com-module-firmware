@@ -64,6 +64,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+extern uint8_t g_fw_enable_debug_prints;
 
 /* USER CODE END EFP */
 

@@ -9,6 +9,8 @@
 #define GPIOG ((GPIO_TypeDef *)0)
 #define GPIOC ((GPIO_TypeDef *)0)
 
+extern uint8_t g_fw_enable_debug_prints;
+
 void Error_Handler(void);
 
 #endif
