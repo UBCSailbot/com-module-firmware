@@ -28,7 +28,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#if defined(NMEA_DEBUG)
+#if defined(NMEA_DEBUG) || defined(DEBUG)
 #define NMEA_DEBUG_PRINT(...)                                                  \
   do {                                                                         \
     if (g_fw_enable_debug_prints != 0U) {                                      \

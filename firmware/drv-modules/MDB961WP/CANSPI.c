@@ -24,7 +24,7 @@
 #include "MCP2515.h"
 #include <stdio.h>
 
-#if defined(CAN_SERVO_DEBUG)
+#if defined(CAN_SPI_DEBUG)
 #define CAN_SPI_DEBUG_PRINT(...)                                               \
   do {                                                                         \
     if (g_fw_enable_debug_prints != 0U) {                                      \
