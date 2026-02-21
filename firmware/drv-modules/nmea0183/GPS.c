@@ -6,6 +6,7 @@
  */
 
 #include "GPS.h"
+#include "debug_log.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -307,6 +308,11 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         self->position_valid = true;
         self->time_valid = true;
         parsed = true;
+        DEBUG_PRINTF("[GPS] GLL parsed lat=%lu lon=%lu t=%02u:%02u.%03lu\r\n",
+                     (unsigned long)self->latitude,
+                     (unsigned long)self->longitude, (unsigned)self->utc_hours,
+                     (unsigned)self->utc_minutes,
+                     (unsigned long)self->utc_seconds_ms);
       } else {
         self->position_valid = false;
         self->time_valid = false;
@@ -348,6 +354,11 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         self->position_valid = true;
         self->time_valid = true;
         parsed = true;
+        DEBUG_PRINTF("[GPS] GGA parsed lat=%lu lon=%lu t=%02u:%02u.%03lu\r\n",
+                     (unsigned long)self->latitude,
+                     (unsigned long)self->longitude, (unsigned)self->utc_hours,
+                     (unsigned)self->utc_minutes,
+                     (unsigned long)self->utc_seconds_ms);
       } else {
         self->position_valid = false;
         self->time_valid = false;
@@ -395,6 +406,12 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
         self->time_valid = true;
         self->speed_valid = true;
         parsed = true;
+        DEBUG_PRINTF("[GPS] RMC parsed lat=%lu lon=%lu spd=%lu t=%02u:%02u.%03lu\r\n",
+                     (unsigned long)self->latitude,
+                     (unsigned long)self->longitude,
+                     (unsigned long)self->speed_kmh_thousandths,
+                     (unsigned)self->utc_hours, (unsigned)self->utc_minutes,
+                     (unsigned long)self->utc_seconds_ms);
       } else {
         self->position_valid = false;
         self->time_valid = false;
@@ -413,6 +430,8 @@ bool GPS__parseMessage(GPS *self, NMEA0183Raw *message) {
       self->speed_kmh_thousandths = speed_thousandths;
       self->speed_valid = true;
       parsed = true;
+      DEBUG_PRINTF("[GPS] VTG parsed spd=%lu\r\n",
+                   (unsigned long)self->speed_kmh_thousandths);
     } else {
       self->speed_valid = false;
     }
@@ -456,6 +475,10 @@ HAL_StatusTypeDef GPS__CAN_transmit(const GPS *self,
   payload[18] = (uint8_t)((self->speed_kmh_thousandths >> 16) & 0xFF);
   payload[19] = (uint8_t)((self->speed_kmh_thousandths >> 24) & 0xFF);
 
+  DEBUG_PRINTF("[GPS] CAN tx id=0x%03lX lat=%lu lon=%lu spd=%lu\r\n",
+               (unsigned long)GPS_FRAME_ID, (unsigned long)self->latitude,
+               (unsigned long)self->longitude,
+               (unsigned long)self->speed_kmh_thousandths);
   return CAN_Transmit(GPS_FRAME_ID, FDCAN_STANDARD_ID, GPS_FRAME_LENGTH,
                       payload, hfdcan1);
 }

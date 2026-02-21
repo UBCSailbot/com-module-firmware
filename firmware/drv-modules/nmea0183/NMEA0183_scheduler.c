@@ -6,6 +6,7 @@
  */
 
 #include "NMEA0183_scheduler.h"
+#include "debug_log.h"
 #include "main.h"
 
 /*
@@ -33,9 +34,11 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
   NMEA0183Raw *message = NMEA0183__getTopBufferItem(scheduler->channel);
   if (message) {
     uint32_t sentence_type = NMEA0183__getScentenceType(message);
+    DEBUG_PRINTF("[NMEA] sentence=0x%06lX\r\n", (unsigned long)sentence_type);
 
     if (sentence_type == MESSAGE_VDM || sentence_type == MESSAGE_VDO) {
       if (NMEA0183__checkMessage(message) != GOOD_MESSAGE) {
+        DEBUG_PRINTF("[AIS] invalid NMEA message\r\n");
         NMEA0183__incrementReadIndex(scheduler->channel);
       } else if (scheduler->ais_parser && scheduler->ais_batch &&
                  scheduler->hfdcan1) {
@@ -49,10 +52,16 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
             scheduler->last_ais_send_ms = now_ms;
             NMEA0183__toggle_can_led();
           }
+          DEBUG_PRINTF("[AIS] parsed mmsi=%lu status=%d ships=%u\r\n",
+                       (unsigned long)AIS__getMMSINumber(data), (int)status,
+                       (unsigned)scheduler->ais_batch->ship_count);
           parsed = true;
+        } else {
+          DEBUG_PRINTF("[AIS] parser awaiting multipart/unsupported payload\r\n");
         }
         NMEA0183__incrementReadIndex(scheduler->channel);
       } else {
+        DEBUG_PRINTF("[AIS] scheduler missing parser or CAN handle\r\n");
         NMEA0183__incrementReadIndex(scheduler->channel);
       }
     } else if (sentence_type == MESSAGE_MWV || sentence_type == MESSAGE_XDR) {
@@ -61,9 +70,15 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
         if (parsed) {
           HAL_StatusTypeDef status = WIND_SENSOR__CAN_transmit(
               scheduler->wind_sensor, scheduler->hfdcan1);
+          DEBUG_PRINTF("[WIND] parsed+tx status=%d dir_tenths=%u spd_tenths=%u temp_tenths=%u\r\n",
+                       (int)status, (unsigned)scheduler->wind_sensor->direction,
+                       (unsigned)scheduler->wind_sensor->speed,
+                       (unsigned)scheduler->wind_sensor->temp);
           if (status == HAL_OK) {
             NMEA0183__toggle_can_led();
           }
+        } else {
+          DEBUG_PRINTF("[WIND] message parse failed\r\n");
         }
       }
       NMEA0183__incrementReadIndex(scheduler->channel);
@@ -74,14 +89,21 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
         if (parsed) {
           HAL_StatusTypeDef status =
               GPS__CAN_transmit(scheduler->gps, scheduler->hfdcan1);
+          DEBUG_PRINTF("[GPS] parsed+tx status=%d lat=%lu lon=%lu speed=%lu\r\n",
+                       (int)status, (unsigned long)scheduler->gps->latitude,
+                       (unsigned long)scheduler->gps->longitude,
+                       (unsigned long)scheduler->gps->speed_kmh_thousandths);
           if (status == HAL_OK) {
             scheduler->last_gps_send_ms = now_ms;
             NMEA0183__toggle_can_led();
           }
+        } else {
+          DEBUG_PRINTF("[GPS] message parse failed\r\n");
         }
       }
       NMEA0183__incrementReadIndex(scheduler->channel);
     } else {
+      DEBUG_PRINTF("[NMEA] unsupported sentence type\r\n");
       NMEA0183__incrementReadIndex(scheduler->channel);
     }
   }
@@ -92,6 +114,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       (now_ms - scheduler->last_gps_send_ms) >= CAN_SEND_INTERVAL_MS) {
     HAL_StatusTypeDef status =
         GPS__CAN_transmit(scheduler->gps, scheduler->hfdcan1);
+    DEBUG_PRINTF("[GPS] periodic tx status=%d\r\n", (int)status);
     if (status == HAL_OK) {
       scheduler->last_gps_send_ms = now_ms;
       NMEA0183__toggle_can_led();
@@ -102,6 +125,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
       (now_ms - scheduler->last_ais_send_ms) >= CAN_SEND_INTERVAL_MS) {
     if (scheduler->ais_batch->ship_count == 0U) {
       HAL_StatusTypeDef status = AIS__CAN_transmit_empty(scheduler->hfdcan1);
+      DEBUG_PRINTF("[AIS] periodic empty tx status=%d\r\n", (int)status);
       if (status == HAL_OK) {
         scheduler->last_ais_send_ms = now_ms;
         NMEA0183__toggle_can_led();

@@ -32,6 +32,7 @@
 #include "can.h"
 #include "CANSPI.h"
 #include "CANSERVO.h"
+#include "debug_log.h"
 #include "stm32u5xx_hal.h"
 #include "stm32u5xx_hal_uart.h"
 /* USER CODE END Includes */
@@ -81,6 +82,8 @@ static NMEA0183_Scheduler nmea_scheduler_wind;
 static uint8_t canBuffer[5 + 64];
 static float angle = 0.0f;
 static uint32_t last_trim_tab_cmd_ms = 0;
+static float last_commanded_angle = 0.0f;
+static uint8_t servo_timeout_active = 0;
 volatile uint8_t g_servo_step = 0;
 /* USER CODE END PV */
 
@@ -185,6 +188,11 @@ int main(void)
   HAL_Delay(100);
   servo_init();
   last_trim_tab_cmd_ms = HAL_GetTick();
+  last_commanded_angle = angle;
+  DEBUG_PRINTF("[SERVO] Init complete. Timeout=%lu ms, limits=[%.1f, %.1f]\r\n",
+               (unsigned long)TRIM_TAB_CMD_TIMEOUT_MS,
+               (double)TRIM_TAB_MIN_DEG,
+               (double)TRIM_TAB_MAX_DEG);
 
   nmea_channel_ais_gps = NMEA0183__create(&huart5);
   nmea_channel_wind = NMEA0183__create(&huart2);
@@ -226,16 +234,28 @@ int main(void)
    // CANSERVO 
     while (CAN_Receive(canBuffer) == HAL_OK){
     	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
+      DEBUG_PRINTF("[CANFD] rx id=0x%03lX dlc=%u\r\n", (unsigned long)id,
+                   (unsigned)canBuffer[4]);
     	if (id == 0x002 && canBuffer[4] == 4){
     		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
     		angle = ((float) value) / 1000.0 - 90.0;
         last_trim_tab_cmd_ms = now_ms;
+        servo_timeout_active = 0;
+        DEBUG_PRINTF("[SERVO] MAIN_TR_TAB raw=%lu angle=%.2f\r\n", (unsigned long)value, (double)angle);
     	}
     }
     if ((now_ms - last_trim_tab_cmd_ms) > TRIM_TAB_CMD_TIMEOUT_MS) {
+      if (!servo_timeout_active) {
+        DEBUG_PRINTF("[SERVO] Trim tab command timeout, forcing neutral\r\n");
+      }
+      servo_timeout_active = 1;
       angle = 0.0f;
     }
     angle = clampf(angle, TRIM_TAB_MIN_DEG, TRIM_TAB_MAX_DEG);
+    if ((angle != last_commanded_angle) || servo_timeout_active) {
+      DEBUG_PRINTF("[SERVO] Command angle=%.2f\r\n", (double)angle);
+      last_commanded_angle = angle;
+    }
     set_servo_angle(angle);
 
     /* USER CODE END WHILE */

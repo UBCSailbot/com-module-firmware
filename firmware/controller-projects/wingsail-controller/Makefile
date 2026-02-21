@@ -19,22 +19,24 @@ BEAR ?= bear
 # Tool detection
 # ------------------------------------------------------------
 
-# Prefer system OpenOCD if available (avoids CubeIDE recursion bug)
-SYSTEM_OPENOCD_SCRIPTS := $(wildcard /usr/share/openocd/scripts)
-CUBEIDE_SCRIPTS := $(firstword $(wildcard /opt/st/stm32cubeide_*/plugins/com.st.stm32cube.ide.mcu.debug.openocd_*/resources/openocd/st_scripts))
+OPENOCD ?= $(if $(wildcard /run/current-system/sw/bin/openocd),/run/current-system/sw/bin/openocd,openocd)
+OPENOCD_BIN ?= $(firstword $(shell command -v $(OPENOCD) 2>/dev/null))
+OPENOCD_REAL ?= $(shell readlink -f $(OPENOCD_BIN) 2>/dev/null)
 
-ifeq ($(SYSTEM_OPENOCD_SCRIPTS),)
-  ifeq ($(CUBEIDE_SCRIPTS),)
-    $(warning No OpenOCD scripts found — flash/debug may fail.)
-    OPENOCD_SCRIPT_DIR :=
-  else
-    OPENOCD_SCRIPT_DIR := $(CUBEIDE_SCRIPTS)
-  endif
-else
-  OPENOCD_SCRIPT_DIR := $(SYSTEM_OPENOCD_SCRIPTS)
+# Prefer upstream/system scripts; also cover common Nix profile paths.
+OPENOCD_SCRIPT_DIR ?= $(firstword \
+  $(wildcard /usr/share/openocd/scripts) \
+  $(wildcard /usr/local/share/openocd/scripts) \
+  $(wildcard /run/current-system/sw/share/openocd/scripts) \
+  $(wildcard /etc/profiles/per-user/$(USER)/share/openocd/scripts) \
+  $(wildcard $(HOME)/.nix-profile/share/openocd/scripts) \
+  $(wildcard /opt/st/stm32cubeide_*/plugins/com.st.stm32cube.ide.mcu.debug.openocd_*/resources/openocd/st_scripts) \
+  $(wildcard $(HOME)/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.debug.openocd_*/resources/openocd/st_scripts))
+
+ifeq ($(OPENOCD_SCRIPT_DIR),)
+  $(warning No OpenOCD scripts found — set OPENOCD_SCRIPT_DIR=/path/to/scripts if flash/debug fails.)
 endif
 
-OPENOCD ?= openocd
 OPENOCD_S_ARG := $(if $(OPENOCD_SCRIPT_DIR),-s $(OPENOCD_SCRIPT_DIR),)
 
 # Pick first available GDB
@@ -122,10 +124,22 @@ flash: build
 	@if [ -z "$(OPENOCD_SCRIPT_DIR)" ]; then \
 		echo 'Warning: No OpenOCD scripts found. Check installation.'; \
 	fi
+	@if [ -z "$(OPENOCD_SCRIPT_DIR)" ] && echo "$(OPENOCD_REAL)" | grep -qi quartus; then \
+		echo "Error: OPENOCD resolves to Quartus wrapper: $(OPENOCD_REAL)"; \
+		echo '       It does not include STM32 interface/target scripts.'; \
+		echo '       Install upstream OpenOCD or set OPENOCD_SCRIPT_DIR to STM32/CubeIDE scripts.'; \
+		exit 2; \
+	fi
 	$(OPENOCD) $(OPENOCD_S_ARG) -f $(OPENOCD_CFG) -c "program $(ELF) verify reset exit"
 
 
 debug-server:
+	@if [ -z "$(OPENOCD_SCRIPT_DIR)" ] && echo "$(OPENOCD_REAL)" | grep -qi quartus; then \
+		echo "Error: OPENOCD resolves to Quartus wrapper: $(OPENOCD_REAL)"; \
+		echo '       It does not include STM32 interface/target scripts.'; \
+		echo '       Install upstream OpenOCD or set OPENOCD_SCRIPT_DIR to STM32/CubeIDE scripts.'; \
+		exit 2; \
+	fi
 	$(OPENOCD) $(OPENOCD_S_ARG) -f $(OPENOCD_CFG)
 
 gdb: build

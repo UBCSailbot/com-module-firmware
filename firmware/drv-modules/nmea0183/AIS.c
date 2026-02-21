@@ -7,6 +7,7 @@
 
 #include "AIS.h"
 #include "can.h"
+#include "debug_log.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -231,6 +232,10 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
       self->singleSentenceData.dataLength = aisBinaryLength;
       memcpy(self->singleSentenceData.sixBitData, aisBinary,
              self->singleSentenceData.dataLength);
+      DEBUG_PRINTF("[AIS] single sentence len=%u msg_id=%u mmsi=%lu\r\n",
+                   (unsigned)self->singleSentenceData.dataLength,
+                   (unsigned)AIS__getMessageID(&self->singleSentenceData),
+                   (unsigned long)AIS__getMMSINumber(&self->singleSentenceData));
       return &self->singleSentenceData;
     } else {
       uint8_t sequentialMessageIdentifier =
@@ -272,6 +277,10 @@ AIS_DATA *AIS__parseNMEAMessage(AIS_PARSER *self, NMEA0183Raw *data) {
              aisBinary, aisBinaryLength);
       dictData->aisData.dataLength += aisBinaryLength;
       if (sentenceNumber == totalSentenceSegments) {
+        DEBUG_PRINTF("[AIS] multipart complete len=%u msg_id=%u mmsi=%lu\r\n",
+                     (unsigned)dictData->aisData.dataLength,
+                     (unsigned)AIS__getMessageID(&dictData->aisData),
+                     (unsigned long)AIS__getMMSINumber(&dictData->aisData));
         return &dictData->aisData;
       }
     }
@@ -692,6 +701,11 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
   payload[23] = ship_idx;
   payload[24] = total_ships;
 
+  DEBUG_PRINTF("[AIS] CAN tx single idx=%u/%u mmsi=%lu lat=%lu lon=%lu sog=%u cog=%u hdg=%u\r\n",
+               (unsigned)ship_idx, (unsigned)total_ships,
+               (unsigned long)mmsi, (unsigned long)latitude,
+               (unsigned long)longitude, (unsigned)speed_over_ground,
+               (unsigned)course_over_ground, (unsigned)heading);
   return CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID, AIS_FRAME_LENGTH,
                       payload, hfdcan1);
 }
@@ -728,6 +742,7 @@ HAL_StatusTypeDef AIS__CAN_transmit(const AIS_DATA *data, uint16_t ship_count,
     }
   }
 
+  DEBUG_PRINTF("[AIS] CAN tx batch ship_count=%u\r\n", (unsigned)ship_count);
   return HAL_OK;
 }
 
@@ -741,6 +756,7 @@ HAL_StatusTypeDef AIS__CAN_transmit_empty(FDCAN_HandleTypeDef *hfdcan1) {
   payload[23] = 0U; // ship_idx
   payload[24] = 0U; // total_ships
 
+  DEBUG_PRINTF("[AIS] CAN tx empty batch\r\n");
   return CAN_Transmit(AIS_FRAME_ID, FDCAN_STANDARD_ID, AIS_FRAME_LENGTH,
                       payload, hfdcan1);
 }
@@ -769,17 +785,23 @@ HAL_StatusTypeDef AIS__CAN_process(AIS_CAN_BATCH *batch, const AIS_DATA *data,
   int ship_index = AIS__findShipIndex(batch, mmsi);
   if (ship_index >= 0) {
     batch->ships[ship_index] = *data;
+    DEBUG_PRINTF("[AIS] update ship mmsi=%lu index=%d\r\n",
+                 (unsigned long)mmsi, ship_index);
   } else {
     if (batch->ship_count >= AIS_CAN_MAX_SHIPS) {
       return HAL_ERROR;
     }
     batch->ships[batch->ship_count] = *data;
     batch->ship_count++;
+    DEBUG_PRINTF("[AIS] add ship mmsi=%lu new_count=%u\r\n",
+                 (unsigned long)mmsi, (unsigned)batch->ship_count);
   }
 
   if ((int32_t)(now_ms - batch->next_send_ms) >= 0) {
     HAL_StatusTypeDef status =
         AIS__CAN_transmit(batch->ships, batch->ship_count, hfdcan1);
+    DEBUG_PRINTF("[AIS] flush batch count=%u status=%d\r\n",
+                 (unsigned)batch->ship_count, (int)status);
     batch->ship_count = 0U;
     batch->next_send_ms = now_ms + AIS_CAN_BATCH_INTERVAL_MS;
     return status;

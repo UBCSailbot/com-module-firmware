@@ -8,6 +8,7 @@
 #include "can.h"
 #include "stm32u5xx_hal_def.h"
 #include "stm32u5xx_hal_fdcan.h"
+#include "debug_log.h"
 #include <NMEA0183.h>
 #include <WIND_SENSOR.h>
 #include <stdio.h>
@@ -80,6 +81,7 @@ static tenths16_t parseTenths(const char *value_str) {
   return (tenths16_t)stringToInt(value_str);
 }
 
+#if APP_DEBUG_LOG
 /**
  * Convert a wind status to a printable character.
  *
@@ -105,7 +107,9 @@ static char referenceToChar(wind_reference_t reference) {
   }
   return '?';
 }
+#endif
 
+#if APP_DEBUG_LOG
 /**
  * Print a fixed-point value scaled by 10 with a label.
  *
@@ -114,9 +118,10 @@ static char referenceToChar(wind_reference_t reference) {
  * @return void
  */
 static void printTenths(const char *label, tenths16_t value) {
-  printf("%s=%u.%u", label, (unsigned int)(value / 10),
-         (unsigned int)(value % 10));
+  DEBUG_PRINTF("%s=%u.%u", label, (unsigned int)(value / 10),
+               (unsigned int)(value % 10));
 }
+#endif
 
 /*
  * Management
@@ -203,6 +208,9 @@ bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message) {
     self->reference =
         reference ? (wind_reference_t)reference[0] : (wind_reference_t)0;
     self->status = status ? (wind_status_t)status[0] : UNKNOWN;
+    DEBUG_PRINTF("[WIND] MWV parsed dir_tenths=%u spd_tenths=%u ref=%c status=%c\r\n",
+                 (unsigned)self->direction, (unsigned)self->speed,
+                 referenceToChar(self->reference), statusToChar(self->status));
 
     return true;
   }
@@ -211,6 +219,7 @@ bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message) {
     const char *temp = getField(message, WIND_TEMP_INDEX);
 
     self->temp = parseTenths(temp);
+    DEBUG_PRINTF("[WIND] XDR parsed temp_tenths=%u\r\n", (unsigned)self->temp);
     return true;
   }
 
@@ -225,12 +234,16 @@ void WIND_SENSOR__print(const WIND_SENSOR *self) {
     return;
   }
 
+#if APP_DEBUG_LOG
   printTenths("dir", self->direction);
-  printf(" %c ", referenceToChar(self->reference));
+  DEBUG_PRINTF(" %c ", referenceToChar(self->reference));
   printTenths("spd", self->speed);
-  printf(" kt status=%c ", statusToChar(self->status));
+  DEBUG_PRINTF(" kt status=%c ", statusToChar(self->status));
   printTenths("temp", self->temp);
-  printf(" C\r\n");
+  DEBUG_PRINTF(" C\r\n");
+#else
+  (void)self;
+#endif
 }
 
 /**
@@ -250,6 +263,9 @@ WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
   data[2] = (uint8_t)(speed_tenths & 0xFF);
   data[3] = (uint8_t)((speed_tenths >> 8) & 0xFF);
 
+  DEBUG_PRINTF("[WIND] CAN tx id=0x%03lX angle=%u speed_tenths=%u\r\n",
+               (unsigned long)CAN_ID, (unsigned)angle_deg,
+               (unsigned)speed_tenths);
   return CAN_Transmit((uint32_t)CAN_ID, FDCAN_STANDARD_ID, WIND_DATA_LENGTH,
                       data, hfdcan1);
 }
