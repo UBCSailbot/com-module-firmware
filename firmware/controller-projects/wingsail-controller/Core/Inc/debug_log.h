@@ -7,7 +7,7 @@
  * Set to 1 to enable runtime debug logging across modules.
  * Set to 0 to compile out debug prints.
  */
-#define APP_DEBUG_LOG 0
+#define APP_DEBUG_LOG 1
 
 #if APP_DEBUG_LOG
 #define DEBUG_PRINTF(...) printf(__VA_ARGS__)

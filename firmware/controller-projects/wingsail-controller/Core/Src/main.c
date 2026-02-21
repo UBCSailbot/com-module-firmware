@@ -187,6 +187,7 @@ int main(void)
   HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
   HAL_Delay(100);
   servo_init();
+  printf("[BOOT] wingsail-controller logging path active\r\n");
   last_trim_tab_cmd_ms = HAL_GetTick();
   last_commanded_angle = angle;
   DEBUG_PRINTF("[SERVO] Init complete. Timeout=%lu ms, limits=[%.1f, %.1f]\r\n",
