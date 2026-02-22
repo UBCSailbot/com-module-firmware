@@ -200,7 +200,7 @@ uint8_t AIS__getNavigationalStatus(AIS_DATA *data);
  * @param self Is an initialized AIS_DATA object.
  * @return The rate of turn.
  */
-int8_t AIS__getRateOfTurn(AIS_DATA *data);
+uint8_t AIS__getRateOfTurn(AIS_DATA *data);
 
 /*
  * Returns the speed over ground of the broadcasted vessel. Only works for
