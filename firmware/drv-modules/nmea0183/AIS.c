@@ -160,7 +160,7 @@ uint32_t getBinaryBits(uint8_t data[], uint16_t startPosition,
     output += convertSixBit(data[i]);
   }
   output >>= 5 - ((endPosition) % 6);
-  output &= (1 << (length + 1)) - 1;
+  output &= ((1u << (length + 1u)) - 1u);
   return output;
 }
 
@@ -399,12 +399,12 @@ uint8_t AIS__getNavigationalStatus(AIS_DATA *self) {
   }
 }
 
-int8_t AIS__getRateOfTurn(AIS_DATA *self) {
+uint8_t AIS__getRateOfTurn(AIS_DATA *self) {
   if (convertSixBit(self->sixBitData[0]) <= 3 &&
       convertSixBit(self->sixBitData[0]) != 0) {
-    return getBinaryBits(self->sixBitData, 42, 49);
+    return getBinaryBits(self->sixBitData, 42, 49) + 128;
   } else {
-    return INT8_MIN;
+    return 0;
   }
 }
 
@@ -434,11 +434,21 @@ uint8_t AIS__getPositionalAccuracy(AIS_DATA *self) {
 
 int32_t AIS__getLatitude(AIS_DATA *self) {
   if (convertSixBit(self->sixBitData[0]) != 0) {
-    if (convertSixBit(self->sixBitData[0]) <= 3) {
-      return getBinaryBits(self->sixBitData, 89, 115);
-    } else if (convertSixBit(self->sixBitData[0]) == 18 ||
-               convertSixBit(self->sixBitData[0]) == 19) {
-      return getBinaryBits(self->sixBitData, 85, 111);
+    uint8_t msg = convertSixBit(self->sixBitData[0]);
+
+    if (msg <= 3) {
+      uint32_t raw = getBinaryBits(self->sixBitData, 89, 115);
+      if (raw & (1u << 26)) {
+        raw |= 0xF8000000u;
+      }
+      return (int32_t)raw;
+
+    } else if (msg == 18 || msg == 19) {
+      uint32_t raw = getBinaryBits(self->sixBitData, 85, 111);
+      if (raw & (1u << 26)) {
+        raw |= 0xF8000000u;
+      }
+      return (int32_t)raw;
     }
   }
   return INT32_MAX;
@@ -446,12 +456,21 @@ int32_t AIS__getLatitude(AIS_DATA *self) {
 
 int32_t AIS__getLongitude(AIS_DATA *self) {
   if (convertSixBit(self->sixBitData[0]) != 0) {
-    if (convertSixBit(self->sixBitData[0]) <= 3) {
-      return getBinaryBits(self->sixBitData, 61, 88);
+    uint8_t msg = convertSixBit(self->sixBitData[0]);
 
-    } else if (convertSixBit(self->sixBitData[0]) == 18 ||
-               convertSixBit(self->sixBitData[0]) == 19) {
-      return getBinaryBits(self->sixBitData, 57, 84);
+    if (msg <= 3) {
+      uint32_t raw = getBinaryBits(self->sixBitData, 61, 88);
+      if (raw & (1u << 27)) {
+        raw |= 0xF0000000u;
+      }
+      return (int32_t)raw;
+
+    } else if (msg == 18 || msg == 19) {
+      uint32_t raw = getBinaryBits(self->sixBitData, 57, 84);
+      if (raw & (1u << 27)) {
+        raw |= 0xF0000000u;
+      }
+      return (int32_t)raw;
     }
   }
   return INT32_MAX;
