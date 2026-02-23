@@ -27,7 +27,6 @@ static const int32_t AIS_LONGITUDE_UNAVAILABLE = 181 * 600000;
 static const uint16_t AIS_SOG_UNAVAILABLE = 1023U;
 static const uint16_t AIS_COG_UNAVAILABLE = 3600U;
 static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
-static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
 static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
 static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 500U;
@@ -727,10 +726,7 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
   if (heading == UINT16_MAX) {
     heading = AIS_HEADING_UNAVAILABLE;
   }
-  int8_t rate_of_turn = AIS__getRateOfTurn((AIS_DATA *)data);
-  if (rate_of_turn == INT8_MIN) {
-    rate_of_turn = AIS_ROT_UNAVAILABLE;
-  }
+  uint8_t rate_of_turn = AIS__getRateOfTurn((AIS_DATA *)data);
 
   uint16_t dimension_a = AIS__getDimensionA((AIS_DATA *)data);
   uint16_t dimension_b = AIS__getDimensionB((AIS_DATA *)data);
@@ -786,7 +782,7 @@ HAL_StatusTypeDef AIS__CAN_transmit_single(const AIS_DATA *data,
 
   NMEA_DEBUG_PRINT(
       "[AIS][CAN] tx ship idx=%u/%u mmsi=%lu lat=%lu lon=%lu sog=%u cog=%u "
-      "hdg=%u rot=%d len=%u wid=%u\r\n",
+      "hdg=%u rot=%u len=%u wid=%u\r\n",
       ship_idx, total_ships, (unsigned long)mmsi, (unsigned long)latitude,
       (unsigned long)longitude, speed_over_ground, course_over_ground, heading,
       rate_of_turn, length, width);

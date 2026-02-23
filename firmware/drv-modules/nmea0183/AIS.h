@@ -194,11 +194,12 @@ uint8_t AIS__getNavigationalStatus(AIS_DATA *data);
 
 /*
  * Returns the rate of turn of the broadcasted vessel. Only works for message ID
- * of 1, 2, or 3 otherwise returns INT8_MIN. For information on how ROT is
- * formated see [1].
+ * of 1, 2, or 3. The value is returned with +128 offset encoding (0..255), so
+ * a signed ROT of -128 maps to 0 and +127 maps to 255. For unsupported message
+ * types, returns 0. For information on how ROT is formatted see [1].
  *
  * @param self Is an initialized AIS_DATA object.
- * @return The rate of turn.
+ * @return The +128 encoded rate of turn.
  */
 uint8_t AIS__getRateOfTurn(AIS_DATA *data);
 

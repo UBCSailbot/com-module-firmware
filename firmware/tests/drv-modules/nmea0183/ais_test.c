@@ -26,7 +26,6 @@ static const uint32_t AIS_AIS_SCALE = 600000U;
 static const uint16_t AIS_SOG_UNAVAILABLE = 1023U;
 static const uint16_t AIS_COG_UNAVAILABLE = 3600U;
 static const uint16_t AIS_HEADING_UNAVAILABLE = 511U;
-static const int8_t AIS_ROT_UNAVAILABLE = -128;
 static const uint32_t AIS_32BIT_MAX = 0xFFFFFFFFU;
 static const uint8_t AIS_MAX_SHIPS_PER_BATCH = 127U;
 static const uint32_t AIS_CAN_BATCH_INTERVAL_MS = 500U;
@@ -106,10 +105,7 @@ static void build_expected_payload(const AIS_DATA *data, uint8_t ship_idx,
   if (heading == UINT16_MAX) {
     heading = AIS_HEADING_UNAVAILABLE;
   }
-  int8_t rate_of_turn = AIS__getRateOfTurn((AIS_DATA *)data);
-  if (rate_of_turn == INT8_MIN) {
-    rate_of_turn = AIS_ROT_UNAVAILABLE;
-  }
+  uint8_t rate_of_turn = AIS__getRateOfTurn((AIS_DATA *)data);
 
   uint16_t dimension_a = AIS__getDimensionA((AIS_DATA *)data);
   uint16_t dimension_b = AIS__getDimensionB((AIS_DATA *)data);
@@ -151,7 +147,7 @@ static void build_expected_payload(const AIS_DATA *data, uint8_t ship_idx,
   expected[16] = (uint8_t)(heading & 0xFF);
   expected[17] = (uint8_t)((heading >> 8) & 0xFF);
 
-  expected[18] = (uint8_t)rate_of_turn;
+  expected[18] = rate_of_turn;
 
   expected[19] = (uint8_t)(length & 0xFF);
   expected[20] = (uint8_t)((length >> 8) & 0xFF);
