@@ -48,6 +48,8 @@ ADC_HandleTypeDef hadc1;
 
 FDCAN_HandleTypeDef hfdcan1;
 
+TIM_HandleTypeDef htim7;
+
 UART_HandleTypeDef huart1;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -66,6 +68,7 @@ static void MX_UCPD1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_FDCAN1_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -119,10 +122,12 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_FDCAN1_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
-  CAN_Init(&hfdcan1);
+  CAN_Init(&hfdcan1, 0x130);
   srand(time(NULL));
-  int tx_cnt = 0, rx_cnt = 0;
+  int tx_cnt = 0, rx_cnt = 0, hb0_cnt = 0, hb3_cnt = 0;
+  uint32_t last_hb0 = 0, last_hb3 = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -133,61 +138,55 @@ int main(void)
 	/* Transmitting board (random delay + data) */
 //	uint8_t TxData1[64];
 //
-//	for (int i = 0; i < 50; i++) {
-//		for (uint8_t i = 0; i < 64; i++) {
-//			TxData1[i] = (rand() % (255)) + 1;
-//		}
-//		if (CAN_Transmit(0x111, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_64, TxData1, &hfdcan1) != HAL_OK) {
-//		   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
-//		   Error_Handler();
-//		}
-//		tx_cnt++;
-//		HAL_Delay((rand() % (2000)) + 1);
-//	}
 //	for (int i = 0; i < 100; i++) {
 //		for (uint8_t i = 0; i < 64; i++) {
 //			TxData1[i] = (rand() % (255)) + 1;
 //		}
-//		if (CAN_Transmit(0x222, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_64, TxData1, &hfdcan1) != HAL_OK) {
-//		   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
+//		if (CAN_Transmit(0x111, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_64, TxData1, &hfdcan1) != HAL_OK) {
+//		   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 //		   Error_Handler();
 //		}
-//		HAL_Delay(1);
 //		tx_cnt++;
+//		HAL_Delay((rand() % (500)) + 1);
 //	}
-//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-//	printf("Total Messages: %d\r\n", tx_cnt);
+//	if (tx_cnt % 500) printf("Total Tx Messages sent: %d\r\n", tx_cnt);
 
-	/*Test*/
-//	uint8_t TxData1[64];
-//
-//	for (int i = 0; i < 50; i++) {
-//		for (uint8_t i = 0; i < 64; i++)  TxData1[i] = (rand() % (255));
-//		if (CAN_Transmit(0x123, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_64, TxData1, &hfdcan1) != HAL_OK) {
-//		   HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
-//		   Error_Handler();
-//		}
-//		tx_cnt++;
-//		HAL_Delay(100);
-//		printf("Message: %d\r\n", tx_cnt);
-//	}
-//	printf("DONE Total Messages: %d\r\n", tx_cnt);
 
 	/* Receiving */
 	CAN_Frame RxData;
+	if (CAN_Receive(&RxData) != HAL_OK) continue;
 
-	while (CAN_Receive(&RxData) == HAL_ERROR) { continue;}
 	rx_cnt++;
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 	uint32_t id  = RxData.RxData1_Identifier;
 	uint8_t  len = RxData.RxData1_BufferLength;
 	uint8_t localRxbuffer[64];
 	for (int i = 0; i < len; i++) {
 	    localRxbuffer[i] = RxData.RxData1[i];
 	}
-
-	/* Print */
-	printf("Msg #: %d; ID: 0x%04lX; len: %u\r\n", rx_cnt, id, len);
+	//hb: recive both heartbeats. if the time from prev hb is > 15sec, print
+	uint32_t now = HAL_GetTick();
+	if (id == 0x130 || id == 0x133) {
+		if (id == 0x130) {
+			uint32_t diff0 = now - last_hb0;
+			last_hb0 = now;
+			hb0_cnt++;
+			printf("Total hb for ID: 0x%04lX is %d, time_since_last = %lu ms\r\n", id, hb0_cnt, diff0);
+			if (diff0 >= 15000) {
+				printf("WARNING: No hb from 0x130 for %lu ms\r\n", diff0);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+			}
+		} else {
+			uint32_t diff3 = now - last_hb3;
+			last_hb3 = now;
+			hb3_cnt++;
+			printf("Total hb for ID: 0x%04lX is %d, time_since_last = %lu ms\r\n", id, hb3_cnt, diff3);
+			if (diff3 >= 15000) {
+				printf("WARNING: No hb from 0x133 for %lu ms\r\n", diff3);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+			}
+		}
+	}
+	if (rx_cnt % 500 == 0) printf("Msg #: %d; ID: 0x%04lX; len: %u\r\n", rx_cnt, id, len);
 
     /* USER CODE END WHILE */
 
@@ -391,6 +390,44 @@ static void MX_ICACHE_Init(void)
   /* USER CODE BEGIN ICACHE_Init 2 */
 
   /* USER CODE END ICACHE_Init 2 */
+
+}
+
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 31999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 49999;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
 
 }
 
@@ -605,6 +642,24 @@ PUTCHAR_PROTOTYPE
   HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
 
   return ch;
+}
+void HAL_FDCAN_ErrorCallback(FDCAN_HandleTypeDef *hfdcan) {
+	uint32_t err = HAL_FDCAN_GetError(hfdcan);
+	if (err & HAL_FDCAN_ERROR_TIMEOUT)         printf("Timeout\n");
+	if (err & HAL_FDCAN_ERROR_NOT_INITIALIZED) printf("Not initialized\n");
+	if (err & HAL_FDCAN_ERROR_NOT_READY)       printf("Not ready\n");
+	if (err & HAL_FDCAN_ERROR_NOT_STARTED)     printf("Not started\n");
+	if (err & HAL_FDCAN_ERROR_NOT_SUPPORTED)   printf("Not supported\n");
+	if (err & HAL_FDCAN_ERROR_PARAM)           printf("Parameter error\n");
+	if (err & HAL_FDCAN_ERROR_PENDING)         printf("Pending operation\n");
+	if (err & HAL_FDCAN_ERROR_RAM_ACCESS)      printf("Message RAM access failure\n");
+	if (err & HAL_FDCAN_ERROR_FIFO_EMPTY)      printf("FIFO empty\n");
+	if (err & HAL_FDCAN_ERROR_FIFO_FULL)       printf("FIFO full\n");
+	if (err & HAL_FDCAN_ERROR_LOG_OVERFLOW)    printf("Error log overflow\n");
+	if (err & HAL_FDCAN_ERROR_RAM_WDG)         printf("RAM watchdog\n");
+	if (err & HAL_FDCAN_ERROR_PROTOCOL_ARBT)   printf("Protocol error (arbitration phase)\n");
+	if (err & HAL_FDCAN_ERROR_PROTOCOL_DATA)   printf("Protocol error (data phase)\n");
+	if (err & HAL_FDCAN_ERROR_RESERVED_AREA)   printf("Reserved address access\n");
 }
 /* USER CODE END 4 */
 
