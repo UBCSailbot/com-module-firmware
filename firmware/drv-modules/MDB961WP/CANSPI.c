@@ -22,6 +22,18 @@
 
 #include "CANSPI.h"
 #include "MCP2515.h"
+#include <stdio.h>
+
+#if defined(CAN_SPI_DEBUG)
+#define CAN_SPI_DEBUG_PRINT(...)                                               \
+  do {                                                                         \
+    if (g_fw_enable_debug_prints != 0U) {                                      \
+      printf(__VA_ARGS__);                                                     \
+    }                                                                          \
+  } while (0)
+#else
+#define CAN_SPI_DEBUG_PRINT(...) ((void)0)
+#endif
 
 /** Local Function Prototypes */  
 static uint32_t convertReg2ExtendedCANid(uint8_t tempRXBn_EIDH, uint8_t tempRXBn_EIDL, uint8_t tempRXBn_SIDH, uint8_t tempRXBn_SIDL);
@@ -104,12 +116,14 @@ bool CANSPI_Initialize(void)
   /* Intialize MCP2515, check SPI */
   if(!MCP2515_Initialize())
   {
+    CAN_SPI_DEBUG_PRINT("[CANSPI] MCP2515 init failed\r\n");
     return false;
   }
     
   /* Change mode as configuration mode */
   if(!MCP2515_SetConfigMode())
   {
+    CAN_SPI_DEBUG_PRINT("[CANSPI] MCP2515 config mode failed\r\n");
     return false;
   }
   
@@ -145,7 +159,12 @@ bool CANSPI_Initialize(void)
   
   /* Normal 모드로 설정 */
   if(!MCP2515_SetNormalMode())
+  {
+    CAN_SPI_DEBUG_PRINT("[CANSPI] MCP2515 normal mode failed\r\n");
     return false;
+  }
+  
+  CAN_SPI_DEBUG_PRINT("[CANSPI] initialized successfully\r\n");
   
   return true;
 }
@@ -175,6 +194,9 @@ uint8_t CANSPI_Transmit(uCAN_MSG *tempCanMsg)
     MCP2515_RequestToSend(MCP2515_RTS_TX0);
     
     returnValue = 1;
+    CAN_SPI_DEBUG_PRINT("[CANSPI][TX] used TXB0 id=0x%08lX dlc=%u\r\n",
+                        (unsigned long)tempCanMsg->frame.id,
+                        tempCanMsg->frame.dlc);
   }
   else if (ctrlStatus.TXB1REQ != 1)
   {
@@ -184,6 +206,9 @@ uint8_t CANSPI_Transmit(uCAN_MSG *tempCanMsg)
     MCP2515_RequestToSend(MCP2515_RTS_TX1);
     
     returnValue = 1;
+    CAN_SPI_DEBUG_PRINT("[CANSPI][TX] used TXB1 id=0x%08lX dlc=%u\r\n",
+                        (unsigned long)tempCanMsg->frame.id,
+                        tempCanMsg->frame.dlc);
   }
   else if (ctrlStatus.TXB2REQ != 1)
   {
@@ -193,6 +218,13 @@ uint8_t CANSPI_Transmit(uCAN_MSG *tempCanMsg)
     MCP2515_RequestToSend(MCP2515_RTS_TX2);
     
     returnValue = 1;
+    CAN_SPI_DEBUG_PRINT("[CANSPI][TX] used TXB2 id=0x%08lX dlc=%u\r\n",
+                        (unsigned long)tempCanMsg->frame.id,
+                        tempCanMsg->frame.dlc);
+  }
+  else
+  {
+    CAN_SPI_DEBUG_PRINT("[CANSPI][TX] all TX buffers busy\r\n");
   }
   
   return (returnValue);
@@ -244,6 +276,17 @@ uint8_t CANSPI_Receive(uCAN_MSG *tempCanMsg)
     tempCanMsg->frame.data7 = rxReg.RXBnD7;
     
     returnValue = 1;
+    CAN_SPI_DEBUG_PRINT(
+        "[CANSPI][RX] id=0x%08lX idType=%u dlc=%u d0=0x%02X d1=0x%02X "
+        "d2=0x%02X d3=0x%02X d4=0x%02X d5=0x%02X d6=0x%02X d7=0x%02X\r\n",
+        (unsigned long)tempCanMsg->frame.id, tempCanMsg->frame.idType,
+        tempCanMsg->frame.dlc, tempCanMsg->frame.data0, tempCanMsg->frame.data1,
+        tempCanMsg->frame.data2, tempCanMsg->frame.data3, tempCanMsg->frame.data4,
+        tempCanMsg->frame.data5, tempCanMsg->frame.data6, tempCanMsg->frame.data7);
+  }
+  else
+  {
+    CAN_SPI_DEBUG_PRINT("[CANSPI][RX] no pending message\r\n");
   }
   
   return (returnValue);

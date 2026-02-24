@@ -1,0 +1,7 @@
+CompileFlags:
+  # Use the ARM GCC toolchain for system headers to avoid host glibc includes.
+  Compiler: /run/current-system/sw/bin/arm-none-eabi-gcc
+  Add:
+    - --target=arm-none-eabi
+    - --gcc-toolchain=/nix/store/xixg6bjakn3ymzc3qs0c6nd0ymwav6ha-gcc-arm-embedded-14.3.rel1/bin/..
+    - --sysroot=/nix/store/xixg6bjakn3ymzc3qs0c6nd0ymwav6ha-gcc-arm-embedded-14.3.rel1/bin/../arm-none-eabi

@@ -64,6 +64,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+extern uint8_t g_fw_enable_debug_prints;
 
 /* USER CODE END EFP */
 
@@ -98,6 +99,16 @@ void Error_Handler(void);
 #define LED_BLUE_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
+#define LIGHT_GATE_Pin GPIO_PIN_14
+#define LIGHT_GATE_GPIO_Port GPIOF
+#define WIND_GATE_Pin GPIO_PIN_3
+#define WIND_GATE_GPIO_Port GPIOF
+#define SERVO_GATE_Pin GPIO_PIN_5
+#define SERVO_GATE_GPIO_Port GPIOF
+#define SOL_GATE_Pin GPIO_PIN_0
+#define SOL_GATE_GPIO_Port GPIOG
+#define ENC_GATE_Pin GPIO_PIN_1
+#define ENC_GATE_GPIO_Port GPIOG
 
 /* USER CODE END Private defines */
 

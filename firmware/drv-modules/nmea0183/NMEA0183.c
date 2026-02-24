@@ -6,6 +6,7 @@
  */
 
 #include "NMEA0183.h"
+#include "main.h"
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -64,62 +65,98 @@ void NMEA0183__destroy(NMEA0183* self){
 }
 
 void NMEA0183__IRQHandler(UART_HandleTypeDef *huart){
-	for(int i = 0; i < MAX_NMEA_CHANNELS; i++){
-		if(huartNMEALookup[i][0] == huart->Instance){
-			if(READ_BIT(huart->Instance->ISR, USART_ISR_CMF)){ //Check if character matches
-				NMEA0183 * nmea = huartNMEALookup[i][1];
+    for(int i = 0; i < MAX_NMEA_CHANNELS; i++){
+        if(huartNMEALookup[i][0] == huart->Instance){
+            NMEA0183 * nmea = huartNMEALookup[i][1];
 
-				//stop receiving data
-				HAL_UART_DMAStop(huart);
+            if(READ_BIT(huart->Instance->ISR, USART_ISR_CMF)){ // character match
 
-				//record message length
-				uint16_t receivedLength = MAX_SENTENCE_LENGTH + 1 - __HAL_DMA_GET_COUNTER(huart->hdmarx);
+                // Stop RX DMA
+                HAL_UART_DMAStop(huart);
 
-				//Clear the character match interrupt flag
-				WRITE_REG(huart->Instance->ICR, USART_ICR_CMCF);
+                // Clear UART error flags
+                __HAL_UART_CLEAR_OREFLAG(huart);
+                __HAL_UART_CLEAR_FEFLAG(huart);
+                __HAL_UART_CLEAR_NEFLAG(huart);
+                __HAL_UART_CLEAR_PEFLAG(huart);
+                __HAL_UART_CLEAR_IDLEFLAG(huart);
 
-				//Swap to the other buffer for reading while we copy the current message
-				nmea->receiveBufferPosition = 1 - nmea->receiveBufferPosition;
+                // How many bytes did we actually receive?
+                uint16_t receivedLength =
+                    MAX_SENTENCE_LENGTH + 1 - __HAL_DMA_GET_COUNTER(huart->hdmarx);
 
-				//Restart the reception
-				HAL_UART_Receive_DMA(huart,
-						nmea->receiveBuffers[nmea->receiveBufferPosition],
-						MAX_SENTENCE_LENGTH + 1);
+                // Clear the CMF flag
+                WRITE_REG(huart->Instance->ICR, USART_ICR_CMCF);
 
-				//check that message is less than the max allowable size
-				if(receivedLength > MAX_SENTENCE_LENGTH){ //ADD MIN LENGTH
-					Error_Handler();
-				}
+                // Swap to the other buffer
+                nmea->receiveBufferPosition = 1 - nmea->receiveBufferPosition;
 
-				//get the index of the next write position
-				uint8_t next = (nmea->dataBufferWriteIndex + 1) % MAX_DATA_BUFFER_SIZE;
+                // Restart DMA reception immediately
+                HAL_UART_Receive_DMA(huart,
+                                     nmea->receiveBuffers[nmea->receiveBufferPosition],
+                                     MAX_SENTENCE_LENGTH + 1);
 
-				//check that we have room in the buffer
-				if (next != nmea->dataBufferReadIndex) {
+                // If nothing or almost nothing was received, ignore this "sentence"
+                if (receivedLength <= 2) {
+                    return;
+                }
 
-					//copy the raw message to the data buffer
-					memcpy(nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceData,
-							nmea->receiveBuffers[1 - nmea->receiveBufferPosition],
-							receivedLength);
+                // Sanity check (too long)
+                if(receivedLength > MAX_SENTENCE_LENGTH){
+                    Error_Handler();
+                }
 
-					//copy the message length to the data buffer
-				    nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceLength = receivedLength;
+                // Next write index in ring buffer
+                uint8_t next = (nmea->dataBufferWriteIndex + 1) % MAX_DATA_BUFFER_SIZE;
 
-				    //Set the next write index
-				    nmea->dataBufferWriteIndex = next;
-				} else {
-					//Buffer full dropping message
-					Error_Handler();
-				}
+                if (next != nmea->dataBufferReadIndex) {
+                    // Normal case: there is room
+                    memcpy(nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceData,
+                           nmea->receiveBuffers[1 - nmea->receiveBufferPosition],
+                           receivedLength);
 
-			} else {
-				//No CM IRQ (should not happen)
-				Error_Handler();
-			}
-			break;
-		}
-	}
+                    nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceLength =
+                        receivedLength;
+
+                    nmea->dataBufferWriteIndex = next;
+                } else {
+                    // Overflow: overwrite oldest
+                    nmea->overflowed = true;
+
+                    memcpy(nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceData,
+                           nmea->receiveBuffers[1 - nmea->receiveBufferPosition],
+                           receivedLength);
+
+                    nmea->dataBuffer[nmea->dataBufferWriteIndex].scentenceLength =
+                        receivedLength;
+
+                    nmea->dataBufferWriteIndex = next;
+                    nmea->dataBufferReadIndex =
+                        (nmea->dataBufferReadIndex + 1) % MAX_DATA_BUFFER_SIZE;
+                }
+
+            } else {
+                // No CMF (error or stray interrupt path)
+
+                HAL_UART_DMAStop(huart);
+                __HAL_UART_CLEAR_OREFLAG(huart);
+                __HAL_UART_CLEAR_FEFLAG(huart);
+                __HAL_UART_CLEAR_NEFLAG(huart);
+                __HAL_UART_CLEAR_PEFLAG(huart);
+                __HAL_UART_CLEAR_IDLEFLAG(huart);
+                WRITE_REG(huart->Instance->ICR, USART_ICR_CMCF);
+
+                nmea->receiveBufferPosition = 1 - nmea->receiveBufferPosition;
+
+                HAL_UART_Receive_DMA(huart,
+                                     nmea->receiveBuffers[nmea->receiveBufferPosition],
+                                     MAX_SENTENCE_LENGTH + 1);
+            }
+            break;
+        }
+    }
 }
+
 
 uint8_t NMEA0183__itemsInBuffer(NMEA0183* self) {
     return (self->dataBufferWriteIndex - self->dataBufferReadIndex) % MAX_DATA_BUFFER_SIZE;
@@ -154,6 +191,12 @@ uint8_t decimalToHexAscii(uint8_t decimal){
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 MESSAGE_STATUS NMEA0183__checkMessage(NMEA0183Raw * inputMessage){
+	// Confirm that array is large enough for following checks
+	uint8_t len = inputMessage->scentenceLength;
+	if (len < 5) {
+		return BAD_TERMINATION_SEQUENCE;
+	}
+
 	uint8_t startCharacter = inputMessage->scentenceData[0];
 
 	//Check start characters

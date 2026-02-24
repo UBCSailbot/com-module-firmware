@@ -54,7 +54,7 @@ typedef struct __attribute__((packed)) {
 	uint16_t speedOverGround;
 	uint16_t courseOverGround;
 	uint16_t heading;
-	int8_t rateOfTurn;
+	uint8_t rateOfTurn;
 	uint16_t length;
 	uint16_t width;
 } SHIP;
