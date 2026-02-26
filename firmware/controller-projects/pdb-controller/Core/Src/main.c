@@ -597,6 +597,9 @@ int main(void)
 				int16_t curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
 				int16_t curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
 
+				if ( curr1 < 0 ) curr1 = 0;
+				if ( curr2 < 0 ) curr2 = 0;
+
 				//store in Tx buffer (little endian)
 				TxData1[15] = ( curr1 >> 8 ) & 0x00FF; // MPPT 1_A - hull port
 				TxData1[14] = curr1 & 0x00FF;
@@ -619,6 +622,9 @@ int main(void)
 
 				curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
 				curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
+
+				if ( curr1 < 0 ) curr1 = 0;
+				if ( curr2 < 0 ) curr2 = 0;
 
 				TxData1[19] = ( curr1 >> 8 ) & 0x00FF; // MPPT 2_A - sail port
 				TxData1[18] = curr1 & 0x00FF;
