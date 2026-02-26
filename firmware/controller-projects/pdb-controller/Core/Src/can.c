@@ -8,6 +8,10 @@
  *
  *  @details The implementation includes buffer management, initialization, transmission, and
  *           reception handling with callback functions for handling received messages.
+ *           NEW UPDATE: Messages are enqueued in interrupt context and dequeued
+ *           in application context to prevent data corruption and race conditions
+ *           + library adjusted to only standard filter
+ *           NEW UPDATE: Updated for heartbeat functionality
  */
 
 /* Includes ------------------------------------------------------------------*/
@@ -15,57 +19,42 @@
 #include "main.h"
 #include <stdio.h>
 #include <string.h>
-#include "stm32u5xx_hal.h"
-
+#include <stdbool.h>
+#include "stm32u5xx_hal_fdcan.h"
 
 /* Variables ------------------------------------------------------------------*/
-HAL_StatusTypeDef CanStartStatus; 	/* Status of FDCAN start operation */
-uint8_t* RxData1 = NULL; 			/* Pointer to receive buffer for FIFO0 (Standard ID)*/
-uint8_t* RxData2 = NULL; 			/* Pointer to receive buffer for FIFO1 (Extended ID)*/
-uint16_t RxData1_BufferLength = 0; 	/* Length of data received in FIFO0 */
-uint16_t RxData2_BufferLength = 0; 	/* Length of data received in FIFO1 */
-uint32_t RxData1_Identifier;
-uint32_t RxData2_Identifier;
-volatile uint8_t restart_requested = 0;
+#define CAN_RX_QUEUE_SIZE 100 						/* Arbitrary queue size*/
+static CAN_Frame CAN_Rx_Queue[CAN_RX_QUEUE_SIZE];	/* Rx Circular Buffer */
+static volatile uint8_t canRxHead = 0;				/* Head index of buffer */
+static volatile uint8_t canRxTail = 0;				/* Tail index of buffer */
+extern TIM_HandleTypeDef htim7;						/* Accessing TIM7 Handler */
+extern FDCAN_HandleTypeDef hfdcan1;					/* Accessing FDCAN Handler */
+static uint32_t heartbeat_id;						/* Enclosure Heartbeat ID */
+HAL_StatusTypeDef CanStartStatus; 					/* Status of FDCAN start operation */
 
-//you have to say volatile because it is defined inside a interrupt context
+/* Static Functions -----------------------------------------------------------*/
+static int CAN_DequeueFrame(CAN_Frame *frame);
+static void CAN_EnqueueFrame(uint32_t id, uint8_t len, const uint8_t *data);
+uint8_t dlc_to_bytes(uint8_t dlc);
+
 /* Functions ------------------------------------------------------------------*/
-
-/**
- * @brief Allocates memory for FDCAN receive buffers.
- * @param RxData1_Length: Length of buffer for FIFO0.
- * @param RxData2_Length: Length of buffer for FIFO1.
- */
-
-void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length) {
-    if (RxData1 != NULL) {
-        free(RxData1);
-    }
-    if (RxData2 != NULL) {
-        free(RxData2);
-    }
-
-    RxData1_BufferLength = RxData1_Length;
-    RxData2_BufferLength = RxData2_Length;
-
-    RxData1 = (uint8_t* )malloc(RxData1_Length);
-    RxData2 = (uint8_t* )malloc(RxData2_Length);
-    if (RxData1 == NULL || RxData2 == NULL) {
-        Error_Handler();
-    }
-}
-
 /**
  * @brief 	Initializes the FDCAN module.
  * @details In order:
- * 			Configures standard ID reception filter to Rx buffer
+ * 			Configures standard ID reception filter to Rx FIFO 0
  * 			Configures extended ID reception filter to Rx FIFO 1
  * 			Configures global filter: Filter all remote frames with STD and EXT ID
  * 									  Reject non matching frames with STD ID and EXT ID
  * 			Starts the FDCAN controller (continuous listening CAN bus)
  * 			Activates Notifications
+ * 			Starts Heartbeat timer (TIM7)
+ * @param	hfdcan1: CANFD Handler
+ * 			hbid: Heartbeat ID, specific to the enclosure
+ * 			0x130 = PDB_HEARTBEAT, 0x131 = RUDR_HEARTBEAT
+ * 			0x132 = SAIL_HEARTBEAT, 0x133 = SENSE_HEARTBEAT
+ * @note    Calls Error_Handler() if any configuration step fails.
  */
-void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
+void CAN_Init(FDCAN_HandleTypeDef *hfdcan1, uint32_t hbid) {
 	/*##-1 Configures FDCAN meta data and controllers*/
 	FDCAN_FilterTypeDef sFilterConfig;
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -101,8 +90,15 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	{
 	Error_Handler();
 	}
+	uint32_t notif =
+	      FDCAN_IT_RX_FIFO0_NEW_MESSAGE |
+		  FDCAN_IT_BUS_OFF |
+		  FDCAN_IT_ERROR_WARNING |
+		  FDCAN_IT_ERROR_PASSIVE |
+		  FDCAN_IT_DATA_PROTOCOL_ERROR |
+		  FDCAN_IT_ARB_PROTOCOL_ERROR ;
 
-	if (HAL_FDCAN_ActivateNotification(hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+	if (HAL_FDCAN_ActivateNotification(hfdcan1, notif, 0) != HAL_OK)
 	{
 	Error_Handler();
 	}
@@ -111,6 +107,10 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	{
 	Error_Handler();
 	}
+
+	/*##-3 Start CANFD Heartbeat using TIM7 every 10sec */
+	heartbeat_id = hbid;
+	HAL_TIM_Base_Start_IT(&htim7);
 }
 
 /**
@@ -126,7 +126,8 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
  * 						FDCAN_DLC_BYTES_24, FDCAN_DLC_BYTES_32, FDCAN_DLC_BYTES_48,
  * 						FDCAN_DLC_BYTES_64
  * @param 	DataBuffer: Pointer to the TxData buffer.
- * @return 	HAL_StatusTypeDef HAL_OK if successful, !HAL_OK otherwise.
+ * @param   hfdcan1: Pointer to the FDCAN handle structure.
+ * @return 	HAL_StatusTypeDef HAL_OK if successful, !HAL_OK (other HAL status) otherwise.
  */
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1) {
     FDCAN_TxHeaderTypeDef TxHeader;
@@ -144,29 +145,15 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
 }
 
 /**
- * @brief   Copies received CAN RX data into a local user-provided buffer.
- * @return  unint8_t *Buffer: Pointer to the buffer where the received data should be copied
- * 			Format = {ID, DataLength, Data, ..., Data}
- * @note    The function prioritizes FIFO0 over FIFO1 if both have data.
+ * @brief   Dequeues the next received CAN frame.
+ * @param   frame: Pointer to a CAN_Frame struct that will be filled with the data.
+ * @return  HAL_OK if a frame was dequeued, HAL_ERROR if the queue is empty.
+ *
+ * @note    Called from application context (not ISR).
  */
-uint8_t* CAN_Receive(void) {
-	uint8_t *LocalBuffer = NULL;
-    if (RxData1 != NULL && RxData1_BufferLength > 0) {
-    	LocalBuffer = (uint8_t*)malloc(RxData1_BufferLength + 2);
-		if (LocalBuffer) {
-			LocalBuffer[0] = RxData1_Identifier;  // example use
-			LocalBuffer[1] = RxData1_BufferLength;
-			memcpy(LocalBuffer + 2, RxData1, RxData1_BufferLength);
-		}
-    } else if (RxData2 != NULL && RxData2_BufferLength > 0) {
-    	LocalBuffer = (uint8_t*)malloc(RxData2_BufferLength + 2);
-		if (LocalBuffer) {
-			LocalBuffer[0] = RxData2_Identifier;  // example use
-			LocalBuffer[1] = RxData2_BufferLength;
-			memcpy(LocalBuffer + 2, RxData2, RxData2_BufferLength);
-		}
-    }
-    return LocalBuffer;
+HAL_StatusTypeDef CAN_Receive(CAN_Frame *frame) {
+    if (CAN_DequeueFrame(frame) == 0) return HAL_ERROR;
+    return HAL_OK;
 }
 
 /**
@@ -193,123 +180,80 @@ uint8_t* CAN_Receive(void) {
  * @brief Callback function for handling messages received in FIFO0.
  * @param hfdcan: Pointer to FDCAN handle.
  * @param RxFifo0ITs: FIFO0 interrupt flags.
- *
- *
  */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
-    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-    {
-        FDCAN_RxHeaderTypeDef rxHeader;
-        uint8_t rxData[64];  // Adjust based on your max expected DLC
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+        FDCAN_RxHeaderTypeDef RxHeader;
+        uint8_t tmp[64];
+        memset(tmp, 0, 64);
 
-        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, rxData) != HAL_OK)
-        {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, tmp) != HAL_OK) {
             Error_Handler();
+            HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
         }
 
-        //giving the highest priority to shutdown command
-        //ask about FIFO1 and if we should have a command there as well ?
-        if (rxHeader.Identifier == 0x202 ) {
-
-        	if (rxData[0] == 0x0A) {
-
-        		printf("Shutdown command was received\r\n");
-        		//set PC_8 to low
-        		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin (inverted logic)
-        		printf("PC_8 Pulled Low \r\n");
-        	}
-
-        	//restart after 15s
-        	else if (rxData[0] == 0x14) {
-
-        		printf("restart command was received\r\n");
-        		restart_requested = 1;
-
-    	        //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); //PC_8 is the boot pin
-    	        //printf("PC_8 Pulled Low \r\n");
-    	        //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
-    	       // printf("PC_8 Pulled High \r\n");
-    	        //i need to make the time between this 15s
-
-
-
-        	}
-
-
-        	 else {
-        	        printf("Unknown command: %d\r\n", rxData[0]);
-
-        	    }
-
-        }
-
-        printf("Rx FIFO0 ID: 0x%lX, Length: %lu\r\n", rxHeader.Identifier, dlc_to_bytes(rxHeader.DataLength));
-        for (uint8_t i = 0; i < dlc_to_bytes(rxHeader.DataLength); i++) {
-            printf("%02X ", rxData[i]);
-        }
-        printf("\r\n");
+		CAN_EnqueueFrame(RxHeader.Identifier, dlc_to_bytes(RxHeader.DataLength), tmp);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
     }
+    /* added for debug */
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+}
+
+/* HELPER FUNCTIONS BELOW */
+
+/**
+ * @brief   Adds a received CAN frame to the circular queue.
+ * @param   id: CAN message identifier (11-bit standard).
+ * @param   len: Length of the data payload in bytes.
+ * @param   data: Pointer to the data payload buffer.
+ * @details This function implements a circular buffer with overflow handling.
+ *          If the queue is full (head catches up to tail), the oldest message is
+ *          discarded to make room for the new message; new messages always available.
+ */
+static void CAN_EnqueueFrame(uint32_t id, uint8_t len, const uint8_t *data) {
+    uint8_t next = (canRxHead + 1) % CAN_RX_QUEUE_SIZE;
+    if (next == canRxTail)  canRxTail = (canRxTail + 1) % CAN_RX_QUEUE_SIZE;
+
+    CAN_Rx_Queue[canRxHead].RxData1_Identifier = id;
+    CAN_Rx_Queue[canRxHead].RxData1_BufferLength = len;
+    memcpy(CAN_Rx_Queue[canRxHead].RxData1, data, len);
+    canRxHead = next;
 }
 
 /**
- * @brief  	Prints the received RxDataX recived from FIFO0 and FIFO1.
- *
- * @details This function checks if there is received data in the Rx buffers
- * 			If data is available, it prints it in hexadecimal format;
- * 			otherwise, it indicates that no data has been received.
- *
- * @note 	This function assumes that RxData1 and RxData2 have been allocated and
- *       	populated by the Rx FIFO callbacks.
- *
- * @retval 	None
+ * @brief   Removes and retrieves the oldest CAN frame from the circular queue.
+ * @param   frame: Pointer to CAN_Frame structure where the retrieved frame will be stored.
+ * @return  int: 1 if a frame was successfully retrieved, 0 if the queue is empty.
+ * @details This function provides thread-safe reading from the queue by checking if
+ *          the queue is empty (tail == head) before attempting to read. The volatile
+ *          queue indices ensure memory consistency between ISR and main loop contexts.
+ * @note    This function should be called from the main application context, not from ISR.
+ *          Always check the return value before using the retrieved frame data.
  */
-
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
-{
-    if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
-    {
-        FDCAN_RxHeaderTypeDef rxHeader;
-        uint8_t rxData[64];
-
-        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rxHeader, rxData) != HAL_OK)
-        {
-            Error_Handler();
-        }
-
-
-        printf("Rx FIFO1 ID: 0x%lX, Length: %lu\r\n", rxHeader.Identifier, dlc_to_bytes(rxHeader.DataLength));
-        for (uint8_t i = 0; i < dlc_to_bytes(rxHeader.DataLength); i++) {
-            printf("%02X ", rxData[i]);
-        }
-        printf("\r\n");
-    }
+static int CAN_DequeueFrame(CAN_Frame *frame) {
+	if (canRxTail == canRxHead) return 0;
+	*frame = CAN_Rx_Queue[canRxTail];
+	canRxTail = (canRxTail + 1) % CAN_RX_QUEUE_SIZE;
+	return 1;
 }
 
+/**
+ * @brief	Overwrites HAL_TIM_PeriodElapsedCallback. Same function signature.
+ * @param	htim: TIM_HandleTypeDef, handler for timer
+ * @details	This interrupt callback tracks TIM7, which is the timer assigned for the
+ * 			CANFD heartbeat signal. The CAN transmit will send empty bytes with the
+ * 			enclosure heartbeat ID. The interval will be setup as 10sec.
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
-void CAN_PrintRxData(void) {
-    if (RxData1 != NULL && RxData1_BufferLength > 0) {
-        printf("\r\nFIFO0 Received: \r\n");
-        for (uint16_t i = 0; i < RxData1_BufferLength; i++) {
-            printf("%02X ", RxData1[i]);
-        }
-        printf("\n");
-    } else {
-        printf("FIFO0: No data received.\n");
-    }
-
-    if (RxData2 != NULL && RxData2_BufferLength > 0) {
-        printf("\r\nFIFO1 Received: \r\n");
-        for (uint16_t i = 0; i < RxData1_BufferLength; i++) {
-            printf("%02X ", RxData2[i]);
-        }
-        printf("\n");
-    } else {
-        printf("FIFO1: No data received.\n");
-    }
+	if (htim->Instance == TIM7) {
+		uint8_t tx_heart = 0;
+		if (CAN_Transmit(heartbeat_id, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_0, &tx_heart, &hfdcan1) != HAL_OK){
+			Error_Handler();
+			/* HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET); */ //debug
+		} /* else HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7); */ // debug
+	}
 }
-
-
 
 /* DLC to bytes lookup */
 uint8_t dlc_to_bytes(uint8_t dlc) {
