@@ -29,6 +29,7 @@
 #include "BRITER.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <can.h>
 
 /* USER CODE END Includes */
 
@@ -188,54 +189,59 @@ int main(void)
 
 
   //CAN Setup
-    /* Configure standard ID reception filter to Rx buffer 0 */
-    sFilterConfig.IdType = FDCAN_STANDARD_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    sFilterConfig.FilterID1 = 0x000;
-    sFilterConfig.FilterID2 = 0x7FF;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
 
-    /* Configure extended ID reception filter to Rx FIFO 1 */
-    sFilterConfig.IdType = FDCAN_EXTENDED_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
-    sFilterConfig.FilterID1 = 0x1111111;
-    sFilterConfig.FilterID2 = 0x2222222;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // CAN Library setup
 
-    /* Configure global filter:
-       Filter all remote frames with STD and EXT ID
-       Reject non matching frames with STD ID and EXT ID */
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    CAN_Init(&hfdcan1, hbid) //put in hbid
 
-    /*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
-    CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
-    if (CanStartStatus != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // /* Configure standard ID reception filter to Rx buffer 0 */
+    // sFilterConfig.IdType = FDCAN_STANDARD_ID;
+    // sFilterConfig.FilterIndex = 0;
+    // sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
+    // sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+    // sFilterConfig.FilterID1 = 0x000;
+    // sFilterConfig.FilterID2 = 0x7FF;
+    // if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // /* Configure extended ID reception filter to Rx FIFO 1 */
+    // sFilterConfig.IdType = FDCAN_EXTENDED_ID;
+    // sFilterConfig.FilterIndex = 0;
+    // sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
+    // sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+    // sFilterConfig.FilterID1 = 0x1111111;
+    // sFilterConfig.FilterID2 = 0x2222222;
+    // if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // /* Configure global filter:
+    //    Filter all remote frames with STD and EXT ID
+    //    Reject non matching frames with STD ID and EXT ID */
+    // if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+    // {
+    //     Error_Handler();
+    // }
+
+    // /*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
+    // CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
+    // if (CanStartStatus != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
+
+    // if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
+
+    // if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
     uint32_t can_frame_tx_time = HAL_GetTick();
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
@@ -355,20 +361,26 @@ int main(void)
 	rudder_debug_frame[9] = (((uint16_t) commanded_rudder_angle) >> 8) & 0xFF;
 
 	  //Transmit CAN message after so long
-	  if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
-		  TxHeader1.Identifier         = RUDDER_TO_MAINFRAME_DEBUG_ID;
-		  TxHeader1.IdType             = (RUDDER_TO_MAINFRAME_DEBUG_ID>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
-		  TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
-		  TxHeader1.DataLength         = byte_to_dlc(16);  /* HAL expects DLC in bits [19:16] */
-		  TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
-		  TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
-		  TxHeader1.FDFormat           = FDCAN_FD_CAN;
-		  TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
+	  // if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
+		//   TxHeader1.Identifier         = RUDDER_TO_MAINFRAME_DEBUG_ID;
+		//   TxHeader1.IdType             = (RUDDER_TO_MAINFRAME_DEBUG_ID>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+		//   TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
+		//   TxHeader1.DataLength         = byte_to_dlc(16);  /* HAL expects DLC in bits [19:16] */
+		//   TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
+		//   TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
+		//   TxHeader1.FDFormat           = FDCAN_FD_CAN;
+		//   TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
-			printf("Err: CAN TX\r\n");
-		  }
-	  }
+		//   if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
+		// 	printf("Err: CAN TX\r\n");
+		//   }
+	  // }
+
+    if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
+      if(CAN_Transmit(RUDDER_TO_MAINFRAME_DEBUG_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_16, rudder_debug_frame, &hfdcan1) != HAL_OK){
+        Error_Handler()
+      }
+    }
 	}
 
 
