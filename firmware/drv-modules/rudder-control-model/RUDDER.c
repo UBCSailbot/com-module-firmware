@@ -33,6 +33,13 @@
  *       -Integration with other boat systems (e.g., sail control)
  *      -Enhanced state detection algorithms
  *     -Robustness against sensor noise and failures
+ * 
+ * TODO:
+    *  - Implement blocking in state transitions to prevent rapid switching
+    *  - Test state transition logic
+    *  - Implement isInIrons() function
+    *  - Validate sign conventions
+    * - Fine-tune PID coefficients and thresholds based on real-world testing
  */
 
 #include <stdint.h>
@@ -42,12 +49,26 @@
 #include <stdbool.h>
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
-#include "MOCK_HARDWARE_FUNCTIONS.h"
 
 #define WINDOW_SIZE 10
 
 // Global controller instance
 PIDController controller;
+
+//State transition matrix
+#define STATE_COUNT 6
+
+// Defines allowed state transitions
+static const bool allowedTransitions[STATE_COUNT][STATE_COUNT] = {
+/* FROM:      TO:  STRAIGHT   TACKING   GYBING    LOWWIND  IRONS  MANUAL  */
+/* STRAIGHT */ { true,        true,     true,     true,     true,    true },
+/* TACKING  */  { true,        false,     false,    true,     true,     true },
+/* GYBING   */  { true,        false,    false,     true,     true,     true },
+/* LOWWIND*/ { true,        true,    true,    true,     true,     true },
+/* IRONS */  { true,        false,    false,    true,     true,     true },
+/* MANUAL   */  { true,        false,    false,    true,    true,    true },
+
+};
 
 /*Private function declarations*/
 
@@ -60,6 +81,8 @@ static float lowwind(float error);
 static float irons(float error);
 static bool isTackingCondition(float error);
 static bool isGybingCondition(float error);
+static void requestState(StateMachine *stateMachine, State next)
+static void updateStateMaching(StateMachine *stateMachine)
 
 // Initializes the live state of the PID controller
 PIDControllerLive initLiveController() {
@@ -115,6 +138,18 @@ void initController(PIDControllerFixed fixedController) {
     controller.fixed = fixedController;
 }
 
+// Initializes transition guards
+void initTransitionGuards(TransitionGuards *guards) {
+    memset(guards->timestampBlock, 0, sizeof(guards->timestampBlock);
+}
+
+// Blocks a state transition for a specified duration
+void blockTransition(TransitionGuards *guards, State from, State to, uint32_t durationMs)
+{
+    guards->timestampBlock[from][to] = HAL_GetTick() + durationMs;
+}
+
+// Updates live controller variables with current sensor data
 void updateControllerVariables () {
     // Update the sailing and sea state in the controller
     controller.live.windState.windSpeed = getWindSpeed();
@@ -127,6 +162,7 @@ void updateControllerVariables () {
     updateAverages();
 }
 
+// Updates moving averages for linear velocity, angular velocity, and heading
 void updateAverages() {
     // Simple moving average for linear velocity, angular velocity, and heading
     static float linVelocityBuffer[WINDOW_SIZE] = {0.0f};
@@ -143,6 +179,7 @@ void updateAverages() {
     controller.live.sailingState.averageHeading = movingAverage(headingBuffer, index, count, controller.live.sailingState.currentHeading);
 }
 
+// Computes the moving average of a value given a buffer
 float movingAverage(float array[], int index, int size, float value) {
     array[index] = value;
     float sum = 0;
@@ -152,6 +189,7 @@ float movingAverage(float array[], int index, int size, float value) {
     return sum / size;
 }
 
+// Resets live controller state variables
 void resetController() {
     memset(&controller.live, 0, sizeof(PIDControllerLive));
     // Reset the controller time
@@ -159,6 +197,33 @@ void resetController() {
     controller.live.controllerState.currentTime = controller.live.controllerState.lastTime;
     // Reset active coefficients to standard
     controller.live.activeCoeffs = controller.fixed.standardCoeffs;
+}
+
+// Requests a state transition in the state machine
+void requestState(StateMachine *stateMachine, State next) {
+    stateMachine -> nextState = next;
+}
+
+// Updates the state machine based on requested state and allowed transitions
+void updateStateMachine(StateMachine *stateMachine){
+
+    State from = stateMachine -> currentState;
+    State to = stateMachine -> nextState;
+
+    if(stateMachine -> currentState == *stateMachine -> nextState){
+        return;
+    }
+
+    if(!allowedTransitions[stateMachine -> currentState][stateMachine -> nextState]){
+        return;
+    }
+
+    if(HAL_GetTick() < transitionGuards.timestampBlock[from][to]){
+        return;
+    }
+
+    stateMachine -> currentState = stateMachine -> nextState;
+    stateMachine -> lastTransition = HAL_GetTick();
 }
 
 // Gets a new rudder angle based on the current error
@@ -271,9 +336,10 @@ void runPID(float *rudderAngle) {
         error += 360;
     }
     
-    State state = getState(error);
+    getState(error);
+    updateStateMachine(&controller.live.stateMachine);
 
-	switch(state){
+	switch(controller.live -> stateMachine -> currentState){
 	case STRAIGHT:
         if(HAL_GetTick() - controller.live.ironsState.ironsEndTime > 30000) {
             controller.live.ironsState.isInIrons = false;
@@ -295,26 +361,27 @@ void runPID(float *rudderAngle) {
 	}    
 }
 
-State getState(float error) {
+void getState(float error) {
     PhysicalParams *params = &controller.fixed.physicalParams;    
     volatile SailingState *sailing = &controller.live.sailingState;
     volatile WindState *wind = &controller.live.windState;
     StateThresholds *thresholds = &controller.fixed.stateThresholds;
     
     #ifdef STRAIGHT_ONLY
-    return STRAIGHT;
+    requestState(controller.live -> stateMachine, STRAIGHT);
+    return;
     #endif
 
     if (isTackingCondition(error)) {
-        return TACKING;
+        requestState(controller -> stateMachine, TACKING);
     } else if (isGybingCondition(error)) {
-        return GYBING;
+        requestState(controller -> stateMachine, GYBING);
     } else if (wind->windSpeed < params->lowWindThreshold) {
-        return LOWWIND;
+        requestState(controller -> stateMachine, LOWWIND);
     } else if (isInIrons()) {
-        return IRONS;
+        requestState(controller -> stateMachine, IRONS);
     } else {
-        return STRAIGHT; // Default to straight if no other conditions met
+        requestState(controller -> stateMachine, STRAIGHT) // Default to straight if no other conditions met
     }
 }
 

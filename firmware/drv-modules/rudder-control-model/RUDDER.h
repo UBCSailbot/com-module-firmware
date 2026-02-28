@@ -185,6 +185,31 @@ typedef struct {
 	float errorValue;
 } LiveValues;
 
+/* Enumerates the boat's possible states
+ * States should be self explanatory to those familiar with the model
+ * Or sailing in general
+ * Or the project - boats, idk*/
+typedef enum {
+	STRAIGHT,
+	TACKING,
+	GYBING,
+	LOWWIND,
+	IRONS,
+	MANUAL,
+	COUNT
+} State;
+
+typedef struct {
+	uint32_t timestampBlock[COUNT][COUNT];
+} TransitionGuards;
+
+typedef struct {
+	State currentState;
+	State nextState;
+	uint32_t lastTransition;
+	TransitionGuards *transitionGuards;
+} StateMachine;
+
 /* This struct represents the overall PID controller fixed coefficients
  * These coeffs are fixed as they do not change while the boat is under sail
  * @param standardCoeffs - a series of PID coefficients and related factors that correspond to straight line sailing
@@ -222,6 +247,7 @@ typedef struct {
     GybingState gybingState;
 	LiveValues liveValues;
 	IronsState ironsState;
+	StateMachine stateMachine;
 } PIDControllerLive;
 
 /* This struct encapsulates the entire PID controller
@@ -234,18 +260,6 @@ typedef struct {
 } PIDController;
 
 extern PIDController controller;
-
-/* Enumerates the boat's possible states
- * States should be self explanatory to those familiar with the model
- * Or sailing in general
- * Or the project - boats, idk*/
-typedef enum {
-	STRAIGHT,
-	TACKING,
-	GYBING,
-	LOWWIND,
-	IRONS
-} State;
 
 // Initializes the PID controller with fixed and live parameters from given fixed params
 void initController(PIDControllerFixed fixed);
