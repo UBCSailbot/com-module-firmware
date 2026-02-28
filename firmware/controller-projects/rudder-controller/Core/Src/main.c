@@ -24,7 +24,8 @@
 
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
-#include "RUDDERPID.h"
+#include "RUDDER_UTILS.h"
+//#include "RUDDERPID.h"
 #include "BRITER.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +44,8 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+//#define ZEROING_CALIBRATION
+
 #define CAN_TX_DELAY_MS 100
 #define RUDDER_TO_MAINFRAME_DEBUG_ID 0x204
 #define CONTROL_MODEL_PARAMS_ID 0x200
@@ -72,9 +75,13 @@ uint8_t RxData1[64];
 uint8_t RxData2[64];
 HAL_StatusTypeDef CanStartStatus;
 
-float desiredRudderAngle = 0;
+float desiredRudderAngle;
 
 uint8_t * rudder_debug_frame;
+
+//0 = auto mode, 1 = manual
+uint8_t controller_mode = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,6 +99,14 @@ static void MX_DAC1_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
+#ifdef __GNUC__
+/* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+   set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
 static uint8_t byte_to_dlc(uint8_t len);
 static uint8_t dlc_to_bytes(uint8_t len);
 /* USER CODE END PFP */
@@ -108,7 +123,7 @@ int get_encoder_delta(int prev, int curr) {
   }
 
 NMEA0183 *ecompass;
-const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,10\x0D\x0A"; //enables PASHR sentence type
+const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,1\x0D\x0A"; //enables PASHR sentence type
 const char GPHDT_FREQ[] = "$JASC,GPHDT,1\x0D\x0A"; //allows heading data received at 10Hz
 
 void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) {
@@ -128,10 +143,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
-  PIDControllerFixed fixedController = getRudderFixedParams();
-  initController(fixedController);
-  float rudderAngle = 0.0f;
   
   /* USER CODE END 1 */
 
@@ -153,6 +164,11 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   //CAN frame ID 0x204 tx_frame
   rudder_debug_frame = (uint8_t * ) malloc(16);
+
+  PIDControllerFixed fixedController = getRudderFixedParams();
+  initController(fixedController);
+
+//  float desiredRudderAngle = 0.0f;
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -169,17 +185,6 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  ecompass = NMEA0183__create(&huart2);
-
-    //signal sent to initialize PASHR sentence type
-    if(HAL_UART_Transmit(&huart2, (uint8_t *)PASHR_ENABLE_CMD, 15, HAL_MAX_DELAY) != HAL_OK){
-  	  printf("PASHR enable error \x0D\x0A");
-    }
-
-    //signal sent to set the transmission frequency for GPHDT sentence type
-    if(HAL_UART_Transmit(&huart2, (uint8_t*)GPHDT_FREQ, 16, HAL_MAX_DELAY) != HAL_OK){
-  	  printf("GPHDT frequency set error \x0D\x0A");
-    }
 
 
   //CAN Setup
@@ -233,6 +238,35 @@ int main(void)
     }
 
     uint32_t can_frame_tx_time = HAL_GetTick();
+    HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
+    encoderObject = BRITER__create(&huart2, 20);
+    MOTOR_CONFIG motorConfig = {
+            .motorDacPeripheral = &hdac1,
+            .motorDacChannel = DAC_CHANNEL_2,
+            .enableGPIOPeripheral = GPIOG,
+            .enableGPIOPin = GPIO_PIN_1,
+            .reverseGPIOPeripheral = GPIOF,
+            .reverseGPIOPin = GPIO_PIN_13
+      };
+    Setup_Motor(motorConfig);
+    HAL_Delay(1000);
+   Set_Motor_Raw(0);
+
+   HAL_Delay(2000);
+   Enable_Motor();
+
+#define IMU_DELAY 100
+    if(HAL_UART_Transmit(&huart3, (uint8_t *)PASHR_ENABLE_CMD, 15, IMU_DELAY) != HAL_OK){
+  	  printf("PASHR enable error \x0D\x0A");
+    }
+
+    //signal sent to set the transmission frequency for GPHDT sentence type
+    if(HAL_UART_Transmit(&huart3, (uint8_t*)GPHDT_FREQ, 16, IMU_DELAY) != HAL_OK){
+  	  printf("GPHDT frequency set error \x0D\x0A");
+    }
+  ecompass = NMEA0183__create(&huart3);
+
+   // signal sent to initialize PASHR sentence type
 
   /* USER CODE END 2 */
 
@@ -283,24 +317,42 @@ int main(void)
 	  	NMEA0183__incrementReadIndex(ecompass);
 	  }
 	  HAL_Delay(50);
-	  runPID(&rudderAngle);
+//	  printf("here\r\n");
+
+	#ifdef ZEROING_CALIBRATION
+	  encoderZeroing(&huart1, encoderObject);
+	#endif
+//
+	  if (controller_mode == 0)
+		  runPID(&desiredRudderAngle);
+
+
 
     	  	//Update CAN frame
-    currentError = controller.live.liveValues.errorValue
-    currentDerivative = controller.live.liveValues.derivativeValue
-    currentIntegral = controller.live.liveValues.integralValue
-    current_rudder_angle = BRITER__floatAngle(encoderObject);
-    rudder_debug_frame[0] = current_rudder_angle & 0xFF;
-    rudder_debug_frame[1] = (((uint16_t) current_rudder_angle) >> 8) & 0xFF;
-	  rudder_debug_frame[8] = rudderAngle & 0xFF;
-		rudder_debug_frame[9] = (((uint16_t) rudderAngle) >> 8) & 0xFF;
-    rudder_debug_frame[10] = currentIntegral & 0xFF;
-    rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
-    rudder_debug_frame[12] = currentDerivative & 0xFF;
-    rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
+    uint16_t currentError = controller.live.liveValues.errorValue * 100;
+    printf("current error: %f \r\n", controller.live.liveValues.errorValue);
     rudder_debug_frame[14] = currentError & 0xFF;
     rudder_debug_frame[15] = (((uint16_t) currentError) >> 8) & 0xFF;
 
+    uint16_t currentDerivative = (controller.live.liveValues.derivativeValue + 300) * 100;
+    rudder_debug_frame[12] = currentDerivative & 0xFF;
+    printf("currentderivative: %f \r\n", controller.live.liveValues.derivativeValue);
+    rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
+
+    uint16_t currentIntegral = controller.live.liveValues.integralValue + 30000;
+    rudder_debug_frame[10] = currentIntegral & 0xFF;
+    printf("current integral: %u \r\n", currentIntegral);
+    rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
+
+    uint16_t current_rudder_angle = (BRITER__floatAngle(encoderObject) + 90) * 100;
+    rudder_debug_frame[0] = current_rudder_angle & 0xFF;
+    rudder_debug_frame[1] = (((uint16_t) current_rudder_angle) >> 8) & 0xFF;
+//    printf("Rudder angle: %f\r\n", BRITER__floatAngle(encoderObject));
+
+    uint16_t commanded_rudder_angle = (desiredRudderAngle + 90) * 100;
+//    printf("Commanded rudder angle: %hu\n desiredRudderAngle: %f\n", commanded_rudder_angle, desiredRudderAngle);
+	rudder_debug_frame[8] = commanded_rudder_angle & 0xFF;
+	rudder_debug_frame[9] = (((uint16_t) commanded_rudder_angle) >> 8) & 0xFF;
 
 	  //Transmit CAN message after so long
 	  if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
@@ -314,7 +366,7 @@ int main(void)
 		  TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
 		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
-			printf("Error\r\n");
+			printf("Err: CAN TX\r\n");
 		  }
 	  }
 	}
@@ -930,9 +982,20 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+PUTCHAR_PROTOTYPE
+{
+  /* Place your implementation of fputc here */
+  /* e.g. write a character to the USART1 and Loop until the end of transmission */
+  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
+
+  return ch;
+}
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
-	PI_Motor(desiredRudderAngle, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
+	#ifndef ZEROING_CALIBRATION
+		PI_Motor(desiredRudderAngle, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
+	#endif
 }
 
 static uint8_t dlc_to_bytes(uint8_t dlc) {
@@ -987,7 +1050,9 @@ void unpackWindData(uint8_t * rxData) {
 
 void unpackHeadingData(uint8_t * rxData) {
     uint32_t raw_heading = little_endian_bytes_to_uint32(&rxData[0]);
-    controller.live.sailingState.desiredHeading = raw_heading / 1000; // heading in degrees
+    printf("Raw heading: %lu \r\n", raw_heading);
+    controller.live.sailingState.desiredHeading = 360-(((float) raw_heading) / 1000); // heading in degrees
+    printf("Command heading: %f \r\n", controller.live.sailingState.desiredHeading);
 }
 
 void unpackCoefficients(uint8_t * rxData) {
@@ -999,6 +1064,10 @@ void unpackCoefficients(uint8_t * rxData) {
     controller.fixed.standardCoeffs.Kp = raw_kp / 1000000.0f;
     controller.fixed.standardCoeffs.Ki = raw_ki / 1000000.0f;
     controller.fixed.standardCoeffs.Kd = raw_kd / 1000000.0f;
+
+    printf("KP: %f\r\n", controller.fixed.standardCoeffs.Kp);
+    printf("KI: %f\r\n", controller.fixed.standardCoeffs.Ki);
+	printf("KD: %f\r\n", controller.fixed.standardCoeffs.Kd);
 }
 void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
   // Need a switch based on rxHeader->Identifier
@@ -1008,8 +1077,24 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     case 0x001:
         // Desired heading
-    	if (length == 5)
-    		unpackHeadingData(rxData);
+    	if (length == 5){
+    		if(RxData1[4] >> 7 == 1){
+//    			printf("Manual Mode\r\n");
+    			controller_mode = 1;
+    			uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
+    			desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
+    		} else {
+//    			printf("Auto Mode\r\n");
+    			if (controller_mode == 1){
+    				controller.live.controllerState.lastTime = HAL_GetTick();
+    				controller.live.controllerState.integralError = 0;
+    				controller.live.controllerState.previousError = 0;
+    			}
+    			controller_mode = 0;
+    			unpackHeadingData(rxData);
+    		}
+    	}
+
         break;
 
     // case 0x040: {
@@ -1040,25 +1125,18 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
   }
 }
 
-void HAL_FDCAN_RxFifo0MsgPendingCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+	  if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+	  {
     // Read message from RX FIFO 0
-    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    // Process the received message
+		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
+		{
+			Error_Handler();
+		}
+	  }
+     //Process the received message
     processCANFrames(&RxHeader1, RxData1);
-
-    if(RxHeader1.Identifier == 0x001 && length == 5){
-		if(RxData1[4] >> 7 == 1){
-			printf("Manual Mode\r\n");
-		} else
-			printf("Auto Mode\r\n");
-
-		uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
-		desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
-	}
 }
 /* USER CODE END 4 */
 
