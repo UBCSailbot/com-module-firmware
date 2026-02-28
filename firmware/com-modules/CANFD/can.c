@@ -11,6 +11,7 @@
  *           NEW UPDATE: Messages are enqueued in interrupt context and dequeued
  *           in application context to prevent data corruption and race conditions
  *           + library adjusted to only standard filter
+ *           NEW UPDATE: Updated for heartbeat functionality
  */
 
 /* Includes ------------------------------------------------------------------*/
@@ -19,12 +20,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include "stm32u5xx_hal_fdcan.h"
 
 /* Variables ------------------------------------------------------------------*/
 #define CAN_RX_QUEUE_SIZE 100 						/* Arbitrary queue size*/
 static CAN_Frame CAN_Rx_Queue[CAN_RX_QUEUE_SIZE];	/* Rx Circular Buffer */
 static volatile uint8_t canRxHead = 0;				/* Head index of buffer */
 static volatile uint8_t canRxTail = 0;				/* Tail index of buffer */
+extern TIM_HandleTypeDef htim7;						/* Accessing TIM7 Handler */
+extern FDCAN_HandleTypeDef hfdcan1;					/* Accessing FDCAN Handler */
+static uint32_t heartbeat_id;						/* Enclosure Heartbeat ID */
 HAL_StatusTypeDef CanStartStatus; 					/* Status of FDCAN start operation */
 
 /* Static Functions -----------------------------------------------------------*/
@@ -42,9 +47,14 @@ uint8_t dlc_to_bytes(uint8_t dlc);
  * 									  Reject non matching frames with STD ID and EXT ID
  * 			Starts the FDCAN controller (continuous listening CAN bus)
  * 			Activates Notifications
+ * 			Starts Heartbeat timer (TIM7)
+ * @param	hfdcan1: CANFD Handler
+ * 			hbid: Heartbeat ID, specific to the enclosure
+ * 			0x130 = PDB_HEARTBEAT, 0x131 = RUDR_HEARTBEAT
+ * 			0x132 = SAIL_HEARTBEAT, 0x133 = SENSE_HEARTBEAT
  * @note    Calls Error_Handler() if any configuration step fails.
  */
-void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
+void CAN_Init(FDCAN_HandleTypeDef *hfdcan1, uint32_t hbid) {
 	/*##-1 Configures FDCAN meta data and controllers*/
 	FDCAN_FilterTypeDef sFilterConfig;
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
@@ -80,8 +90,15 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	{
 	Error_Handler();
 	}
+	uint32_t notif =
+	      FDCAN_IT_RX_FIFO0_NEW_MESSAGE |
+		  FDCAN_IT_BUS_OFF |
+		  FDCAN_IT_ERROR_WARNING |
+		  FDCAN_IT_ERROR_PASSIVE |
+		  FDCAN_IT_DATA_PROTOCOL_ERROR |
+		  FDCAN_IT_ARB_PROTOCOL_ERROR ;
 
-	if (HAL_FDCAN_ActivateNotification(hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+	if (HAL_FDCAN_ActivateNotification(hfdcan1, notif, 0) != HAL_OK)
 	{
 	Error_Handler();
 	}
@@ -90,6 +107,10 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1) {
 	{
 	Error_Handler();
 	}
+
+	/*##-3 Start CANFD Heartbeat using TIM7 every 10sec */
+	heartbeat_id = hbid;
+	HAL_TIM_Base_Start_IT(&htim7);
 }
 
 /**
@@ -124,26 +145,14 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
 }
 
 /**
- * @brief   Copies received CAN Rx data and adds metadata into a local user-provided buffer.
- * @param   RxData_buffer: Pointer to buffer where received data will be copied.
- *                         Buffer format: {ID[0], ID[1], ID[2], ID[3], Length, Data[0], ..., Data[n]}
- *                         - Bytes 0-3: 32-bit identifier in little-endian
- *                         - Byte 4: Data length in uint8_t
- *                         - Bytes 5+: Actual data payload
- * @return  HAL_StatusTypeDef: HAL_OK if a message was received, HAL_ERROR if queue is empty.
- * @note    Should be called from the main application context, not from ISR.
- *          The queue uses a circular buffer.
+ * @brief   Dequeues the next received CAN frame.
+ * @param   frame: Pointer to a CAN_Frame struct that will be filled with the data.
+ * @return  HAL_OK if a frame was dequeued, HAL_ERROR if the queue is empty.
+ *
+ * @note    Called from application context (not ISR).
  */
-HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
-    CAN_Frame frame;
-    if (CAN_DequeueFrame(&frame) == 0) return HAL_ERROR;
-
-    RxData_buffer[0] = (uint8_t)(frame.RxData1_Identifier & 0xFF);
-    RxData_buffer[1] = (uint8_t)((frame.RxData1_Identifier >> 8) & 0xFF);
-    RxData_buffer[2] = (uint8_t)((frame.RxData1_Identifier >> 16) & 0xFF);
-    RxData_buffer[3] = (uint8_t)((frame.RxData1_Identifier >> 24) & 0xFF);
-    RxData_buffer[4] = frame.RxData1_BufferLength;
-    memcpy(RxData_buffer + 5, frame.RxData1, frame.RxData1_BufferLength);
+HAL_StatusTypeDef CAN_Receive(CAN_Frame *frame) {
+    if (CAN_DequeueFrame(frame) == 0) return HAL_ERROR;
     return HAL_OK;
 }
 
@@ -165,6 +174,7 @@ HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
  * 			6. HAL_FDCAN_HighPriorityMessageCallback(): Triggered when a high-priority message or remote frame is received.
  *               - When processing of urgent messages
  */
+
 
 /**
  * @brief Callback function for handling messages received in FIFO0.
@@ -225,6 +235,24 @@ static int CAN_DequeueFrame(CAN_Frame *frame) {
 	*frame = CAN_Rx_Queue[canRxTail];
 	canRxTail = (canRxTail + 1) % CAN_RX_QUEUE_SIZE;
 	return 1;
+}
+
+/**
+ * @brief	Overwrites HAL_TIM_PeriodElapsedCallback. Same function signature.
+ * @param	htim: TIM_HandleTypeDef, handler for timer
+ * @details	This interrupt callback tracks TIM7, which is the timer assigned for the
+ * 			CANFD heartbeat signal. The CAN transmit will send empty bytes with the
+ * 			enclosure heartbeat ID. The interval will be setup as 10sec.
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+
+	if (htim->Instance == TIM7) {
+		uint8_t tx_heart = 0;
+		if (CAN_Transmit(heartbeat_id, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_0, &tx_heart, &hfdcan1) != HAL_OK){
+			Error_Handler();
+			/* HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET); */ //debug
+		} /* else HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7); */ // debug
+	}
 }
 
 /* DLC to bytes lookup */
