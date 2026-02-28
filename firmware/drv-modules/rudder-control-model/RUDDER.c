@@ -259,19 +259,19 @@ float getRudderAngle(float currentError) {
 	cState->currentTime = HAL_GetTick();
 	float dt = cState->currentTime -  cState->lastTime;
     // Calculating the integral addition
-    float integral = cState->integralError + currentError * dt / 1000;
+    float integral = cState->integralError + currentError * dt / 1000.0;
     if (dt < 1.0f){
     		integral = cState->integralError;
     }
-    printf("Time %f \r\n", dt);
-    printf("Bitch %f \r\n",integral);
+//    printf("Time %f \r\n", dt);
+    printf("Integral %f \r\n",integral);
     // Clamp integral to prevent windup
     const float integralMax = PID->integralMax; // from your PhysicalParams or a #define
-    if (integral > integralMax) {
-        integral = integralMax;
-    } else if (integral < -integralMax) {
-        integral = -integralMax;
-    }
+    // if (integral > integralMax) {
+    //     integral = integralMax;
+    // } else if (integral < -integralMax) {
+    //     integral = -integralMax;
+    // }
 
     vals->integralValue = integral;
 
@@ -286,11 +286,12 @@ float getRudderAngle(float currentError) {
     if(dt <= 0) {
         derivative = 0;
     } else {
-        derivative = (cState->filteredError - cState->previousFilteredError) / dt;
+        derivative = (cState->filteredError - cState->previousFilteredError) / dt * 1000;
     }   
     vals->derivativeValue = derivative; 
+    printf("Derivative: %f\r\n", derivative);
     // Calculating PID output
-    float outputAngle = PID->Kp * currentError + PID->Ki * integral + PID->Kd * derivative;
+    float outputAngle = PID->Kp * currentError + PID->Ki * integral - PID->Kd * derivative;
     // Saving error
     cState->previousFilteredError = cState->filteredError;
     // Scaling and clamping output and integral  
@@ -305,13 +306,13 @@ float getRudderAngle(float currentError) {
     if(outputAngle > params->outputMax) {
         outputAngle = params->outputMax;
         if(currentError < 0) {
-            cState->integralError += currentError * dt / 1000;
+            cState->integralError += currentError * dt / 1000; 
          }
 
     } else if(outputAngle < params->outputMin) {
         outputAngle = params->outputMin;
         if(currentError > 0) {
-            cState->integralError += currentError * dt / 1000;
+            cState->integralError += currentError * dt / 1000; 
         }
     } else {
         cState->integralError += currentError * dt / 1000;

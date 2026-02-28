@@ -340,7 +340,7 @@ int main(void)
 
     	  	//Update CAN frame
     uint16_t currentError = controller.live.liveValues.errorValue * 100;
-    printf("current error: %f \r\n", controller.live.liveValues.errorValue);
+//    printf("current error: %f \r\n", controller.live.liveValues.errorValue);
     rudder_debug_frame[14] = currentError & 0xFF;
     rudder_debug_frame[15] = (((uint16_t) currentError) >> 8) & 0xFF;
 
@@ -351,7 +351,7 @@ int main(void)
 
     uint16_t currentIntegral = controller.live.liveValues.integralValue + 30000;
     rudder_debug_frame[10] = currentIntegral & 0xFF;
-    printf("current integral: %u \r\n", currentIntegral);
+//    printf("current integral: %u \r\n", currentIntegral);
     rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
 
     uint16_t current_rudder_angle = (BRITER__floatAngle(encoderObject) + 90) * 100;
