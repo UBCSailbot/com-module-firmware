@@ -207,7 +207,7 @@ typedef struct {
 	State currentState;
 	State nextState;
 	uint32_t lastTransition;
-	TransitionGuards *transitionGuards;
+	TransitionGuards transitionGuards;
 } StateMachine;
 
 /* This struct represents the overall PID controller fixed coefficients
@@ -274,6 +274,7 @@ void updateControllerVariables();
 void resetController();
 
 // Determines the current state of the boat based on sailing conditions
-State getState(float error);
+State returnState();
+bool isInIrons();
 
 #endif /* RUDDER_H_ */
