@@ -66,8 +66,7 @@ static const bool allowedTransitions[STATE_COUNT][STATE_COUNT] = {
 /* GYBING   */  { true,        false,    false,     true,     true,     true },
 /* LOWWIND*/ { true,        true,    true,    true,     true,     true },
 /* IRONS */  { true,        false,    false,    true,     true,     true },
-/* MANUAL   */  { true,        false,    false,    true,    true,    true },
-
+/* MANUAL   */  { true,        false,    false,    true,    true,    true }
 };
 
 /*Private function declarations*/
@@ -81,8 +80,8 @@ static float lowwind(float error);
 static float irons(float error);
 static bool isTackingCondition(float error);
 static bool isGybingCondition(float error);
-static void requestState(StateMachine *stateMachine, State next)
-static void updateStateMaching(StateMachine *stateMachine)
+static void requestState(StateMachine *stateMachine, State next);
+static void updateStateMachine(StateMachine *stateMachine);
 
 // Initializes the live state of the PID controller
 PIDControllerLive initLiveController() {
@@ -130,6 +129,17 @@ PIDControllerLive initLiveController() {
     live.gybingState = gState;
     live.liveValues = liveVals;
 
+    StateMachine sm;
+
+    sm.currentState = STRAIGHT;
+    sm.nextState = STRAIGHT;
+    sm.lastTransition = HAL_GetTick();
+
+    TransitionGuards guards;
+    memset(sm.guards.timestampBlock, 0, sizeof(guards.timestampBlock));
+
+    sm.transitionGuards = *guards;
+
     return live;
 }
 
@@ -142,7 +152,7 @@ void initController(PIDControllerFixed fixedController) {
 
 // Initializes transition guards
 void initTransitionGuards(TransitionGuards *guards) {
-    memset(guards->timestampBlock, 0, sizeof(guards->timestampBlock);
+    memset(guards->timestampBlock, 0, sizeof(guards->timestampBlock));
 }
 
 // Blocks a state transition for a specified duration
@@ -212,7 +222,7 @@ void updateStateMachine(StateMachine *stateMachine){
     State from = stateMachine -> currentState;
     State to = stateMachine -> nextState;
 
-    if(stateMachine -> currentState == *stateMachine -> nextState){
+    if(stateMachine -> currentState == stateMachine -> nextState){
         return;
     }
 
@@ -220,7 +230,7 @@ void updateStateMachine(StateMachine *stateMachine){
         return;
     }
 
-    if(HAL_GetTick() < transitionGuards.timestampBlock[from][to]){
+    if(HAL_GetTick() < controller.live.TransitionGuards.timestampBlock[from][to]){
         return;
     }
 
@@ -347,7 +357,7 @@ void runPID(float *rudderAngle) {
     getState(error);
     updateStateMachine(&controller.live.stateMachine);
 
-	switch(controller.live -> stateMachine -> currentState){
+	switch(controller.live.stateMachine -> currentState){
 	case STRAIGHT:
         if(HAL_GetTick() - controller.live.ironsState.ironsEndTime > 30000) {
             controller.live.ironsState.isInIrons = false;
@@ -369,7 +379,7 @@ void runPID(float *rudderAngle) {
 	}    
 }
 
-void getState(float error) {
+void getState(void) {
     PhysicalParams *params = &controller.fixed.physicalParams;    
     volatile SailingState *sailing = &controller.live.sailingState;
     volatile WindState *wind = &controller.live.windState;
