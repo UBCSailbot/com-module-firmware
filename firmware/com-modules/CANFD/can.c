@@ -181,23 +181,23 @@ HAL_StatusTypeDef CAN_Receive(CAN_Frame *frame) {
  * @param hfdcan: Pointer to FDCAN handle.
  * @param RxFifo0ITs: FIFO0 interrupt flags.
  */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
-        FDCAN_RxHeaderTypeDef RxHeader;
-        uint8_t tmp[64];
-        memset(tmp, 0, 64);
-
-        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, tmp) != HAL_OK) {
-            Error_Handler();
-            HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
-        }
-
-		CAN_EnqueueFrame(RxHeader.Identifier, dlc_to_bytes(RxHeader.DataLength), tmp);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-    }
-    /* added for debug */
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-}
+//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+//    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
+//        FDCAN_RxHeaderTypeDef RxHeader;
+//        uint8_t tmp[64];
+//        memset(tmp, 0, 64);
+//
+//        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, tmp) != HAL_OK) {
+//            Error_Handler();
+//            HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET);
+//        }
+//
+//		CAN_EnqueueFrame(RxHeader.Identifier, dlc_to_bytes(RxHeader.DataLength), tmp);
+//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+//    }
+//    /* added for debug */
+//    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+//}
 
 /* HELPER FUNCTIONS BELOW */
 

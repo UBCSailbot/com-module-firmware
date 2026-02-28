@@ -76,7 +76,7 @@ FDCAN_RxHeaderTypeDef RxHeader1;
 FDCAN_RxHeaderTypeDef RxHeader2;
 uint8_t RxData1[64];
 uint8_t RxData2[64];
-HAL_StatusTypeDef CanStartStatus;
+//HAL_StatusTypeDef CanStartStatus; Commented out arbitrarily
 
 float desiredRudderAngle;
 
