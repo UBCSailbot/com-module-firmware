@@ -1,0 +1,40 @@
+CompileFlags:
+  Add:
+    - -xc
+    - -std=gnu11
+
+---
+If:
+  PathMatch: (.*/)?firmware/controller-projects/rudder-controller/.*\.(c|h)$
+CompileFlags:
+  Add:
+    - -DUSE_HAL_DRIVER
+    - -DUSE_FULL_LL_DRIVER
+    - -DSTM32U575xx
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Core/Inc
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Drivers/STM32U5xx_HAL_Driver/Inc
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Drivers/CMSIS/Device/ST/STM32U5xx/Include
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Drivers/CMSIS/Include
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/rudder-control-model
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/motor-base-PID
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/briter-encoders
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183
+
+---
+If:
+  PathMatch: (.*/)?firmware/com-modules/CANFD/.*\.(c|h)$
+CompileFlags:
+  Add:
+    - -DUSE_HAL_DRIVER
+    - -DHAL_TIM_MODULE_ENABLED
+    - -DSTM32U575xx
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/com-modules/CANFD
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/com-modules/library-tests/fdcan-library-test/Core/Inc
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/com-modules/library-tests/fdcan-library-test/Drivers/STM32U5xx_HAL_Driver/Inc
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/com-modules/library-tests/fdcan-library-test/Drivers/CMSIS/Device/ST/STM32U5xx/Include
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/com-modules/library-tests/fdcan-library-test/Drivers/CMSIS/Include
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Core/Inc
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Drivers/STM32U5xx_HAL_Driver/Inc
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Drivers/CMSIS/Device/ST/STM32U5xx/Include
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/controller-projects/rudder-controller/Drivers/CMSIS/Include
+    - -I/home/george-sleen/Documents/design-team/sailbot/com-module-firmware/firmware/drv-modules/nmea0183
