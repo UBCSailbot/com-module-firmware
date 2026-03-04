@@ -17,7 +17,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
-//#include "MOCK_HARDWARE_FUNCTIONS.h"
 
 #define STRAIGHT_ONLY
 #define TUNING_MODE
@@ -147,6 +146,8 @@ typedef struct {
  */
 typedef struct {
     bool isTacking;
+	bool tackingAllowed;
+	float tackingBanStartTime;
     float tackingStartTime;
     float initialHeading;
     float targetHeading;
@@ -161,16 +162,53 @@ typedef struct {
  */
 typedef struct {
     bool isGybing;
+	bool gybingAllowed;
+	float gybingBanStartTime;
     float gybingStartTime;
     float initialHeading;
     float targetHeading;
 } GybingState;
 
 typedef struct {
+	float randomAngle;
+	float ironsStartTime;
+	float ironsEndTime;
+	float ironsDuration;
+	float ironsBlockDuration;
+	float fixedHeading;
+	bool isInIrons;
+} IronsState;
+
+typedef struct {
 	float integralValue;
 	float derivativeValue;
 	float errorValue;
 } LiveValues;
+
+/* Enumerates the boat's possible states
+ * States should be self explanatory to those familiar with the model
+ * Or sailing in general
+ * Or the project - boats, idk*/
+typedef enum {
+	STRAIGHT,
+	TACKING,
+	GYBING,
+	LOWWIND,
+	IRONS,
+	MANUAL,
+	COUNT
+} State;
+
+typedef struct {
+	uint32_t timestampBlock[COUNT][COUNT];
+} TransitionGuards;
+
+typedef struct {
+	State currentState;
+	State nextState;
+	uint32_t lastTransition;
+	TransitionGuards transitionGuards;
+} StateMachine;
 
 /* This struct represents the overall PID controller fixed coefficients
  * These coeffs are fixed as they do not change while the boat is under sail
@@ -208,6 +246,8 @@ typedef struct {
     TackingState tackingState;
     GybingState gybingState;
 	LiveValues liveValues;
+	IronsState ironsState;
+	StateMachine stateMachine;
 } PIDControllerLive;
 
 /* This struct encapsulates the entire PID controller
@@ -220,18 +260,6 @@ typedef struct {
 } PIDController;
 
 extern PIDController controller;
-
-/* Enumerates the boat's possible states
- * States should be self explanatory to those familiar with the model
- * Or sailing in general
- * Or the project - boats, idk*/
-typedef enum {
-	STRAIGHT,
-	TACKING,
-	GYBING,
-	LOWWIND,
-	IRONS
-} State;
 
 // Initializes the PID controller with fixed and live parameters from given fixed params
 void initController(PIDControllerFixed fixed);
@@ -246,6 +274,7 @@ void updateControllerVariables();
 void resetController();
 
 // Determines the current state of the boat based on sailing conditions
-State getState(float error);
+State returnState();
+bool isInIrons();
 
 #endif /* RUDDER_H_ */

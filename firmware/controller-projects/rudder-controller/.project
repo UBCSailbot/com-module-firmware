@@ -33,6 +33,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>CANFD</name>
+			<type>2</type>
+			<location>C:/Users/emmak/com-module-firmware/firmware/com-modules/CANFD</location>
+		</link>
+		<link>
 			<name>briter-encoders</name>
 			<type>2</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
