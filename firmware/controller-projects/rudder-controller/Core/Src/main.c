@@ -29,6 +29,7 @@
 #include "BRITER.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <can.h>
 
 /* USER CODE END Includes */
 
@@ -58,6 +59,8 @@ DAC_HandleTypeDef hdac1;
 
 FDCAN_HandleTypeDef hfdcan1;
 
+TIM_HandleTypeDef htim7;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
@@ -73,7 +76,7 @@ FDCAN_RxHeaderTypeDef RxHeader1;
 FDCAN_RxHeaderTypeDef RxHeader2;
 uint8_t RxData1[64];
 uint8_t RxData2[64];
-HAL_StatusTypeDef CanStartStatus;
+//HAL_StatusTypeDef CanStartStatus; Commented out arbitrarily
 
 float desiredRudderAngle;
 
@@ -98,6 +101,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -183,59 +187,65 @@ int main(void)
   MX_DAC1_Init();
   MX_FDCAN1_Init();
   MX_USART3_UART_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
 
 
   //CAN Setup
-    /* Configure standard ID reception filter to Rx buffer 0 */
-    sFilterConfig.IdType = FDCAN_STANDARD_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    sFilterConfig.FilterID1 = 0x000;
-    sFilterConfig.FilterID2 = 0x7FF;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
 
-    /* Configure extended ID reception filter to Rx FIFO 1 */
-    sFilterConfig.IdType = FDCAN_EXTENDED_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
-    sFilterConfig.FilterID1 = 0x1111111;
-    sFilterConfig.FilterID2 = 0x2222222;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // CAN Library setup
 
-    /* Configure global filter:
-       Filter all remote frames with STD and EXT ID
-       Reject non matching frames with STD ID and EXT ID */
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    CAN_Init(&hfdcan1, 0x131); //put in hbid
 
-    /*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
-    CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
-    if (CanStartStatus != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // /* Configure standard ID reception filter to Rx buffer 0 */
+    // sFilterConfig.IdType = FDCAN_STANDARD_ID;
+    // sFilterConfig.FilterIndex = 0;
+    // sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
+    // sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+    // sFilterConfig.FilterID1 = 0x000;
+    // sFilterConfig.FilterID2 = 0x7FF;
+    // if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // /* Configure extended ID reception filter to Rx FIFO 1 */
+    // sFilterConfig.IdType = FDCAN_EXTENDED_ID;
+    // sFilterConfig.FilterIndex = 0;
+    // sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
+    // sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+    // sFilterConfig.FilterID1 = 0x1111111;
+    // sFilterConfig.FilterID2 = 0x2222222;
+    // if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // /* Configure global filter:
+    //    Filter all remote frames with STD and EXT ID
+    //    Reject non matching frames with STD ID and EXT ID */
+    // if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+    // {
+    //     Error_Handler();
+    // }
+
+    // /*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
+    // CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
+    // if (CanStartStatus != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
+
+    // if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
+
+    // if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
     uint32_t can_frame_tx_time = HAL_GetTick();
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
@@ -330,18 +340,18 @@ int main(void)
 
     	  	//Update CAN frame
     uint16_t currentError = controller.live.liveValues.errorValue * 100;
-    printf("current error: %f \r\n", controller.live.liveValues.errorValue);
+//    printf("current error: %f \r\n", controller.live.liveValues.errorValue);
     rudder_debug_frame[14] = currentError & 0xFF;
     rudder_debug_frame[15] = (((uint16_t) currentError) >> 8) & 0xFF;
 
     uint16_t currentDerivative = (controller.live.liveValues.derivativeValue + 300) * 100;
     rudder_debug_frame[12] = currentDerivative & 0xFF;
-    printf("currentderivative: %f \r\n", controller.live.liveValues.derivativeValue);
+    printf("current derivative: %f \r\n", controller.live.liveValues.derivativeValue);
     rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
 
     uint16_t currentIntegral = controller.live.liveValues.integralValue + 30000;
     rudder_debug_frame[10] = currentIntegral & 0xFF;
-    printf("current integral: %u \r\n", currentIntegral);
+//    printf("current integral: %u \r\n", currentIntegral);
     rudder_debug_frame[11] = (((uint16_t) currentIntegral) >> 8) & 0xFF;
 
     uint16_t current_rudder_angle = (BRITER__floatAngle(encoderObject) + 90) * 100;
@@ -355,20 +365,26 @@ int main(void)
 	rudder_debug_frame[9] = (((uint16_t) commanded_rudder_angle) >> 8) & 0xFF;
 
 	  //Transmit CAN message after so long
-	  if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
-		  TxHeader1.Identifier         = RUDDER_TO_MAINFRAME_DEBUG_ID;
-		  TxHeader1.IdType             = (RUDDER_TO_MAINFRAME_DEBUG_ID>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
-		  TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
-		  TxHeader1.DataLength         = byte_to_dlc(16);  /* HAL expects DLC in bits [19:16] */
-		  TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
-		  TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
-		  TxHeader1.FDFormat           = FDCAN_FD_CAN;
-		  TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
+	  // if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
+		//   TxHeader1.Identifier         = RUDDER_TO_MAINFRAME_DEBUG_ID;
+		//   TxHeader1.IdType             = (RUDDER_TO_MAINFRAME_DEBUG_ID>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+		//   TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
+		//   TxHeader1.DataLength         = byte_to_dlc(16);  /* HAL expects DLC in bits [19:16] */
+		//   TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
+		//   TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
+		//   TxHeader1.FDFormat           = FDCAN_FD_CAN;
+		//   TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
-			printf("Err: CAN TX\r\n");
-		  }
-	  }
+		//   if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
+		// 	printf("Err: CAN TX\r\n");
+		//   }
+	  // }
+
+    if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
+      if(CAN_Transmit(RUDDER_TO_MAINFRAME_DEBUG_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_16, rudder_debug_frame, &hfdcan1) != HAL_OK){
+        Error_Handler();
+      }
+    }
 	}
 
 
@@ -572,7 +588,7 @@ static void MX_FDCAN1_Init(void)
 
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
-  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV4;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = ENABLE;
@@ -658,6 +674,44 @@ static void MX_ICACHE_Init(void)
   /* USER CODE BEGIN ICACHE_Init 2 */
 
   /* USER CODE END ICACHE_Init 2 */
+
+}
+
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 31999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 49999;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
 
 }
 
