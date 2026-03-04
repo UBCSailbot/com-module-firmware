@@ -35,7 +35,7 @@
 		<link>
 			<name>CANFD</name>
 			<type>2</type>
-			<location>C:/Users/emmak/com-module-firmware/firmware/com-modules/CANFD</location>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/com-modules/CANFD</locationURI>
 		</link>
 		<link>
 			<name>briter-encoders</name>
