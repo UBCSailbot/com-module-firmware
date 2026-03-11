@@ -59,6 +59,7 @@ UART_HandleTypeDef hlpuart1;
 UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef handle_GPDMA1_Channel13;
 DMA_HandleTypeDef handle_GPDMA1_Channel14;
 DMA_HandleTypeDef handle_GPDMA1_Channel15;
 
@@ -174,7 +175,7 @@ int main(void)
   HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
 
   nmea_channel_ais_gps = NMEA0183__create(&huart5);
-  nmea_channel_wind = NMEA0183__create(&huart2);
+  nmea_channel_wind = NMEA0183__create(&hlpuart1);
 
   ais_parser = AIS__create();
   memset(&ais_batch, 0, sizeof(ais_batch));
@@ -413,6 +414,8 @@ static void MX_GPDMA1_Init(void)
   __HAL_RCC_GPDMA1_CLK_ENABLE();
 
   /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel13_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel13_IRQn);
     HAL_NVIC_SetPriority(GPDMA1_Channel14_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(GPDMA1_Channel14_IRQn);
     HAL_NVIC_SetPriority(GPDMA1_Channel15_IRQn, 0, 0);
@@ -475,7 +478,7 @@ static void MX_LPUART1_UART_Init(void)
 
   /* USER CODE END LPUART1_Init 1 */
   hlpuart1.Instance = LPUART1;
-  hlpuart1.Init.BaudRate = 209700;
+  hlpuart1.Init.BaudRate = 4800;
   hlpuart1.Init.WordLength = UART_WORDLENGTH_8B;
   hlpuart1.Init.StopBits = UART_STOPBITS_1;
   hlpuart1.Init.Parity = UART_PARITY_NONE;
@@ -483,8 +486,9 @@ static void MX_LPUART1_UART_Init(void)
   hlpuart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   hlpuart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   hlpuart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  hlpuart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT;
+  hlpuart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT|UART_ADVFEATURE_RXINVERT_INIT;
   hlpuart1.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
+  hlpuart1.AdvancedInit.RxPinLevelInvert = UART_ADVFEATURE_RXINV_ENABLE;
   hlpuart1.FifoMode = UART_FIFOMODE_DISABLE;
   if (HAL_UART_Init(&hlpuart1) != HAL_OK)
   {
