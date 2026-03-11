@@ -59,6 +59,7 @@ UART_HandleTypeDef hlpuart1;
 UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef handle_GPDMA1_Channel13;
 DMA_HandleTypeDef handle_GPDMA1_Channel14;
 DMA_HandleTypeDef handle_GPDMA1_Channel15;
 
@@ -110,6 +111,99 @@ static void MX_TIM7_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void debug_log_wind_sentence(const NMEA0183Raw *message) {
+  size_t display_len;
+
+  if (message == NULL) {
+    return;
+  }
+
+  display_len = message->scentenceLength;
+  while ((display_len > 0U) &&
+         ((message->scentenceData[display_len - 1U] == '\r') ||
+          (message->scentenceData[display_len - 1U] == '\n') ||
+          (message->scentenceData[display_len - 1U] == '\0'))) {
+    display_len--;
+  }
+
+  printf("[WIND][RAW] len=%u data=\"%.*s\"\r\n", message->scentenceLength,
+         (int)display_len, message->scentenceData);
+}
+
+static void debug_log_wind_dma_snapshot(uint16_t dma_bytes) {
+  uint16_t snapshot_len;
+  uint16_t i;
+  const uint8_t *buffer;
+
+  if ((nmea_channel_wind == NULL) || (dma_bytes == 0U)) {
+    return;
+  }
+
+  snapshot_len = dma_bytes;
+  if (snapshot_len > 24U) {
+    snapshot_len = 24U;
+  }
+
+  buffer = nmea_channel_wind->receiveBuffers[nmea_channel_wind->receiveBufferPosition];
+
+  printf("[WIND][DMA] len=%u hex=", dma_bytes);
+  for (i = 0U; i < snapshot_len; i++) {
+    printf("%02X", buffer[i]);
+    if ((i + 1U) < snapshot_len) {
+      printf(" ");
+    }
+  }
+
+  printf(" ascii=\"");
+  for (i = 0U; i < snapshot_len; i++) {
+    uint8_t ch = buffer[i];
+
+    if ((ch >= 32U) && (ch <= 126U)) {
+      printf("%c", ch);
+    } else {
+      printf(".");
+    }
+  }
+  printf("\"");
+
+  if (dma_bytes > snapshot_len) {
+    printf("...");
+  }
+
+  printf("\r\n");
+}
+
+static void debug_poll_wind_channel(uint32_t now_ms) {
+  static uint32_t last_heartbeat_ms = 0U;
+  static uint16_t last_dma_bytes = 0U;
+  NMEA0183Raw *message;
+  uint16_t dma_bytes = 0U;
+
+  if (nmea_channel_wind == NULL) {
+    return;
+  }
+
+  message = NMEA0183__getTopBufferItem(nmea_channel_wind);
+  if (message != NULL) {
+    debug_log_wind_sentence(message);
+    last_dma_bytes = 0U;
+  } else if ((now_ms - last_heartbeat_ms) >= 1000U) {
+    if ((hlpuart1.hdmarx != NULL) && (hlpuart1.hdmarx->Instance != NULL)) {
+      dma_bytes = (uint16_t)((MAX_SENTENCE_LENGTH + 1U) -
+                             __HAL_DMA_GET_COUNTER(hlpuart1.hdmarx));
+    }
+
+    if ((dma_bytes > 0U) && (dma_bytes != last_dma_bytes)) {
+      debug_log_wind_dma_snapshot(dma_bytes);
+    }
+
+    printf("[WIND][HB] waiting on LPUART1 PG7/PG8 @ %lu baud dma_bytes=%u isr=0x%08lX\r\n",
+           (unsigned long)hlpuart1.Init.BaudRate, dma_bytes,
+           (unsigned long)hlpuart1.Instance->ISR);
+    last_heartbeat_ms = now_ms;
+    last_dma_bytes = dma_bytes;
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -174,7 +268,7 @@ int main(void)
   HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
 
   nmea_channel_ais_gps = NMEA0183__create(&huart5);
-  nmea_channel_wind = NMEA0183__create(&huart2);
+  nmea_channel_wind = NMEA0183__create(&hlpuart1);
 
   ais_parser = AIS__create();
   memset(&ais_batch, 0, sizeof(ais_batch));
@@ -193,7 +287,6 @@ int main(void)
   nmea_scheduler_wind.channel = nmea_channel_wind;
   nmea_scheduler_wind.wind_sensor = wind_sensor;
   nmea_scheduler_wind.hfdcan1 = &hfdcan1;
-  printf("BOOT: wingsail-controller started\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -204,6 +297,7 @@ int main(void)
     uint32_t now_ms = HAL_GetTick();
 
     // NMEA0183 parsing
+    debug_poll_wind_channel(now_ms);
     if (NMEA0183__scheduler_step(&nmea_scheduler_ais_gps, now_ms)) {
       HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
     }
@@ -372,7 +466,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Instance = FDCAN1;
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV4;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
-  hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+  hfdcan1.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
   hfdcan1.Init.AutoRetransmission = ENABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
@@ -413,6 +507,8 @@ static void MX_GPDMA1_Init(void)
   __HAL_RCC_GPDMA1_CLK_ENABLE();
 
   /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel13_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel13_IRQn);
     HAL_NVIC_SetPriority(GPDMA1_Channel14_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(GPDMA1_Channel14_IRQn);
     HAL_NVIC_SetPriority(GPDMA1_Channel15_IRQn, 0, 0);
@@ -475,7 +571,7 @@ static void MX_LPUART1_UART_Init(void)
 
   /* USER CODE END LPUART1_Init 1 */
   hlpuart1.Instance = LPUART1;
-  hlpuart1.Init.BaudRate = 209700;
+  hlpuart1.Init.BaudRate = 4800;
   hlpuart1.Init.WordLength = UART_WORDLENGTH_8B;
   hlpuart1.Init.StopBits = UART_STOPBITS_1;
   hlpuart1.Init.Parity = UART_PARITY_NONE;
@@ -483,8 +579,9 @@ static void MX_LPUART1_UART_Init(void)
   hlpuart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   hlpuart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   hlpuart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  hlpuart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT;
+  hlpuart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT|UART_ADVFEATURE_RXINVERT_INIT;
   hlpuart1.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
+  hlpuart1.AdvancedInit.RxPinLevelInvert = UART_ADVFEATURE_RXINV_ENABLE;
   hlpuart1.FifoMode = UART_FIFOMODE_DISABLE;
   if (HAL_UART_Init(&hlpuart1) != HAL_OK)
   {
@@ -950,6 +1047,11 @@ PUTCHAR_PROTOTYPE
   HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
 
   return ch;
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  (void)huart;
 }
 /* USER CODE END 4 */
 

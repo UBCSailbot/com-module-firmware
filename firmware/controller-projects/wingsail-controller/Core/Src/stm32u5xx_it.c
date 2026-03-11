@@ -57,8 +57,10 @@
 
 /* External variables --------------------------------------------------------*/
 extern FDCAN_HandleTypeDef hfdcan1;
+extern DMA_HandleTypeDef handle_GPDMA1_Channel13;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel14;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel15;
+extern UART_HandleTypeDef hlpuart1;
 extern UART_HandleTypeDef huart5;
 extern UART_HandleTypeDef huart2;
 extern TIM_HandleTypeDef htim7;
@@ -262,6 +264,20 @@ void UART5_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles LPUART1 global interrupt.
+  */
+void LPUART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN LPUART1_IRQn 0 */
+  NMEA0183__IRQHandler(&hlpuart1);
+  /* USER CODE END LPUART1_IRQn 0 */
+  HAL_UART_IRQHandler(&hlpuart1);
+  /* USER CODE BEGIN LPUART1_IRQn 1 */
+
+  /* USER CODE END LPUART1_IRQn 1 */
+}
+
+/**
   * @brief This function handles USB OTG FS global interrupt.
   */
 void OTG_FS_IRQHandler(void)
@@ -273,6 +289,20 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
 
   /* USER CODE END OTG_FS_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA1 Channel 13 global interrupt.
+  */
+void GPDMA1_Channel13_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA1_Channel13_IRQn 0 */
+
+  /* USER CODE END GPDMA1_Channel13_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA1_Channel13);
+  /* USER CODE BEGIN GPDMA1_Channel13_IRQn 1 */
+
+  /* USER CODE END GPDMA1_Channel13_IRQn 1 */
 }
 
 /**
