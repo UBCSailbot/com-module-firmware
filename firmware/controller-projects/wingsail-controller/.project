@@ -47,5 +47,10 @@
 			<type>2</type>
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/nmea0183</locationURI>
 		</link>
+		<link>
+			<name>briter-encoders</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
+		</link>
 	</linkedResources>
 </projectDescription>

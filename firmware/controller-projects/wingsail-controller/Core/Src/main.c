@@ -3,6 +3,15 @@
   ******************************************************************************
   * @file           : main.c
   * @brief          : Main program body
+  *
+  * Mast encoder integration:
+  * - Reads BRITER mast encoder on USART2 using DMA + RxEvent callback.
+  * - Configures USART2 for BRITER protocol (9600 baud, TX/RX inversion).
+  * - Computes signed mast angle (-180..+179) from encoder angle value.
+  * - Transmits mast angle over CAN FD (ID 0x205, 2-byte payload, 100 ms target).
+  * - Receives CAN command frame (ID 0x002) and updates servo setpoint.
+  * - Calls BRITER error checks to detect encoder timeout/data issues.
+  * - Wires required IRQ handlers: USART2 + GPDMA1 Channel 9.
   ******************************************************************************
   * @attention
   *
@@ -22,9 +31,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-//#include "BRITER.h"
-//#include "WINDSENSOR.h"
-//#include "NMEA0183.h"
+#include "BRITER.h"
+#include "NMEA0183.h"
 #include "can.h"
 #include "CANSPI.h"
 #include "CANSERVO.h"
@@ -51,11 +59,17 @@ ADC_HandleTypeDef hadc1;
 
 FDCAN_HandleTypeDef hfdcan1;
 
+I2C_HandleTypeDef hi2c1;
+
 SPI_HandleTypeDef hspi1;
 
 UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart2;
+DMA_HandleTypeDef handle_GPDMA1_Channel9;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
+BRITER *mastEncoderObject;
 
 /* USER CODE BEGIN PV */
 
@@ -65,6 +79,7 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 void SystemClock_Config(void);
 static void SystemPower_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_GPDMA1_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_UCPD1_Init(void);
@@ -72,6 +87,8 @@ static void MX_USART1_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -119,6 +136,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_GPDMA1_Init();
   MX_ADC1_Init();
   MX_ICACHE_Init();
   MX_UCPD1_Init();
@@ -126,20 +144,77 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_FDCAN1_Init();
   MX_SPI1_Init();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   CANSPI_Initialize();
   CAN_Init(&hfdcan1);
-//  NMEA0183* test = NMEA0183__create(&huart1);
+  mastEncoderObject = BRITER__create(&huart2, 20);
+
+
+
+
+  //If briter_create() returned NULL, something went wrong which means there could be 
+  // - not enough memory( malloc failed)
+  // - USART2 not initialized yet
+  // - Enocoder hardware not connected
+
+  if(mastEncoderObject == NULL){
+    Error_Handler();
+  }
+
+  printf("Mast encoder initialized\r\n");
+
+  // Note: Helper functions moved outside main() if needed
+  // These functions are not currently used but kept for reference
+  // int get_encoder_delta(int prev, int curr) { ... }
+  // void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) { ... }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   float angle = 0;
-  uint8_t * canBuffer;
-  canBuffer = (uint8_t *) malloc(9);
+  uint8_t canBuffer[9] = {0};
+
+  //Unique address for mast angle message, since rudder encoder uses 0x204.
+  //(Double check if the following address 0x205 is the correct unique ID/address for the mast angle messages)
+  #define MAST_ANGLE_CAN_ID 0x205
+  //100ms for transmission delay 
+  #define CAN_TX_DELAY_MS 100 
+
+  //Track when the last CAN message was sent
+  uint32_t lastCanTxTime = HAL_GetTick();
+
+  //Buffer to hold CAN message data
+  uint8_t mastCanData[8] = {0};
+
   while (1)
   {
-    HAL_Delay(500);
+    uint16_t rawValue = BRITER__getEncoderRaw(mastEncoderObject);
+    float mastAngle = BRITER__floatAngle(mastEncoderObject);
+
+
+    //if we only want our angle to be between -180 to +180 degreees so it might be easier to work with. (instead of 270 this would convert it to -90)
+    
+    int16_t signedAngle = (mastAngle < 180) ?  mastAngle : mastAngle - 360;  
+
+
+    mastCanData[0] = signedAngle & 0xFF;
+    mastCanData[1] = (signedAngle >> 8) & 0xFF; 
+
+    // "Try" to send mast ANGLE over CAN BUS
+    if(HAL_GetTick() - lastCanTxTime >= CAN_TX_DELAY_MS) { 
+      if(CAN_Transmit(MAST_ANGLE_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, mastCanData, &hfdcan1) == HAL_OK) {
+        lastCanTxTime = HAL_GetTick();
+      }
+
+
+    } 
+
+    BRITER__checkErrors(mastEncoderObject);
+
+    HAL_Delay(10);
     if (CAN_Receive(canBuffer) == HAL_OK){
     	printf("Rec");
     	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
@@ -150,7 +225,9 @@ int main(void)
     }
 
     set_servo_angle(angle);
-    printf("This is a test print %f\r\n", angle);
+    printf("This is a test print %f\r\n", (float) angle);
+    printf("Mast Angle:%f deg (Raw: %f) \r\n", (float)mastAngle, (float)rawValue);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -321,6 +398,82 @@ static void MX_FDCAN1_Init(void)
   /* USER CODE BEGIN FDCAN1_Init 2 */
 
   /* USER CODE END FDCAN1_Init 2 */
+
+}
+
+/**
+  * @brief GPDMA1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPDMA1_Init(void)
+{
+
+  /* USER CODE BEGIN GPDMA1_Init 0 */
+
+  /* USER CODE END GPDMA1_Init 0 */
+
+  /* Peripheral clock enable */
+  __HAL_RCC_GPDMA1_CLK_ENABLE();
+
+  /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel9_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel9_IRQn);
+
+  /* USER CODE BEGIN GPDMA1_Init 1 */
+
+  /* USER CODE END GPDMA1_Init 1 */
+  /* USER CODE BEGIN GPDMA1_Init 2 */
+
+  /* USER CODE END GPDMA1_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x30909DEC;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -499,7 +652,57 @@ static void MX_USART1_UART_Init(void)
   }
   /* USER CODE BEGIN USART1_Init 2 */
 
+
+
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 9600;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart2, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart2, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -629,6 +832,14 @@ PUTCHAR_PROTOTYPE
 
   return ch;
 }
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size){
+  
+  if ((huart->Instance == USART2) && (mastEncoderObject != NULL)) {
+    BRITER__handleDMA(mastEncoderObject, huart, size);
+  }
+}
+
 /* USER CODE END 4 */
 
 /**

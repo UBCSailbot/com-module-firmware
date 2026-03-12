@@ -56,6 +56,8 @@
 
 /* External variables --------------------------------------------------------*/
 extern FDCAN_HandleTypeDef hfdcan1;
+extern DMA_HandleTypeDef handle_GPDMA1_Channel9;
+extern UART_HandleTypeDef huart2;
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 /* USER CODE BEGIN EV */
 
@@ -214,6 +216,20 @@ void FDCAN1_IT0_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles USART2 global interrupt.
+  */
+void USART2_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART2_IRQn 0 */
+
+  /* USER CODE END USART2_IRQn 0 */
+  HAL_UART_IRQHandler(&huart2);
+  /* USER CODE BEGIN USART2_IRQn 1 */
+
+  /* USER CODE END USART2_IRQn 1 */
+}
+
+/**
   * @brief This function handles USB OTG FS global interrupt.
   */
 void OTG_FS_IRQHandler(void)
@@ -225,6 +241,20 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
 
   /* USER CODE END OTG_FS_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA1 Channel 9 global interrupt.
+  */
+void GPDMA1_Channel9_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA1_Channel9_IRQn 0 */
+
+  /* USER CODE END GPDMA1_Channel9_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA1_Channel9);
+  /* USER CODE BEGIN GPDMA1_Channel9_IRQn 1 */
+
+  /* USER CODE END GPDMA1_Channel9_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
