@@ -2,13 +2,13 @@
  * BRITER.c
  *
  *  Created on: Nov 29, 2024
- *      Author: Michael Greenough
+ *      Author: Michael Greenough, Christian Conroy
  */
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- INCLUDES ----------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
-
+#include "stdbool.h"
 #include "BRITER.h"
 #include <string.h>
 #include <stdlib.h>
@@ -19,17 +19,19 @@
 //--------------------------------------------------------------------------- PRIVATE MACROS ----------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-//Timeout duration on transmissions
+// UART communication and encoder polling timing configurations
 #define TRANSMISSION_MAX_TIME 5000
-
-//Delay between transmissions
 #define DELAY_BETWEEN_TRANSMISSIONS 100
-
-//Maximum length of sentence that can be received or sent
 #define MAX_SCENTENCE_LENGTH 16
-
-//Minimum period between sample request from the encoder. 20ms is the minimum recommended by the manufacturer.
 #define MINIMUM_SAMPLE_PERIOD 20
+#define RECOVERY_GRACE_PERIOD_MS 2000
+#define RECOVERY_WAIT_MS 3000
+#define DATA_TIMEOUT_MS 100
+#define STARTUP_DELAY_MS 3000
+
+//Encoder Raw data and Recovery Flag
+static uint8_t inRecovery = 0;
+static volatile uint16_t encoderRaw = 0;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- GLOBAL VARIABLES --------------------------------------------------------------
@@ -37,15 +39,10 @@
 
 //Set the encoder to automatically return position data
 const uint8_t autoPositionCMD[] = {0x00, 0x06, 0x00, 0x01};
-
 //Set the encoder's zero position
 const uint8_t zeroPositionCMD[] = {0x00, 0x08, 0x00, 0x01};
-
 //Set the encoder return rate (this is default 20, but will be modified in the initialization)
 uint8_t encoderDataRateCMD[] = {0x00, 0x07, 0x00, 0x14};
-
-// Raw values of Encoder
-static volatile uint16_t encoderRaw = 0;
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- PFP ---------------------------------------------------------------------------
@@ -94,16 +91,20 @@ uint32_t modbus_CRC(uint8_t * inputBuffer, uint16_t length){
 	return wcrc;
 }
 
+
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 //Initializes the BRITER object
 void BRITER__init(BRITER* self, UART_HandleTypeDef * huartChannel, volatile uint16_t * encoderRaw, uint16_t samplePeriod) {
-
 	//Copy the relevant data to the object
 	self->encoderRaw = encoderRaw;
 	self->huart = huartChannel;
+
+    //ensure enoder is in fallback
+    self->encoderReady = false;
 
 	//Allocate and reset the inputBuffer
 	self->inputBuffer = (uint8_t *) malloc(MAX_SCENTENCE_LENGTH);
@@ -121,17 +122,29 @@ void BRITER__init(BRITER* self, UART_HandleTypeDef * huartChannel, volatile uint
     sendScentence(self, encoderDataRateCMD, 4);
     HAL_Delay(DELAY_BETWEEN_TRANSMISSIONS);
 
-    //Clear any flags then trigger a DMA reception
+
+    //Clear any flags then trigger 	a DMA reception
 	__HAL_UART_CLEAR_FLAG(huartChannel, UART_FLAG_IDLE);
 	__HAL_UART_CLEAR_FLAG(huartChannel, UART_FLAG_RXNE);
 	__HAL_UART_CLEAR_FLAG(huartChannel, UART_FLAG_ORE);
+
 	HAL_UARTEx_ReceiveToIdle_DMA(self->huart, self->inputBuffer, 16);
 
 }
 
+// creates a new BRITER object
 BRITER* BRITER__create(UART_HandleTypeDef * huartChannel, uint16_t samplePeriod) {
     BRITER* result = (BRITER*)malloc(sizeof(BRITER));
-    if (result == NULL) return NULL; // Prevent null pointer issues
+    if (result == NULL) {
+		printf("BRITER ERROR: Failed to allocate memory for encoder object.\r\n");
+		return NULL; // Prevent null pointer issues
+		HAL_Delay(500); //necessary to run encoder. Puttin this in briter init kills it.
+}
+    memset(result, 0, sizeof(BRITER));
+    // Save the sample period in the structure for later use.
+    result->samplePeriod = samplePeriod;
+    result->startupTime = HAL_GetTick();
+
 
     // Initialize using the internally managed encoderRaw
     BRITER__init(result, huartChannel, &encoderRaw, samplePeriod);
@@ -145,82 +158,167 @@ BRITER* BRITER__create(UART_HandleTypeDef * huartChannel, uint16_t samplePeriod)
 
 
 //Collects our raw encoder values
+//this function is the basis for any data collection from the encoder. It is called by the HAL_UARTEx_RxEventCallback() function.
+//it also calls the BRITER__checkErrors() function which runs an error check every time the encoder wants to be read.
 uint16_t BRITER__getEncoderRaw(BRITER* self) {
+	BRITER__checkErrors(self);
     return *(self->encoderRaw);
 }
 
+
+
+
 // Compute the 0-360 angle value
-void BRITER__computeAngle(BRITER *self) {
-    if (self == NULL || self->encoderRaw == NULL) return; // Safety check
-    self->angleVal = (*(self->encoderRaw) * 360) / 1024;
+int16_t BRITER__computeAngle(BRITER *self) {
+    if (self == NULL) return -1;
+    uint16_t raw = BRITER__getEncoderRaw(self); // Includes error checks
+    return (int16_t)((raw * 360.0f) / 1024.0f);
 }
 
+uint32_t BRITER__getLastReadTimestamp(BRITER * self){
+	return self->lastValidDataTime;
+}
+
+
+
 // Compute the clamped -45 to 45 passval
-void BRITER__computePassval(BRITER *self) {
-    if (self == NULL) return; // Safety check
+// This function is used to ensure that the angle value is within a certain range.
+// It takes the angle value and clamps it to the range of -45 to 45 degrees.
+// While not necessary it was useful for testing and I have left it in for sake of completeness.
+int16_t BRITER__clampAngle(BRITER *self) {
+    if (self == NULL) return -1000; // Sentinel error value
+
+    // Ensure angleVal is up to date
+    self->angleVal = BRITER__computeAngle(self);
+
     int16_t signedAngle = (self->angleVal < 180) ? self->angleVal : self->angleVal - 360;
-    
+
     if (signedAngle > 45) {
-        self->passval = 45;
+        return 45;
     } else if (signedAngle < -45) {
-        self->passval = -45;
+        return -45;
     } else {
-        self->passval = signedAngle;
+        return signedAngle;
     }
 }
 
-//zeros values of encoder
-void BRITER__zeroPosition(BRITER* self){
-	sendScentence(self, (uint8_t *) zeroPositionCMD, 4);
+float BRITER__floatAngle(BRITER *self){
+	if (self == NULL) return -1000; // Sentinel error value
+	// Ensure angleVal is up to date
+	uint16_t raw_angle = BRITER__getEncoderRaw(self);
+	if (raw_angle == ENCODER_NOT_READY_SENTINEL) {
+	   return ENCODER_NOT_READY_SENTINEL;
+	}
+
+	float floatAngleVal = ((raw_angle * 360.0f) / 1024.0f);
+
+	float signedAngle = (floatAngleVal < 180) ? floatAngleVal : floatAngleVal - 360;
+
+	if (signedAngle > 180) {
+	    return 180;
+    } else if (signedAngle < -180) {
+	    return -180;
+	} else {
+	    return signedAngle;
+	}
 }
 
+
+//This function is called to reinitialize the encoder after a power cycle.
+//it effectively destorys the old object if it still exists and creates a new one.
+//it is called by the BRITER__powerCycle() function.
+void BRITER__reEngage(BRITER* self) {
+    if (self == NULL) return;
+    // Reinitialize using the values stored in the object.
+    printf("BRITER: ReEngaging Encoder...\r\n");
+    BRITER__init(self, self->huart, self->encoderRaw, self->samplePeriod);
+}
+
+
+
+// This function is called to power cycle the encoder. It cuts power, waits and restores power.
+//it also calls the BRITER__reEngage() function to reinitialize the encoder for maximum robustness.
 void BRITER__powerCycle(BRITER* self) {
     if (self == NULL) return;
 
-    printf("BRITER: Power cycling the encoder...\n");
+    printf("BRITER: Power cycling the encoder...\r\n");
 
-    // Turn off encoder power
+    //this turns the encoder power off
     HAL_GPIO_WritePin(ENCODER_POWER_GPIO, ENCODER_POWER_PIN, GPIO_PIN_RESET);
-    HAL_Delay(3000);  // Wait longer to ensure full power-down
+    HAL_Delay(RECOVERY_WAIT_MS);
 
-    // Turn encoder power back on
+    //this turns the encoder power back on
     HAL_GPIO_WritePin(ENCODER_POWER_GPIO, ENCODER_POWER_PIN, GPIO_PIN_SET);
-    HAL_Delay(1000);  // Extra time for encoder to restart
-
-    // Reset the last valid data time so it doesn't re-trigger the timeout
-    self->lastValidDataTime = HAL_GetTick();
-
-    // Reinitialize UART communication
-    HAL_UARTEx_ReceiveToIdle_DMA(self->huart, self->inputBuffer, 16);
+    HAL_Delay(RECOVERY_WAIT_MS);
+    BRITER__reEngage(self);
 }
 
 
-//check error
+//This function is responsible for checking the encoder for errors.
+//it checks for a few different error conditions and handles them accordingly.
 void BRITER__checkErrors(BRITER* self) {
     if (self == NULL) return;
 
     uint32_t currentTime = HAL_GetTick();
 
-    // If we've already power-cycled recently, don't keep triggering
-    if (currentTime - self->lastValidDataTime < 5000) {
-        return;  // Allow time to stabilize before retrying
-    }
+    //data reception and timout handling.
+    // If no valid data is recieved within the grace period, the uart is reset and sentinel value is returned as actual value.
+    if (!self->encoderReady && (currentTime - self->lastValidDataTime > RECOVERY_GRACE_PERIOD_MS)) {
+        printf("BRITER ERROR: No encoder response after boot.\r\n");
 
-    // Check for encoder timeout (100ms)
-    if (currentTime - self->lastValidDataTime > 100) {
-        printf("BRITER ERROR: Encoder timeout! Attempting power cycle...\n");
+        // Soft reset the UART to try again
+        HAL_UART_AbortReceive(self->huart);
+        HAL_UARTEx_ReceiveToIdle_DMA(self->huart, self->inputBuffer, 16);
 
-        // Power cycle the encoder once **Currently the power cycle function kills the entire program
-       // BRITER__powerCycle(self);
-
+        //resets the counter and throws up sentinel value
+        self->lastValidDataTime = currentTime;
+        *(self->encoderRaw) = ENCODER_NOT_READY_SENTINEL;
         return;
     }
+
+    //Bootup sentinel value return.
+    // If encoder hasn't had time to boot, return sentinel
+    if (!self->encoderReady || (currentTime - self->startupTime < STARTUP_DELAY_MS)) {
+        *(self->encoderRaw) = ENCODER_NOT_READY_SENTINEL;
+        return;
+    }
+    //Recovery period check
+    if (inRecovery && (currentTime - self->lastValidDataTime < RECOVERY_GRACE_PERIOD_MS)) {
+        return;
+    }
+
+    // Check for UART timeout or error
+    if (!inRecovery && (currentTime - self->lastValidDataTime > DATA_TIMEOUT_MS)) {
+        bool uartError = false;
+        //The STM-32 has 3 uart flags that are automatically set by the hardware.
+        //By checking these flags we can determine if the UART is in a bad state.
+        //if any of there flags are set, we raise the uart error flag.
+        if ((__HAL_UART_GET_FLAG(self->huart, UART_FLAG_ORE) == SET) ||
+            (__HAL_UART_GET_FLAG(self->huart, UART_FLAG_FE) == SET) ||
+            (__HAL_UART_GET_FLAG(self->huart, UART_FLAG_NE) == SET)) {
+            uartError = true;
+        }
+
+        //Timeout and uart error reset.
+        if (uartError && (*(self->encoderRaw) == self->lastRawValue)) {
+            printf("BRITER ERROR: Encoder data stagnant and UART error flag detected. Triggering recovery...\r\n");
+            inRecovery = 1;
+            BRITER__powerCycle(self);
+        } else {
+            self->lastRawValue = *(self->encoderRaw);  // Update only if new data
+        }
+    }
+
 }
 
 
 
-// Update BRITER__handleDMA to include angle calculations, timeout tracking, and error detection
+
+
+//handles the incoming data from the encoder. This function should be called inside HAL_UARTEx_RxEventCallback().
+// It checks the message length, CRC, and data format. It also has an led for debugging (currently its turned off, just uncomment the line to turn it on).
 void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart, uint16_t size) {
+
     if (huart->Instance == self->huart->Instance) {
 
         // If it is an incomplete message, ignore it
@@ -249,15 +347,19 @@ void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart, uint16_t size) {
             return;
         }
 
-        // **Check for errors using our new function**
-        BRITER__checkErrors(self);
-
         // If message is valid, process data
         if (bufPoint[0] == 0x01 && bufPoint[1] == 0x03 && bufPoint[2] == 0x04) {
             self->encoderRaw[0] = bufPoint[5] << 8 | bufPoint[6];
-            BRITER__computeAngle(self);
-            BRITER__computePassval(self);
-            self->lastValidDataTime = HAL_GetTick(); // Update last valid timestamp
+
+            //raises encoderready flag
+            if (!self->encoderReady) {
+                self->encoderReady = true;
+            }
+            self->lastValidDataTime = HAL_GetTick();
+            //BRITER__blinkStatusLED();                     <------ led that can be toggled for debugging. If this flashes it means that we are successfully sending data to DMA.
+
+            // Exit recovery mode once valid data is received
+            inRecovery = 0;
         } else {
             printf("BRITER ERROR: Incorrect data format received.\r\n");
         }
@@ -271,7 +373,7 @@ void BRITER__handleDMA(BRITER* self, UART_HandleTypeDef *huart, uint16_t size) {
 }
 
 
-//sends a command to the encoder
+//sends a command to the encoder, its used for configuration.
 void sendScentence(BRITER* self, uint8_t *outputData, uint16_t outputLength) {
     // Allocate memory for the output buffer
     uint8_t *outputBuffer = (uint8_t *) malloc(MAX_SCENTENCE_LENGTH);
@@ -302,7 +404,18 @@ void sendScentence(BRITER* self, uint8_t *outputData, uint16_t outputLength) {
     free(outputBuffer);
 }
 
+//blinks an led at a reasonable rate. Used for error catching
+void BRITER__blinkStatusLED(void) {
+    static uint32_t lastBlinkTime = 0;
+    uint32_t now = HAL_GetTick();
 
+    if (now - lastBlinkTime >= 500) {  // Adjust to your vibe (e.g., 1000 for 1 sec)
+        HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+        lastBlinkTime = now;
+    }
+}
 
-
-
+//zeros values of encoder
+void BRITER__zeroPosition(BRITER* self){
+	sendScentence(self, (uint8_t *) zeroPositionCMD, 4);
+}
