@@ -43,6 +43,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define SERVO_LIMIT 80
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -314,8 +315,17 @@ int main(void)
                          (((uint32_t)canRxFrame.RxData1[1]) << 8) |
                          ((uint32_t)canRxFrame.RxData1[0]);
         angle = ((float) value) / 1000.0 - 90.0;
+        angle *= 8.0;
       }
     }
+
+    if (angle < -SERVO_LIMIT){
+    	angle = -SERVO_LIMIT;
+    } else if (angle > SERVO_LIMIT){
+    	angle = SERVO_LIMIT;
+    }
+
+
     set_servo_angle(angle);
 
     /* USER CODE END WHILE */
