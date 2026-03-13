@@ -241,7 +241,7 @@ static void test_wind_sensor_print_format(void) {
 }
 
 /**
- * @brief Validate CAN transmit packs wind payload and IDs.
+ * @brief Validate CAN transmit packs the SAIL_WIND payload and ID.
  *
  * @param void
  * @return void
@@ -258,19 +258,12 @@ static void test_wind_sensor_can_transmit_payload(void) {
 
   TEST_ASSERT(&g_failures,
               WIND_SENSOR__CAN_transmit(&sensor, &hfdcan) == HAL_OK);
-  TEST_ASSERT(&g_failures, g_tx_call_count == 2);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 1);
   TEST_ASSERT(&g_failures, g_tx_identifiers[0] == 0x040);
-  TEST_ASSERT(&g_failures, g_tx_identifiers[1] == 0x041);
   TEST_ASSERT(&g_failures, g_tx_id_types[0] == FDCAN_STANDARD_ID);
-  TEST_ASSERT(&g_failures, g_tx_id_types[1] == FDCAN_STANDARD_ID);
   TEST_ASSERT(&g_failures, g_tx_data_lengths[0] == FDCAN_DLC_BYTES_4);
-  TEST_ASSERT(&g_failures, g_tx_data_lengths[1] == FDCAN_DLC_BYTES_4);
   TEST_ASSERT(&g_failures, g_tx_payload_sizes[0] == 4);
-  TEST_ASSERT(&g_failures, g_tx_payload_sizes[1] == 4);
-  TEST_ASSERT(&g_failures,
-              memcmp(g_tx_payloads[0], expected_payload, 4) == 0);
-  TEST_ASSERT(&g_failures,
-              memcmp(g_tx_payloads[1], expected_payload, 4) == 0);
+  TEST_ASSERT(&g_failures, memcmp(g_tx_payloads[0], expected_payload, 4) == 0);
 }
 
 /**
@@ -284,13 +277,12 @@ static void test_wind_sensor_can_transmit_propagates_status(void) {
   FDCAN_HandleTypeDef hfdcan = {0};
 
   reset_can_tx_capture();
-  g_tx_statuses[0] = HAL_OK;
-  g_tx_statuses[1] = HAL_ERROR;
-  g_tx_status_count = 2;
+  g_tx_statuses[0] = HAL_ERROR;
+  g_tx_status_count = 1;
 
   TEST_ASSERT(&g_failures,
               WIND_SENSOR__CAN_transmit(&sensor, &hfdcan) == HAL_ERROR);
-  TEST_ASSERT(&g_failures, g_tx_call_count == 2);
+  TEST_ASSERT(&g_failures, g_tx_call_count == 1);
 }
 
 /**

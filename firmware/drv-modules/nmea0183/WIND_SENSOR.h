@@ -99,7 +99,7 @@ bool WIND_SENSOR__parseMessage(WIND_SENSOR *self, NMEA0183Raw *message);
 void WIND_SENSOR__print(const WIND_SENSOR *self);
 
 /**
- *  Transmit both SAIL_WIND and DATA_WIND over CANFD
+ *  Transmit SAIL_WIND over CANFD
  *  as defined in [Sailbot's Confluence Page]
  *  (https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
  *

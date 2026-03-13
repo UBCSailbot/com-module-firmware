@@ -29,7 +29,6 @@ static const uint8_t WIND_STATUS_INDEX = 5;
 
 // CAN communication
 static const can_frame_id_t SAIL_WIND_ID = 0x040;
-static const can_frame_id_t DATA_WIND_ID = 0x041;
 static const uint32_t WIND_DATA_LENGTH = FDCAN_DLC_BYTES_4;
 
 /*
@@ -253,7 +252,7 @@ void WIND_SENSOR__print(const WIND_SENSOR *self) {
 }
 
 /**
- *  Transmit SAIL_WIND or DATA_WIND over CANFD
+ *  Transmit SAIL_WIND over CANFD.
  */
 static HAL_StatusTypeDef
 WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
@@ -285,7 +284,7 @@ WIND_SENSOR__CAN_transmit_single(WIND_SENSOR *self, can_frame_id_t CAN_ID,
 }
 
 /**
- *  Transmit both SAIL_WIND and DATA_WIND over CANFD
+ *  Transmit SAIL_WIND over CANFD
  *  as defined in [Sailbot's Confluence Page]
  *  (https://ubcsailbot.atlassian.net/wiki/spaces/prjt22/pages/1827176527/CAN+Frames)
  *
@@ -300,15 +299,5 @@ HAL_StatusTypeDef WIND_SENSOR__CAN_transmit(WIND_SENSOR *self,
     return HAL_ERROR;
   }
 
-  HAL_StatusTypeDef sailTransmitted =
-      WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND_ID, hfdcan1);
-  HAL_StatusTypeDef dataTransmitted =
-      WIND_SENSOR__CAN_transmit_single(self, DATA_WIND_ID, hfdcan1);
-
-  NMEA_DEBUG_PRINT("[WIND][CAN] combined status sail=%d data=%d\r\n",
-                   sailTransmitted, dataTransmitted);
-
-  if (sailTransmitted != HAL_OK)
-    return sailTransmitted;
-  return dataTransmitted;
+  return WIND_SENSOR__CAN_transmit_single(self, SAIL_WIND_ID, hfdcan1);
 }
