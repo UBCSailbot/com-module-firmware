@@ -65,6 +65,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 extern uint8_t g_fw_enable_debug_prints;
+extern uint8_t g_fw_enable_can_prints;
 
 /* USER CODE END EFP */
 

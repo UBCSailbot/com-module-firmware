@@ -10,6 +10,7 @@
 #define GPIOC ((GPIO_TypeDef *)0)
 
 extern uint8_t g_fw_enable_debug_prints;
+extern uint8_t g_fw_enable_can_prints;
 
 void Error_Handler(void);
 

@@ -3,6 +3,7 @@
 #include <string.h>
 
 uint8_t g_fw_enable_debug_prints = 0;
+uint8_t g_fw_enable_can_prints = 0;
 
 /**
  * @brief Convert a nibble to uppercase hex ASCII.

@@ -130,6 +130,9 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan1, uint32_t hbid) {
  */
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1) {
     FDCAN_TxHeaderTypeDef TxHeader;
+    HAL_StatusTypeDef status;
+    uint8_t payload_len;
+    uint8_t i;
 
     TxHeader.Identifier = Identifier;
     TxHeader.IdType = IdType;
@@ -140,7 +143,23 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
     TxHeader.FDFormat = FDCAN_FD_CAN;
     TxHeader.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-    return HAL_FDCAN_AddMessageToTxFifoQ(hfdcan1, &TxHeader, DataBuffer);
+    status = HAL_FDCAN_AddMessageToTxFifoQ(hfdcan1, &TxHeader, DataBuffer);
+    payload_len = dlc_to_bytes((uint8_t)DataLength);
+
+    if (g_fw_enable_can_prints != 0U) {
+        printf("[CAN][TX] status=%d id=0x%08lX idType=%lu dlc=%lu len=%u data=",
+               status, (unsigned long)Identifier, (unsigned long)IdType,
+               (unsigned long)DataLength, payload_len);
+        for (i = 0U; i < payload_len; i++) {
+            printf("%02X", (DataBuffer != NULL) ? DataBuffer[i] : 0U);
+            if ((i + 1U) < payload_len) {
+                printf(" ");
+            }
+        }
+        printf("\r\n");
+    }
+
+    return status;
 }
 
 /**
@@ -247,7 +266,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance == TIM7) {
 		uint8_t tx_heart = 0;
-		if (CAN_Transmit(heartbeat_id, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_0, &tx_heart, &hfdcan1) != HAL_OK){
+		HAL_StatusTypeDef status =
+				CAN_Transmit(heartbeat_id, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_0,
+						     &tx_heart, &hfdcan1);
+		printf("[CAN][HB] id=0x%03lX status=%d\r\n",
+		       (unsigned long)heartbeat_id, status);
+		if (status != HAL_OK){
 			Error_Handler();
 			/* HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET); */ //debug
 		} /* else HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7); */ // debug

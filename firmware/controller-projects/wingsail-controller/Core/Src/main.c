@@ -82,6 +82,7 @@ static NMEA0183_Scheduler nmea_scheduler_wind;
 static CAN_Frame canRxFrame;
 static float angle = 0.0f;
 uint8_t g_fw_enable_debug_prints = 0;
+uint8_t g_fw_enable_can_prints = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -115,7 +116,7 @@ static void MX_TIM7_Init(void);
 static void debug_log_wind_sentence(const NMEA0183Raw *message) {
   size_t display_len;
 
-  if (message == NULL) {
+  if ((message == NULL) || (g_fw_enable_debug_prints == 0U)) {
     return;
   }
 
@@ -131,54 +132,8 @@ static void debug_log_wind_sentence(const NMEA0183Raw *message) {
          (int)display_len, message->scentenceData);
 }
 
-static void debug_log_wind_dma_snapshot(uint16_t dma_bytes) {
-  uint16_t snapshot_len;
-  uint16_t i;
-  const uint8_t *buffer;
-
-  if ((nmea_channel_wind == NULL) || (dma_bytes == 0U)) {
-    return;
-  }
-
-  snapshot_len = dma_bytes;
-  if (snapshot_len > 24U) {
-    snapshot_len = 24U;
-  }
-
-  buffer = nmea_channel_wind->receiveBuffers[nmea_channel_wind->receiveBufferPosition];
-
-  printf("[WIND][DMA] len=%u hex=", dma_bytes);
-  for (i = 0U; i < snapshot_len; i++) {
-    printf("%02X", buffer[i]);
-    if ((i + 1U) < snapshot_len) {
-      printf(" ");
-    }
-  }
-
-  printf(" ascii=\"");
-  for (i = 0U; i < snapshot_len; i++) {
-    uint8_t ch = buffer[i];
-
-    if ((ch >= 32U) && (ch <= 126U)) {
-      printf("%c", ch);
-    } else {
-      printf(".");
-    }
-  }
-  printf("\"");
-
-  if (dma_bytes > snapshot_len) {
-    printf("...");
-  }
-
-  printf("\r\n");
-}
-
-static void debug_poll_wind_channel(uint32_t now_ms) {
-  static uint32_t last_heartbeat_ms = 0U;
-  static uint16_t last_dma_bytes = 0U;
+static void debug_poll_wind_channel(void) {
   NMEA0183Raw *message;
-  uint16_t dma_bytes = 0U;
 
   if (nmea_channel_wind == NULL) {
     return;
@@ -187,22 +142,6 @@ static void debug_poll_wind_channel(uint32_t now_ms) {
   message = NMEA0183__getTopBufferItem(nmea_channel_wind);
   if (message != NULL) {
     debug_log_wind_sentence(message);
-    last_dma_bytes = 0U;
-  } else if ((now_ms - last_heartbeat_ms) >= 1000U) {
-    if ((hlpuart1.hdmarx != NULL) && (hlpuart1.hdmarx->Instance != NULL)) {
-      dma_bytes = (uint16_t)((MAX_SENTENCE_LENGTH + 1U) -
-                             __HAL_DMA_GET_COUNTER(hlpuart1.hdmarx));
-    }
-
-    if ((dma_bytes > 0U) && (dma_bytes != last_dma_bytes)) {
-      debug_log_wind_dma_snapshot(dma_bytes);
-    }
-
-    printf("[WIND][HB] waiting on LPUART1 PG7/PG8 @ %lu baud dma_bytes=%u isr=0x%08lX\r\n",
-           (unsigned long)hlpuart1.Init.BaudRate, dma_bytes,
-           (unsigned long)hlpuart1.Instance->ISR);
-    last_heartbeat_ms = now_ms;
-    last_dma_bytes = dma_bytes;
   }
 }
 /* USER CODE END 0 */
@@ -298,7 +237,7 @@ int main(void)
     uint32_t now_ms = HAL_GetTick();
 
     // NMEA0183 parsing
-    debug_poll_wind_channel(now_ms);
+    debug_poll_wind_channel();
     if (NMEA0183__scheduler_step(&nmea_scheduler_ais_gps, now_ms)) {
       HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
     }
