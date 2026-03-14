@@ -57,11 +57,28 @@ typedef struct
     uint8_t reg3_value;
 
     bool configure_1mbit;            
-    uint8_t reg9_value;             /* CAN bit timing */
-    uint8_t regb_value;
-    uint8_t regc_value;
-    uint8_t rege_value;
+    uint8_t reg9_value;             /* Prop_Seg + Phase_Seg1 */
+    uint8_t regb_value;             /* Phase_Seg2 */  
+    uint8_t regc_value;             /* SJW */
+    uint8_t rege_value;             /* Prescaler */ 
 } DCAN500_Config_t;
+
+
+//Public API
+HAL_StatusTypeDef DCAN500_WriteRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg, uint8_t value);
+HAL_StatusTypeDef DCAN500_ReadRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg, uint8_t *value);
+
+HAL_StatusTypeDef DCAN500_ApplyConfig(FDCAN_HandleTypeDef *hfdcan, const DCAN500_Config_t *cfg);
+
+/* Quick setup for 500k or 1M */
+HAL_StatusTypeDef DCAN500_ConfigDefault500k(FDCAN_HandleTypeDef *hfdcan);
+HAL_StatusTypeDef DCAN500_Config1M(FDCAN_HandleTypeDef *hfdcan);
+
+/* Frequency Translate */
+uint8_t DCAN500_CarrierFreqToReg(float freq_mhz);
+
+#endif
+
 
 
 
