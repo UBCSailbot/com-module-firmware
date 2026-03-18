@@ -123,6 +123,109 @@ HAL_StatusTypeDef DCAN500_ReadRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg,
 }
 
 
+HAL_StatusTypeDef DCAN500_ApplyConfig(FDCAN_HandleTypeDef *hfdcan, const DCAN500_Config_t *cfg) 
+{ 
+
+    if ((hfdcan == NULL) || (cfg == NULL)) return HAL_ERROR; 
+    HAL_StatusTypeDef status; 
+
+    /* REG_1 */ 
+    uint8_t reg1 = DCAN500_REG1_FIXED_BITS; 
+    if (cfg->tx_high_power) reg1 |= DCAN500_REG1_TX_HIGH_POWER; 
+    if (cfg->tx_level_2vpp) reg1 |= DCAN500_REG1_TX_LEVEL_2VPP; 
+
+    //status check
+    status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_1_DEVICE_CTRL1, reg1); 
+    if (status != HAL_OK) return status; 
+
+    
+    /* REG_2 : carrier frequency */ 
+    uint8_t reg2 = DCAN500_CarrierFreqToReg(cfg->carrier_freq_mhz); 
+
+    status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_2_FREQ_SELECT, reg2); 
+    if (status != HAL_OK) return status; 
+
+    
+    /* REG_5 / REG_6 : RX FIFO threshold */ 
+    uint16_t thr = (cfg->rxfifo_almost_full & 0x03FFU); 
+    uint8_t reg5 = (uint8_t)(thr & 0xFFU); 
+    uint8_t reg6 = (uint8_t)((thr >> 8) & 0x03U); 
+
+    status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_5_RXFIFO_THR_LSB, reg5); 
+    if (status != HAL_OK) return status; 
+    status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_6_RXFIFO_THR_MSB, reg6); 
+    if (status != HAL_OK) return status; 
+
+
+    /* REG_3 (optional) */ 
+    if (cfg->configure_sleep_reg3) 
+    { 
+        status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_3_SLEEP_IO_CTRL, cfg->reg3_value); 
+        if (status != HAL_OK) return status; 
+    } 
+
+ 
+    /* 1M bitrate set */ 
+    if (cfg->configure_1mbit) 
+    { 
+        status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_9_BITTIME_SEG1_LSB, cfg->reg9_value); 
+        if (status != HAL_OK) return status; 
+        status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_B_BITTIME_SEG1_MSB, cfg->regb_value); 
+        if (status != HAL_OK) return status; 
+        status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_C_BITTIME_SEG2_LSB, cfg->regc_value); 
+        if (status != HAL_OK) return status; 
+        status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_E_BITTIME_SEG2_MSB, cfg->rege_value); 
+        if (status != HAL_OK) return status; 
+    } 
+
+    return HAL_OK; 
+} 
+
+ 
+//500k quick setup
+HAL_StatusTypeDef DCAN500_ConfigDefault500k(FDCAN_HandleTypeDef *hfdcan) 
+{ 
+
+    DCAN500_Config_t cfg; 
+
+    memset(&cfg, 0, sizeof(cfg)); 
+
+    cfg.carrier_freq_mhz      = 13.0f;   
+    cfg.tx_high_power         = false;   //33mA
+    cfg.tx_level_2vpp         = true;    
+    cfg.rxfifo_almost_full    = 256;     
+    cfg.configure_sleep_reg3  = true; 
+    cfg.reg3_value            = 0x08;    //turn on wake up mode
+    cfg.configure_1mbit       = false;   //500k by BR_SEL pins
+
+    return DCAN500_ApplyConfig(hfdcan, &cfg);
+} 
+
+//1M quick setup
+HAL_StatusTypeDef DCAN500_Config1M(FDCAN_HandleTypeDef *hfdcan) 
+{ 
+    DCAN500_Config_t cfg; 
+
+    memset(&cfg, 0, sizeof(cfg)); 
+
+    cfg.carrier_freq_mhz      = 13.0f; 
+    cfg.tx_high_power         = false; 
+    cfg.tx_level_2vpp         = true; 
+    cfg.rxfifo_almost_full    = 256; 
+    cfg.configure_sleep_reg3  = true; 
+    cfg.reg3_value            = 0x08;    //wake up mode on
+    cfg.configure_1mbit       = true; 
+   
+    cfg.reg9_value            = 0x40; 
+    cfg.regb_value            = 0x00; 
+    cfg.regc_value            = 0x10; 
+    cfg.rege_value            = 0x00; 
+
+    return DCAN500_ApplyConfig(hfdcan, &cfg); 
+} 
+
+ 
+
 
 
 
