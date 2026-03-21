@@ -10,7 +10,7 @@
 static void DCAN500_CommandDelay(void)
 {
     /* datasheet asks for >=100ns */
-    for (volatile uint32_t i = 0; i < 100; i++) { __NOP(); }
+    for (volatile uint32_t i = 0; i < 1000; i++);
 }
 
 
@@ -51,12 +51,11 @@ uint8_t DCAN500_CarrierFreqToReg(float freq_mhz)
 //Write a rigister command
 HAL_StatusTypeDef DCAN500_WriteRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg, uint8_t value)
 {
-
-  //command frame payload
-  uint8_t data[3] = {
+    uint8_t data[8] = {
         DCAN500_WRITE_REG_CMD,
         reg,
-        value
+        value,
+        0,0,0,0,0 // padding zeros
     };
 
     DCAN500_EnterCommandMode();
@@ -64,24 +63,25 @@ HAL_StatusTypeDef DCAN500_WriteRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg
     HAL_StatusTypeDef status = CAN_Transmit(
         DCAN500_CMD_CAN_ID,
         FDCAN_STANDARD_ID,
-        FDCAN_DLC_BYTES_3,
+        FDCAN_DLC_BYTES_8,
         data,
         hfdcan
     );
 
     DCAN500_ExitCommandMode();
+    HAL_Delay(1);
     return status;
 }
-
 
 //Read register
 HAL_StatusTypeDef DCAN500_ReadRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg, uint8_t *value)
 {
     if (value == NULL) return HAL_ERROR;
 
-    uint8_t cmd[2] = {
+    uint8_t cmd[8] = {
         DCAN500_READ_REG_CMD,
-        reg
+        reg,
+        0,0,0,0,0,0 //padding zeros
     };
 
     CAN_Frame frame;
@@ -92,7 +92,7 @@ HAL_StatusTypeDef DCAN500_ReadRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg,
     HAL_StatusTypeDef status = CAN_Transmit(
         DCAN500_CMD_CAN_ID,
         FDCAN_STANDARD_ID,
-        FDCAN_DLC_BYTES_2,
+        FDCAN_DLC_BYTES_8,
         cmd,
         hfdcan
     );
@@ -107,16 +107,21 @@ HAL_StatusTypeDef DCAN500_ReadRegister(FDCAN_HandleTypeDef *hfdcan, uint8_t reg,
     {
         if (CAN_Receive(&frame) == HAL_OK)
         {
-            /* check for response ID, and length*/
-            if ((frame.RxData1_Identifier == DCAN500_READBACK_CAN_ID) &&
-                (frame.RxData1_BufferLength >= 1U))
-            {
-                *value = frame.RxData1[0];
-                DCAN500_ExitCommandMode();
-                return HAL_OK;
-            }
+            if (frame.RxData1_Identifier != DCAN500_READBACK_CAN_ID)
+                continue;
+
+            if (frame.RxData1_BufferLength != 1U)
+                continue;
+
+            *value = frame.RxData1[0];
+            DCAN500_ExitCommandMode();
+            return HAL_OK;
         }
     }
+
+    DCAN500_ExitCommandMode();
+    return HAL_TIMEOUT;
+}
   
   DCAN500_ExitCommandMode();
   return HAL_TIMEOUT;
@@ -145,6 +150,8 @@ HAL_StatusTypeDef DCAN500_ApplyConfig(FDCAN_HandleTypeDef *hfdcan, const DCAN500
     status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_2_FREQ_SELECT, reg2); 
     if (status != HAL_OK) return status; 
 
+    HAL_Delay(1);
+
     
     /* REG_5 / REG_6 : RX FIFO threshold */ 
     uint16_t thr = (cfg->rxfifo_almost_full & 0x03FFU); 
@@ -170,12 +177,19 @@ HAL_StatusTypeDef DCAN500_ApplyConfig(FDCAN_HandleTypeDef *hfdcan, const DCAN500
     { 
         status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_9_BITTIME_SEG1_LSB, cfg->reg9_value); 
         if (status != HAL_OK) return status; 
+        HAL_Delay(1);
+        
         status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_B_BITTIME_SEG1_MSB, cfg->regb_value); 
         if (status != HAL_OK) return status; 
+        HAL_Delay(1);
+        
         status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_C_BITTIME_SEG2_LSB, cfg->regc_value); 
         if (status != HAL_OK) return status; 
+        HAL_Delay(1);
+        
         status = DCAN500_WriteRegister(hfdcan, DCAN500_REG_E_BITTIME_SEG2_MSB, cfg->rege_value); 
         if (status != HAL_OK) return status; 
+        HAL_Delay(1);
     } 
 
     return HAL_OK; 
@@ -215,11 +229,14 @@ HAL_StatusTypeDef DCAN500_Config1M(FDCAN_HandleTypeDef *hfdcan)
     cfg.configure_sleep_reg3  = true; 
     cfg.reg3_value            = 0x08;    //wake up mode on
     cfg.configure_1mbit       = true; 
-   
+
+    /* need to be changed after get actual mcu CAN timing*/
+    /* 
     cfg.reg9_value            = 0x40; 
     cfg.regb_value            = 0x00; 
     cfg.regc_value            = 0x10; 
     cfg.rege_value            = 0x00; 
+    */
 
     return DCAN500_ApplyConfig(hfdcan, &cfg); 
 } 
