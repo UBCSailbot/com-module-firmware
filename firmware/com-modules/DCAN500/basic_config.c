@@ -16,7 +16,7 @@
 * DCAN500_ReadRegister(): send read command and wait for response
 *
 * 4. Configuration
-* * DCAN500_ApplyConfig(): apply all register settings
+* * DCAN500_ApplyConfig(): apply all register settings (Enter command mode -> write register -> exit)
 *
 * 5. 500k / 1M quick setting
 * * DCAN500_ConfigDefault500k()
