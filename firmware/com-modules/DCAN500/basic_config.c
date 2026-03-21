@@ -1,3 +1,38 @@
+/*
+* DCAN500 Basic Configuration
+*
+* This file provides basic configuration and register access for the DCAN500 CAN-over-powerline transceiver using CAN frames.
+*
+* Structure:
+*
+* 1. Command Mode Control
+* Enter/exit command mode using HDC pin
+*
+* 2. Other Helper Function
+* Carrier frequency conversion (MHz -> REG_2)
+* 
+* 3. Register access
+* DCAN500_WriteRegister(): send write command (padded to 8 bytes)
+* DCAN500_ReadRegister(): send read command and wait for response
+*
+* 4. Configuration
+* * DCAN500_ApplyConfig(): apply all register settings
+*
+* 5. 500k / 1M quick setting
+* * DCAN500_ConfigDefault500k()
+* * DCAN500_Config1M()
+*
+* Notes:
+* * Uses CAN_Transmit / CAN_Receive from can.c
+* * Frames are padded to 8 bytes for 1M compatibility
+* * REG_9 ~ REG_E must be updated to match CAN bit timing
+* 
+* can.c has to include:
+* * BUS_BUSY or RTR handling
+* * Bite rate check (For DLC constraints check)
+*/
+
+
 #include "basic_config.h"
 #include <math.h>
 #include <string.h>
