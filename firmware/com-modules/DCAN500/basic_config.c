@@ -111,8 +111,18 @@ void DCAN500_Init_500k(float carrier_freq_MHz)
     DCAN500_WriteReg(DCAN500_REG_5_RXFIFO_THR_LSB, 0x00);  /* lower 8 bits */
     DCAN500_WriteReg(DCAN500_REG_6_RXFIFO_THR_MSB, 0x01);  /* upper 2 bits */
 
-    /* REG_3: Auto wake-up enabled */
-    DCAN500_WriteReg(DCAN500_REG_3_SLEEP_IO_CTRL, DCAN500_REG3_AUTO_WUM);
+    /* REG_3: Sleep & IO Control
+     * Datasheet Section 5.3, default = 0x2C (bits: 00101100)
+     *   bit[7]   = 0  (enter sleep, auto-clears)
+     *   bit[6]   = 0  (fixed)
+     *   bit[5]   = 1  (fixed, must stay 1)
+     *   bit[4]   = 0  (fixed)
+     *   bit[3]   = 1  (auto WUM enabled)
+     *   bit[2]   = 1  (long WUM, default)
+     *   bit[1:0] = 00 (SLP1, enhanced sleep)
+     * Result: 0x2C
+     */
+    DCAN500_WriteReg(DCAN500_REG_3_SLEEP_IO_CTRL, 0x2C);
 
     DCAN500_Exit_Command_Mode();
     HAL_Delay(2);  /* Wait for carrier frequency to settle */
@@ -150,8 +160,8 @@ void DCAN500_Init_1M(float carrier_freq_MHz)
     DCAN500_WriteReg(DCAN500_REG_5_RXFIFO_THR_LSB, 0x00);
     DCAN500_WriteReg(DCAN500_REG_6_RXFIFO_THR_MSB, 0x01);
 
-    /* REG_3: Auto wake-up enabled */
-    DCAN500_WriteReg(DCAN500_REG_3_SLEEP_IO_CTRL, DCAN500_REG3_AUTO_WUM);
+    /* REG_3: Sleep & IO Control (same as 500k, see Section 5.3) */
+    DCAN500_WriteReg(DCAN500_REG_3_SLEEP_IO_CTRL, 0x2C);
 
     /* Bit timing for 1Mbit/s — uncomment after verifying with MCU */
     /*
