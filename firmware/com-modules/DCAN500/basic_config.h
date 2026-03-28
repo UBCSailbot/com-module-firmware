@@ -1,5 +1,13 @@
 /*
  * basic_config.h — DCAN500 Register Definitions & API
+ * 
+ * Created on:
+ * Author: 
+ *
+ * @brief: Header file for DCAN500 Library
+ *
+ * @details: This file contains function prototypes and global variables for configuring 
+ *            the DCAN500 chip.
  */
 
 #ifndef DCAN500_BASIC_CONFIG_H
