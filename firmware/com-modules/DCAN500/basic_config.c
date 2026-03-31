@@ -46,8 +46,11 @@ void DCAN500_Exit_Command_Mode(void)
 void DCAN500_WriteReg(uint8_t addr, uint8_t data)
 {
     uint8_t buffer[3] = { DCAN500_WRITE_REG_CMD, addr, data };
-    CAN_Transmit(DCAN500_CMD_CAN_ID, FDCAN_STANDARD_ID,
-                 FDCAN_DLC_BYTES_3, buffer, &hfdcan1);
+    if (CAN_Transmit(DCAN500_CMD_CAN_ID, FDCAN_DLC_BYTES_3,
+                     buffer, &hfdcan1) != HAL_OK)
+    {
+        Error_Handler();
+    }
     HAL_Delay(1);
 }
 
@@ -56,10 +59,16 @@ void DCAN500_WriteReg(uint8_t addr, uint8_t data)
 void DCAN500_ReadReg(CAN_Frame *response, uint8_t addr)
 {
     uint8_t buffer[2] = { DCAN500_READ_REG_CMD, addr };
-    CAN_Transmit(DCAN500_CMD_CAN_ID, FDCAN_STANDARD_ID,
-                 FDCAN_DLC_BYTES_2, buffer, &hfdcan1);
+    if (CAN_Transmit(DCAN500_CMD_CAN_ID, FDCAN_DLC_BYTES_2,
+                     buffer, &hfdcan1) != HAL_OK)
+    {
+        Error_Handler();
+    }
     HAL_Delay(1);
-    CAN_Receive(response);
+    if (CAN_Receive(response) != HAL_OK)
+    {
+        Error_Handler();
+    }
 }
 
 
@@ -89,7 +98,7 @@ uint8_t DCAN500_CarrierFreqToReg(float freq_mhz)
  *  - Carrier frequency: user-specified
  *  - TX: 33mA, 2Vpp
  *  - RX-FIFO threshold: 256 bytes
- *  - Wake-up mode enabled (REG_3 = 0x08)
+ *  - Wake-up mode enabled (REG_3 = 0x2C)
  *  - Bitrate by BR_SEL pins (set to '11' for 500k)
  *
  *  Note: DLC >= 3 required at 500kbit/s (Table 20)
