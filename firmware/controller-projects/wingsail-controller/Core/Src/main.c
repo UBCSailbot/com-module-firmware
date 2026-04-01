@@ -7,11 +7,22 @@
   * Mast encoder integration:
   * - Reads BRITER mast encoder on USART2 using DMA + RxEvent callback.
   * - Configures USART2 for BRITER protocol (9600 baud, TX/RX inversion).
-  * - Computes signed mast angle (-180..+179) from encoder angle value.
-  * - Transmits mast angle over CAN FD (ID 0x205, 2-byte payload, 100 ms target).
-  * - Receives CAN command frame (ID 0x002) and updates servo setpoint.
+  * - Reads signed mast angle from BRITER; maps to positive [0, 360) deg for CAN and debug.
+  * - Transmits mast angle over CAN FD (ID 0x205, 100 ms): uint16 little-endian, integer degrees 0..359.
+  * - UART printf for mast angle / raw (bench debug). CAN RX / 0x201 not in current scope (lead).
+  * - CAN FD: TX/RX via on-chip FDCAN + com-modules/CANFD (CAN_Transmit sets FD+BRS). CANSPI/MCP2515 is separate classic-CAN on SPI.
   * - Calls BRITER error checks to detect encoder timeout/data issues.
   * - Wires required IRQ handlers: USART2 + GPDMA1 Channel 9.
+  *
+  *
+  * Github commit procedure:
+  * -create a new my own branch off of the wingsail-working-branch
+  * -commit to that branch as often as i feel like (commit whenever i feel like)
+  * -merge it to main if I want to test on the actual boat
+  *
+  * To connect through serial port, use the following commands:
+  * - ls /dev/tty.usbmodem* (to check the name of the board)
+  * - screen /dev/tty.usbmodem2103 115200 (to initialize)
   ******************************************************************************
   * @attention
   *
@@ -31,6 +42,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 #include "BRITER.h"
 #include "NMEA0183.h"
 #include "can.h"
@@ -46,7 +58,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+//Unique address for mast angle message, since rudder encoder uses 0x204.
+//(Double check if the following address 0x205 is the correct unique ID/address for the mast angle messages)
+#define MAST_ANGLE_CAN_ID 0x205
+/* ELEC (Confluence): this firmware uses 0x205 wingsail->main for mast/sail encoder; other IDs reserved for other nodes. */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -147,7 +162,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  CANSPI_Initialize();
+  /* MCP2515 on SPI (classic CAN). Sail debug TX/RX uses FDCAN + can.c, not CANSPI_Transmit. */
+  (void)CANSPI_Initialize();
   CAN_Init(&hfdcan1);
   mastEncoderObject = BRITER__create(&huart2, 20);
 
@@ -174,12 +190,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  float angle = 0;
-  uint8_t canBuffer[9] = {0};
-
-  //Unique address for mast angle message, since rudder encoder uses 0x204.
-  //(Double check if the following address 0x205 is the correct unique ID/address for the mast angle messages)
-  #define MAST_ANGLE_CAN_ID 0x205
   //100ms for transmission delay 
   #define CAN_TX_DELAY_MS 100 
 
@@ -194,14 +204,27 @@ int main(void)
     uint16_t rawValue = BRITER__getEncoderRaw(mastEncoderObject);
     float mastAngle = BRITER__floatAngle(mastEncoderObject);
 
+    /* Map any signed angle into [0, 360) degrees (positive wrap). */
+    float angle0to360 = mastAngle;
+    if (mastAngle <= -400.0f || mastAngle >= 400.0f) {
+      angle0to360 = 0.0f;
+    } else {
+      while (angle0to360 >= 360.0f) {
+        angle0to360 -= 360.0f;
+      }
+      while (angle0to360 < 0.0f) {
+        angle0to360 += 360.0f;
+      }
+    }
+    uint16_t mastDeg0to359 = (uint16_t)angle0to360;
+    if (mastDeg0to359 > 359u) {
+      mastDeg0to359 = 0u;
+    }
 
-    //if we only want our angle to be between -180 to +180 degreees so it might be easier to work with. (instead of 270 this would convert it to -90)
-    
-    int16_t signedAngle = (mastAngle < 180) ?  mastAngle : mastAngle - 360;  
-
-
-    mastCanData[0] = signedAngle & 0xFF;
-    mastCanData[1] = (signedAngle >> 8) & 0xFF; 
+    memset(mastCanData, 0, sizeof(mastCanData));
+    /* 0x205: uint16_t degrees 0..359, little-endian (update Confluence if it still says 1 byte +180). */
+    mastCanData[0] = (uint8_t)(mastDeg0to359 & 0xFFu);
+    mastCanData[1] = (uint8_t)((mastDeg0to359 >> 8) & 0xFFu);
 
     // "Try" to send mast ANGLE over CAN BUS
     if(HAL_GetTick() - lastCanTxTime >= CAN_TX_DELAY_MS) { 
@@ -215,18 +238,11 @@ int main(void)
     BRITER__checkErrors(mastEncoderObject);
 
     HAL_Delay(10);
-    if (CAN_Receive(canBuffer) == HAL_OK){
-    	printf("Rec");
-    	uint32_t id = (((uint32_t)canBuffer[3]) << 24) | (((uint32_t)canBuffer[2]) << 16) | (((uint32_t)canBuffer[1]) << 8) | ((uint32_t)canBuffer[0]);
-    	if (id == 0x002 && canBuffer[4] == 4){
-    		uint32_t value = (((uint32_t)canBuffer[8]) << 24) | (((uint32_t)canBuffer[7]) << 16) | (((uint32_t)canBuffer[6]) << 8) | ((uint32_t)canBuffer[5]);
-    		angle = ((float) value) / 1000.0 - 90.0;
-    	}
-    }
 
-    set_servo_angle(angle);
-    printf("This is a test print %f\r\n", (float) angle);
-    printf("Mast Angle:%f deg (Raw: %f) \r\n", (float)mastAngle, (float)rawValue);
+    /* Servo not driven from CAN in this scope; keep a neutral setpoint so existing init path stays exercised. */
+    set_servo_angle(0.0f);
+    printf("Mast signed:%f deg  |  0..360:%f  |  CAN uint16:%u (Raw: %u)\r\n",
+           mastAngle, angle0to360, (unsigned)mastDeg0to359, (unsigned)rawValue);
 
     /* USER CODE END WHILE */
 
