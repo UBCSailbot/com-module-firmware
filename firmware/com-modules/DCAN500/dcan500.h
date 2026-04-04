@@ -1,5 +1,5 @@
 /*
- * basic_config.h — DCAN500 Register Definitions & API
+ * dcan500.h — DCAN500 Register Definitions & API
  * 
  * Created on:
  * Author: 
@@ -10,8 +10,8 @@
  *            the DCAN500 chip.
  */
 
-#ifndef DCAN500_BASIC_CONFIG_H
-#define DCAN500_BASIC_CONFIG_H
+#ifndef DCAN500_H
+#define DCAN500_H
 
 #include "main.h"
 #include "can.h"
