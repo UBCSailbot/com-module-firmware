@@ -1,5 +1,5 @@
 /*
- * basic_config.c — DCAN500 CAN-over-Powerline Configuration
+ * dcan500 — DCAN500 CAN-over-Powerline Configuration
  *
  * DLC follows datasheet exactly:
  *   WRITE-REG: DLC=3  (Table 13: [0xF5][addr][data])
@@ -11,7 +11,7 @@
  * Dependencies: can.c (CAN_Transmit, CAN_Receive)
  */
 
-#include "basic_config.h"
+#include "dcan500.h"
 #include <math.h>
 
 /* ---- GPIO for HDC pin (CHANGE TO YOUR HARDWARE) ---- */
