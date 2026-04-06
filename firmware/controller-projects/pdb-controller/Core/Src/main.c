@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include "can.h"
 /* USER CODE END Includes */
 
@@ -37,8 +38,6 @@ typedef struct {
 	const char*label;
 	int is_temp;
 } ADC_Channel_Info ;
-
-
 
 /* USER CODE END PTD */
 
@@ -55,6 +54,8 @@ typedef struct {
 #define temp_threshold 55.0
 #define voltage_threshold 2.5
 #define CAN_TX_TIME 1000 //in milliseconds
+
+#define PDB_HEARTBEAT 0x130
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,6 +70,8 @@ ADC_HandleTypeDef hadc4;
 FDCAN_HandleTypeDef hfdcan1;
 
 I2C_HandleTypeDef hi2c2;
+
+TIM_HandleTypeDef htim7;
 
 UART_HandleTypeDef huart1;
 
@@ -87,7 +90,6 @@ NTC_Config ntc_sensors[NUM_SENSORS] = {
 	{&hadc1, ADC_CHANNEL_5},   // PA0 = ADC1_IN1
 	{&hadc1, ADC_CHANNEL_16},   // PB1 = ADC1_IN16
 	{&hadc4, ADC_CHANNEL_7},   // PG0 = ADC3_IN8 (ADC4)
-
 };
 
 ADC_Channel_Info channel_info[7] = {
@@ -100,6 +102,7 @@ ADC_Channel_Info channel_info[7] = {
     {"VC1_Cumulative",0},
 };
 
+volatile int restart_requested = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -114,6 +117,7 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_ADC4_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -126,26 +130,6 @@ static void MX_I2C2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-//float read_temperature(NTC_Config *sensor) {
-//    ADC_ChannelConfTypeDef sConfig = {0};
-//    sConfig.Channel = sensor->channel;
-//    sConfig.Rank = ADC_REGULAR_RANK_1;
-//    sConfig.SamplingTime = ADC_SAMPLETIME_5CYCLE;
-//
-//    HAL_ADC_ConfigChannel(sensor->hadc, &sConfig);
-//    HAL_ADC_Start(sensor->hadc);
-//    HAL_ADC_PollForConversion(sensor->hadc, HAL_MAX_DELAY);
-//    uint32_t raw = HAL_ADC_GetValue(sensor->hadc);
-//    HAL_ADC_Stop(sensor->hadc);
-//
-//    float v = (raw / ADC_RESOLUTION) * VREF;
-//    float r_ntc = (v * R_FIXED) / (VREF - v);
-//    float tempK = 1.0 / ((log(r_ntc / R0) / BETA) + (1.0 / T0));
-//
-//    printf("Raw: %lu, V: %.2fV, R_NTC: %.1fΩ, Temp: %.2f°C\r\n", raw, v, r_ntc, tempK);
-//    return tempK - 273.15;
-//}
 
 static float ADC_Select_Channel(uint32_t channelNumber)
 {
@@ -176,16 +160,106 @@ static float ADC_Select_Channel(uint32_t channelNumber)
 
       //printf("Raw: %lu, V: %.2fV, R_NTC: %.1fΩ, Temp: %.2f°C\r\n", raw, v, r_ntc, tempK);
       //return tempK - 273.15;
-      if ((channelNumber == 2)||(channelNumber == 4)||(channelNumber == 5)) return tempK - 273.15; //2 and 4 are temp values not adc values
+      if ((channelNumber == 2)||(channelNumber == 4)||(channelNumber == 5)) return tempK - 273.15; // 2 and 4 are TEMP values not ADC values
       else return v;
+}
 
-  //return tmp;
+/*
+ * CUSTOM CAN FUNCTIONS
+ */
+// only thing different is the filters, need access to FIFO1 callback for one std ID
+
+void CAN_Init_PDB(FDCAN_HandleTypeDef *hfdcan1)
+{
+	// Set frame 0x202 to be filtered to FIFO1
+    FDCAN_FilterTypeDef f = {0};
+    f.IdType       = FDCAN_STANDARD_ID;
+    f.FilterIndex  = 0;
+    f.FilterType   = FDCAN_FILTER_MASK;      // exact match using mask
+    f.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+    f.FilterID1    = 0x202;                  // Only can frame sent to PDB
+    f.FilterID2    = 0x7FF;                  // mask: match all 11 bits exactly
+
+    if (HAL_FDCAN_ConfigFilter(hfdcan1, &f) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    // Set extended IDs to be rejected (unused)
+    FDCAN_FilterTypeDef fe = {0};
+    fe.IdType       = FDCAN_EXTENDED_ID;
+    fe.FilterIndex  = 0;
+    fe.FilterType   = FDCAN_FILTER_RANGE_NO_EIDM;
+    fe.FilterConfig = FDCAN_FILTER_REJECT;
+    fe.FilterID1    = 0x00000000;
+    fe.FilterID2    = 0x1FFFFFFF;
+
+    if (HAL_FDCAN_ConfigFilter(hfdcan1, &fe) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    /* Global filter: send non-matching frames to FIFO0 (same as global can lib) */
+    if (HAL_FDCAN_ConfigGlobalFilter(hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    // Start FDCAN
+    if (HAL_FDCAN_Start(hfdcan1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/*
+ * Custom FIFO1 Callback
+ */
+// immediately handles shutdown/restart commands
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
+{
+    if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) == 0U)
+        return;
+
+    FDCAN_RxHeaderTypeDef rxh;
+    uint8_t tmp[64];
+    memset(tmp, 0, sizeof(tmp));
+
+    uint8_t power_off = 0xF;
+
+    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rxh, tmp) != HAL_OK) {
+        Error_Handler();
+    }
+
+    // theoretically because of the filter, FIFO1 should only contain STD 0x202 (but check anyway)
+    if ((rxh.IdType == FDCAN_STANDARD_ID) && (rxh.Identifier == 0x202))
+    {
+    	if (tmp[0] == 0x0A) // shutdown
+    	{
+    		// printf("Shutdown command was received\r\n");, removed cuz i feel like we doin to much in isr
+    		// to frame 0x003, 0xF -> shutdown
+
+    		// power off everything
+    		if( CAN_Transmit( 0x003, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_8, &power_off, hfdcan) != HAL_OK ) {
+    			Error_Handler();
+    		}
+
+    		//set PC_8 to low
+    	    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin (inverted logic)
+    	    // printf("PC_8 Pulled Low \r\n");
+    	}
+    	else if (tmp[0] == 0x14) // restart after 20s
+    	{
+    		// printf("restart command was received\r\n");
+    		restart_requested = 1;
+    	}
+
+    }
 }
 
 void HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes)
 {
     printf("Tx buffer complete. BufferIndexes: 0x%lX\r\n", BufferIndexes);
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -228,116 +302,64 @@ int main(void)
   MX_ADC4_Init();
   MX_FDCAN1_Init();
   MX_I2C2_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
-  CAN_Init(&hfdcan1);
 
-  //* CODE INSERT FOR MPPT CURRENT SENSE START *//
-  	  	// variable initialization
-  		uint8_t I2C_buf[12]; //for sending and receiving values through i2c
+	  /*
+	   * I2C Variable Declarations & ADC Initialization
+	   */
 
-  		// address of ADC device on current sense board
-  		uint16_t ADC_ADDR1 = 0x18 << 1; // 0x18, if J1 disconnected
-  		uint16_t ADC_ADDR2 = 0x1F << 1; // 0x1F, if J1 connected
+	  uint8_t I2C_buf[12];
 
-  	   // I2C setup
-	   I2C_buf[0] = 0x08; //opcode for single register write
-	   I2C_buf[1] = 0x1c; // mode select register address
-	   I2C_buf[2] = 0x04; // selecting manual mode with AUTO
+	  // Address of ADC device on current sense board
+	  uint16_t ADC_ADDR1 = 0x18 << 1; // 0x18, if J1 disconnected - STARBOARD
+	  uint16_t ADC_ADDR2 = 0x1F << 1; // 0x1F, if J1 connected - PORT
 
-	   // send the same setup bytes to both mppt boards
-	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+	  I2C_buf[0] = 0x08; //opcode for single register write
+	  // I2C MODE setup
+	  I2C_buf[1] = 0x1c; // MODE SELECT register address
+	  I2C_buf[2] = 0x04; // selecting MANUAL MODE W/ AUTO SEQUENCING
+
+
+	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
 		  Error_Handler();
-	   }
-
-	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
-	   	  Error_Handler();
-	   }
-
-
-	   I2C_buf[1] = 0x1E; // start sequence register
-	   I2C_buf[2] = 0b1; //starts first conversion
-
-	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+	  }
+	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
 		  Error_Handler();
-	   }
+	  }
 
+	  // I2C START SEQUENCE Bit
+	  I2C_buf[1] = 0x1E; // START SEQ register
+	  I2C_buf[2] = 0b1; // bit starts first conversion
 
-	   if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
-	   	   	  Error_Handler();
-	   }
+	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+		  Error_Handler();
+	  }
+	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+		  Error_Handler();
+	  }
 
+	/*
+	 * CAN Initialization
+	 */
+	CAN_Init(&hfdcan1, PDB_HEARTBEAT);
+	if( HAL_FDCAN_Stop(&hfdcan1) != HAL_OK ) {
+		Error_Handler();
+	}
+  	CAN_Init_PDB(&hfdcan1); // call custom init code w diff filters
 
-   //* CODE INSERT FOR MPPT CURRENT SENSE END *//
-
-
-
-
-
-
-  	//Adding CAN Filter
-  	FDCAN_FilterTypeDef sFilterConfig = {0};
-  	sFilterConfig.IdType = FDCAN_STANDARD_ID;
-  	sFilterConfig.FilterIndex = 0;
-  	sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-
-  	sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-  	sFilterConfig.FilterID1 = 0x000;
-  	sFilterConfig.FilterID2 = 0x000; // Accept all
-
-  	if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK) {
-  	    Error_Handler();
-  	}
-  	sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
-  	sFilterConfig.FilterID1 = 0x1111111;
-  	sFilterConfig.FilterID2 = 0x2222222;
-
-  	//FilterConfig.FilterID2 = 0x7FF; ????
-  	  /* Configure global filter:
-  	     Filter all remote frames with STD and EXT ID
-  	     Reject non matching frames with STD ID and EXT ID */
-  	//set an interrupt when a message is sent
-  	  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-  	  {
-  	    Error_Handler();
-  	  }
-
-  	  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
-  	  {
-  	    Error_Handler();
-  	  }
-
-    //this has to be set to 64
-  	CAN_SetRxBufferSize(64,64);
-  	HAL_FDCAN_Start(&hfdcan1);
-
+  	/*
+  	 * Temperature Sense Variable Initialization
+  	 */
   	int count = 0;
-
   	float adc_readings[7] = {0}; //store all adc readings here
   	float vc[4] = {0};
   	int vc_index=0 ;
   	uint16_t individual_voltages[4] = {0};
   	int temp_back = 1 ; //flag to break the infinite loop in case we are back on
   	int voltage_back = 1; //flag to break the infinite loop in case we are back on
-
   	float cell_voltage[4] = {0};
 
-  	/* Transmitting board, comment out on receiving board */
-
-  //  HAL_Delay(1000);
-  //
-  //  ADC_ChannelConfTypeDef sConfig = {0};
-  //  sConfig.Channel = ADC_CHANNEL_VREFINT;
-  //  sConfig.Rank = ADC_REGULAR_RANK_1;
-  //  sConfig.SamplingTime = ADC_SAMPLETIME_5CYCLE;
-  //  HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-  //
-  //  HAL_ADC_Start(&hadc1);
-  //  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-  //  uint32_t raw = HAL_ADC_GetValue(&hadc1);
-  //  HAL_ADC_Stop(&hadc1);
-  //
-  //  float vref_measured = 1.21 * 4095.0f / raw;
-  //  printf("ADC thinks VREF is: %.2fV\r\n", vref_measured);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -352,6 +374,9 @@ int main(void)
 
 	  HAL_Delay(100);//0.1 SECONDS AS OF NOW
 
+	  /*
+	   * Boot pin logic
+	   */
 	  if (restart_requested) {
 		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //turn pin off (inverted logic)
 		  printf("PC_8 Pulled Low\r\n");
@@ -371,98 +396,77 @@ int main(void)
 	  uint8_t TxData1[24] = {0}; //the array that we use to send CAN
 	  int byte_index = 0;
 
-	  for(int i = 1; i <= 7; i++){
+	  /*
+	   * ADC For-loop Start
+	   */
+	  for(int i = 1; i <= 7; i++) {
 		  float adc = ADC_Select_Channel(i);
 		  ADC_Channel_Info info = channel_info[i-1];
-		  adc_readings[i-1] = adc; //store the adc value
+		  adc_readings[i-1] = adc; // store the ADC value
 
-		  int16_t encoded_val;  // Declare here so it's accessible below
+		  int16_t encoded_val;
 
-		   if (info.is_temp) {
-		    	 encoded_val = (int16_t)(adc * 100);  //to get rid of the decimal places (this gives us 4 hex digits)
-		        if (adc >= temp_threshold ) {
-		            printf("%s temperature too high! %.2f°C CANT: %d CANT: %X \r\n", info.label, adc ,encoded_val , encoded_val);
-		            // toggle pin PC_8 it shuts off the entire system
-		           HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin
-		           temp_back = 0;
+		  // Check Temperature Reading
+		  if (info.is_temp) {
+			  encoded_val = (int16_t)(adc * 100);  //to get rid of the decimal places (this gives us 4 hex digits)
 
-		           while (temp_back == 0 ) {
+			  // If temp is too high, shut off system and poll until regular conditions, then reboot
+			  if (adc >= temp_threshold ) {
+				  printf("%s temperature too high! %.2f°C CANT: %d CANT: %X \r\n", info.label, adc ,encoded_val , encoded_val);
 
-		        	   for (int y=20 ; y > 0 ; y-- ) {
+				  // toggle pin PC_8, shuts off the entire system
+				  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin
+		          temp_back = 0;
 
-		        	  		printf("checking the temp in %d seconds" , y);
-		        	  		HAL_Delay(1000);
+		          while (temp_back == 0 ) {
+		        	  for (int y=20 ; y > 0 ; y-- ) {
+		        		  printf("checking the temp in %d seconds" , y);
+		        		  HAL_Delay(1000);
+		        	  }
 
-		        	  		           	 }
-
-		        	   //read the pin again
+		        	  // read the pin again
 		        	  adc = ADC_Select_Channel(i);
 		        	  ADC_Channel_Info info = channel_info[i-1];
-		        	  adc_readings[i-1] = adc; //store the adc value
+		        	  adc_readings[i-1] = adc; // store the adc value
 
 		        	  if (adc <= temp_threshold ) {
-
-		        	  		temp_back = 1; //break the loop and continue if we are back on
+		        	  		temp_back = 1; // break out of loop and continue
 		        	  		printf("%s is below threshold \r\n", info.label);
 		        	  		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); //PC_8 power back on
 		        	  }
-		           }
-		        } else {
-		            printf("%s: %.2f°C CANT: %d \r\n", info.label, adc , encoded_val );
+		          }
+
+		      }
+			  else { // temperature normal
+				  printf("%s: %.2f°C CANT: %d \r\n", info.label, adc , encoded_val );
+		      }
+
+		  }
+		  // Check voltage (not temp) reading
+		  else {
+			  encoded_val = (int16_t)(adc*1000*5);  // scaling to get 4 clean hex digits
+
+			  // voltage reading too low
+			  if (adc*5 <= voltage_threshold ) {
+				  printf("%s below the recommended range! %.2f CANV: %d CANV: %X \r\n", info.label , 5*adc, encoded_val, encoded_val);
 		        }
-		    } else {
-		    	 encoded_val = (int16_t)(adc*1000*5);  // multiplying the value by 10000 to get 4 hex digits its cleaner
-		        if (adc*5 <= voltage_threshold ) {
-		            printf("%s below the recommended range! %.2f CANV: %d CANV: %X \r\n", info.label , 5*adc, encoded_val, encoded_val);
-		            // toggle pin PC_8 it shuts off the entire system
-		            //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin
-		            /*
-		            voltage_back = 0;
-
-		            // wait 20 seconds and enter an infinite loop of saying the batteries are under the
-		            //operating voltage and check if you are back on
-
-
-		            while (voltage_back == 0) {
-
-		            for (int k =20 ; k > 0 ; k--)
-		            {
-		            	printf("checking status of %s in %d seconds again\r\n",info.label, k );
-		            	HAL_Delay(1000); //wait
-
-		            }
-
-		            //read the pin again
-		             adc = ADC_Select_Channel(i);
-		            		  ADC_Channel_Info info = channel_info[i-1];
-		            		  adc_readings[i-1] = adc; //store the adc value
-
-		            	if (adc*5 >= voltage_threshold ) {
-
-		            		voltage_back = 1; //break the loop and continue if we are back on
-		            		printf("%s is back on\r\n", info.label);
-		            		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET); //PC_8 power back on
-		            	}
-
-		            }
-						*/
-
-
-		        }
-
-		        else {
+			  // regular voltage reading
+		      else {
 		            printf("%s: %.2fV CANV: %d CANV: %X\r\n", info.label, 5*adc ,encoded_val, encoded_val);
-		        }
-		    }
+		      }
+		  }
 
+		  /*
+		   * Build VC array
+		   */
 
-		    // Build vc[] array only for your voltage channels (1,3,6,7)
-		           if ((i == 1) || (i == 3) || (i == 6) || (i == 7)) {
-		               vc[vc_index++] = adc * 5;
-		           }
+		  // Build vc[] array only for your voltage channels (1,3,6,7)
+		  if ((i == 1) || (i == 3) || (i == 6) || (i == 7)) {
+			  vc[vc_index++] = adc * 5;
+		  }
 
-		           // When you reach the last channel, compute individual voltages and print
-		           if (i == 7) {
+		  // When you reach the last channel, compute individual voltages and print
+		  if (i == 7) {
 		               for (int j = 0; j < 4; j++) {
 		                   printf("%.2f ", vc[j]);
 		               }
@@ -483,20 +487,20 @@ int main(void)
 
 		               for (int k = 0; k < 4; k++) {
 
+		            	   // Cell voltage too low
 		            	   if (cell_voltage[k] <= voltage_threshold ) {
-		   		            // toggle pin PC_8 it shuts off the entire system
-		            		printf("Cell %d voltage is below threshold %0.2f \r\n" , (k+1) , cell_voltage[k]);
-		   		            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin
-		   		            voltage_back = 0;
+								// toggle pin PC_8 it shuts off the entire system
+								printf("Cell %d voltage is below threshold %0.2f \r\n" , (k+1) , cell_voltage[k]);
 
-		   		            // wait 20 seconds and enter an infinite loop of saying the batteries are under the
-		   		            //operating voltage and check if you are back on
+								HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET); //PC_8 is the boot pin
 
+								voltage_back = 0;
+								// wait 20 seconds and enter an infinite loop of saying the batteries are under the
+								//operating voltage and check if you are back on
 		            	   }
-
 		            	   
+		            	   // Keep reading/computing cell voltage until back to normal
 		            	   while(voltage_back == 0) {
-
 		            	       // Wait 20 seconds
 		            	       for (int o = 20; o > 0; o--) {
 		            	           printf("checking status of cell%d in %d seconds again\r\n", k+1 , o);
@@ -507,6 +511,7 @@ int main(void)
 
 		            	       // Re-read all 4 voltage channels: i = 1, 3, 6, 7
 		            	       int voltage_channels[] = {1, 3, 6, 7};
+
 		            	       for (int ch = 0; ch < 4; ch++) {
 		            	           float refreshed_adc = ADC_Select_Channel(voltage_channels[ch]);
 		            	           vc[vc_index++] = refreshed_adc * 5;
@@ -533,128 +538,122 @@ int main(void)
 
 		            	   }
 
-							
-
 		            	   for (int z=0 ; z<4 ; z++) {
 		            		   printf("%f ", cell_voltage[z]);
 		            	   }
 
 		            	   printf("\r\n");
-		               } //for loop end
+		               }
+		  }
+	  }
+	  /*
+	   * ADC For-loop end
+	   */
 
-		           }
+
+	  /*
+	   * Pack temp_values and individual_voltages into CAN Tx Buffer (TxData1)
+	   */
+	  int volt_index = 0;
+
+	  for (int i = 1; i <= 7; i++) {
+		  // encode values
+		  int16_t encoded_val;
+
+		  if (channel_info[i-1].is_temp) {
+			  encoded_val = (int16_t)(adc_readings[i-1] * 100);
+		  }
+		  else {
+              encoded_val = individual_voltages[volt_index++];
+		  }
+
+		  // Pack the encoded values into TxData1 (low byte first)
+		  TxData1[byte_index++] = encoded_val & 0xFF;
+		  TxData1[byte_index++] = (encoded_val >> 8) & 0xFF;
 	  }
 
+	  // Add two extra zero bytes
+	  TxData1[byte_index++] = 0x00;
+	  TxData1[byte_index++] = 0x00;
 
-		       // Now build your TxData1 using temp_values and individual_voltages correctly
+	  // Print TxData1 array
+	  printf("\nTxData1 Array:\r\n");
+	  for (int i = 0; i < 16; i++) {
+		  printf("%X ", TxData1[i]);
+	  }
+	  printf("\r\n");
 
+	  /*
+	   * Current Sense I2C Receive & Calculations
+	   */
+	  // MPPT Board 1
+	  HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR1,I2C_buf,4,HAL_MAX_DELAY); //reads 4 bytes of raw voltage data, 2 bytes from each mppt channel
 
-		       int volt_index = 0;
+	  // i2c buffer -> raw adc values from each mppt
+	  uint16_t raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
+	  uint16_t raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
 
-		       for (int i = 1; i <= 7; i++) {
-		           int16_t encoded_val;
+	  // raw adc values -> original current values (x1000)
+	  // conversion eq: (raw/2^16 *ref_V - offset) / scale * 1000
+	  int16_t curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
+	  int16_t curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
 
-		           if (channel_info[i-1].is_temp) {
-		               encoded_val = (int16_t)(adc_readings[i-1] * 100);
-		           } else {
-		               encoded_val = individual_voltages[volt_index++];
-		           }
+	  if ( curr1 < 0 ) curr1 = 0;
+	  if ( curr2 < 0 ) curr2 = 0;
 
-		           // Pack the encoded_val into TxData1 (low byte first)
-		           TxData1[byte_index++] = encoded_val & 0xFF;
-		           TxData1[byte_index++] = (encoded_val >> 8) & 0xFF;
-		       }
+	  //store in Tx buffer (little endian)
+	  TxData1[15] = ( curr1 >> 8 ) & 0x00FF; // MPPT 1_A
+	  TxData1[14] = curr1 & 0x00FF;
 
-		       // Add two extra zero bytes
-		       TxData1[byte_index++] = 0x00;
-		       TxData1[byte_index++] = 0x00;
+	  TxData1[17] = ( curr2 >> 8 ) & 0x00FF; // MPPT 1_B
+	  TxData1[16] = curr2 & 0x00FF;
 
-		       // Print TxData1 array exactly as you had it
-		       printf("\nTxData1 Array:\r\n");
-		       for (int i = 0; i < 16; i++) {
-		           printf("%X ", TxData1[i]);
-		       }
-		       printf("\r\n");
+	  // print to UART (just for debugging)
+	  printf( "MPPT BOARD 1\n" );
+	  printf("MPPT_1: I*1000  | CH0: %d, CH1: %d\r\n", curr1, curr2); // current * 1000
+	  printf("MPPT_1: TxData  | %X_%X_%X_%X\r\n", TxData1[14], TxData1[15], TxData1[16], TxData1[17]); // tx buffer, exactly as it is sent
 
+	  // MPPT Board 2
+	  // same as above, just to different address & bytes
 
-		  ///CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer, FDCAN_HandleTypeDef *hfdcan1);
+	  HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR2,I2C_buf,4,HAL_MAX_DELAY);
 
+	  raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
+	  raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
 
+	  curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
+	  curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
 
+	  if ( curr1 < 0 ) curr1 = 0;
+	  if ( curr2 < 0 ) curr2 = 0;
 
+	  TxData1[19] = ( curr1 >> 8 ) & 0x00FF; // MPPT 2_A
+	  TxData1[18] = curr1 & 0x00FF;
 
-		   	//* CODE INSERT FOR MPPT CURRENT SENSE START *//
+	  TxData1[21] = ( curr2 >> 8 ) & 0x00FF; // MPPT 2_B
+	  TxData1[20] = curr2 & 0x00FF;
 
-		       // MPPT Board 1 (hull)
-				HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR1,I2C_buf,4,HAL_MAX_DELAY); //reads 4 bytes of raw voltage data, 2 bytes from each mppt channel
-
-				// i2c buffer -> raw adc values from each mppt
-				uint16_t raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
-				uint16_t raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
-
-				// raw adc values -> original current values (x1000)
-				// conversion eq: (raw/2^16 *ref_V - offset) / scale * 1000
-				int16_t curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
-				int16_t curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
-
-				if ( curr1 < 0 ) curr1 = 0;
-				if ( curr2 < 0 ) curr2 = 0;
-
-				//store in Tx buffer (little endian)
-				TxData1[15] = ( curr1 >> 8 ) & 0x00FF; // MPPT 1_A - hull port
-				TxData1[14] = curr1 & 0x00FF;
-
-				TxData1[17] = ( curr2 >> 8 ) & 0x00FF; // MPPT 1_B - hull starboard
-				TxData1[16] = curr2 & 0x00FF;
-
-				// print to UART (just for debugging)
-				printf( "MPPT BOARD 1\n" );
-				printf("MPPT_1: I*1000  | CH0: %d, CH1: %d\r\n", curr1, curr2); // current * 1000
-				printf("MPPT_1: TxData  | %X_%X_%X_%X\r\n", TxData1[14], TxData1[15], TxData1[16], TxData1[17]); // tx buffer, exactly as it is sent
-
-			  // MPPT Board 2 (sail)
-				// same as above, just to different address & bytes
-
-				HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR2,I2C_buf,4,HAL_MAX_DELAY);
-
-				raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
-				raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
-
-				curr1 = (int16_t) ((raw1/65536.0f*3.3f - 0.5f)/0.2f*1000);
-				curr2 = (int16_t) ((raw2/65536.0f*3.3f - 0.5f)/0.2f*1000);
-
-				if ( curr1 < 0 ) curr1 = 0;
-				if ( curr2 < 0 ) curr2 = 0;
-
-				TxData1[19] = ( curr1 >> 8 ) & 0x00FF; // MPPT 2_A - sail port
-				TxData1[18] = curr1 & 0x00FF;
-
-				TxData1[21] = ( curr2 >> 8 ) & 0x00FF; // MPPT 2_B - sail starboard
-				TxData1[20] = curr2 & 0x00FF;
-
-				printf( "MPPT BOARD 2\n" );
-				printf("MPPT_2: I*1000  | CH0: %d, CH1: %d\r\n", curr1, curr2);
-				printf("MPPT_2: TxData  | %X_%X_%X_%X\r\n", TxData1[18], TxData1[19], TxData1[20], TxData1[21]);
-
-		   	//* CODE INSERT FOR MPPT CURRENT SENSE END *//
+	  printf( "MPPT BOARD 2\n" );
+	  printf("MPPT_2: I*1000  | CH0: %d, CH1: %d\r\n", curr1, curr2);
+	  printf("MPPT_2: TxData  | %X_%X_%X_%X\r\n", TxData1[18], TxData1[19], TxData1[20], TxData1[21]);
 
 
-
+	  /*
+	   * Final CAN Transmission to RPI
+	   */
 	 if (CAN_Transmit(0x206, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_24, TxData1, &hfdcan1) != HAL_OK)
 	 {
 		 printf("HAL ERROR CODE: %lu\r\n", HAL_FDCAN_GetError(&hfdcan1));
 		 printf("TS: %lu\r\n", HAL_GetTick());
 		 printf("count: %d \r\n",count);
 		 //Error_Handler();
-	 	 }
+	 }
 
 	 HAL_Delay(5000);
 
 	 count++;
 	 printf("count: %d \r\n",count);
-
-
-  } //this is the end of the while loop
+  }
   /* USER CODE END 3 */
 }
 
@@ -959,6 +958,44 @@ static void MX_ICACHE_Init(void)
   /* USER CODE BEGIN ICACHE_Init 2 */
 
   /* USER CODE END ICACHE_Init 2 */
+
+}
+
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 31999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 49999;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
 
 }
 
