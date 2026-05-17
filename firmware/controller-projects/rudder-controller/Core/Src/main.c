@@ -123,8 +123,8 @@ int get_encoder_delta(int prev, int curr) {
   }
 
 NMEA0183 *ecompass;
-const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,1\x0D\x0A"; //enables PASHR sentence type
-const char GPHDT_FREQ[] = "$JASC,GPHDT,1\x0D\x0A"; //allows heading data received at 10Hz
+const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,10\x0D\x0A"; //enables PASHR sentence type
+const char GPHDT_FREQ[] = "$JASC,GPHDT,10\x0D\x0A"; //allows heading data received at 10Hz
 
 void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) {
     bytes[0] = (uint8_t)(value & 0xFF);
@@ -239,10 +239,11 @@ int main(void)
 
     uint32_t can_frame_tx_time = HAL_GetTick();
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
     encoderObject = BRITER__create(&huart2, 20);
     MOTOR_CONFIG motorConfig = {
             .motorDacPeripheral = &hdac1,
-            .motorDacChannel = DAC_CHANNEL_2,
+            .motorDacChannel = DAC_CHANNEL_1,
             .enableGPIOPeripheral = GPIOG,
             .enableGPIOPin = GPIO_PIN_1,
             .reverseGPIOPeripheral = GPIOF,
@@ -528,7 +529,7 @@ static void MX_DAC1_Init(void)
     Error_Handler();
   }
 
-  /** DAC channel OUT2 config
+  /** DAC channel OUT1 config
   */
   sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_DISABLE;
   sConfig.DAC_DMADoubleDataMode = DISABLE;
@@ -538,7 +539,7 @@ static void MX_DAC1_Init(void)
   sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
   sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_EXTERNAL;
   sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_2) != HAL_OK)
+  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -898,10 +899,13 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2|UCPD_DBn_Pin|LED_BLUE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
@@ -912,14 +916,18 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, UCPD_DBn_Pin|LED_BLUE_Pin, GPIO_PIN_RESET);
-
   /*Configure GPIO pin : USER_BUTTON_Pin */
   GPIO_InitStruct.Pin = USER_BUTTON_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB2 UCPD_DBn_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|UCPD_DBn_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PF13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -961,13 +969,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LED_GREEN_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : UCPD_DBn_Pin */
-  GPIO_InitStruct.Pin = UCPD_DBn_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(UCPD_DBn_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_BLUE_Pin */
   GPIO_InitStruct.Pin = LED_BLUE_Pin;
