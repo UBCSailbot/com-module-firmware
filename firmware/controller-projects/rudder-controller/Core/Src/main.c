@@ -366,9 +366,6 @@ int main(void)
 		  TxHeader1.FDFormat           = FDCAN_FD_CAN;
 		  TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
-			printf("Err: CAN TX\r\n");
-		  }
 	  }
 	}
 
