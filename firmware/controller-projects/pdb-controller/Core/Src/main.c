@@ -34,7 +34,7 @@
 // moving average struct
 #define DELAY_LINE_SIZE 5
 typedef struct {
-    uint16_t elements[DELAY_LINE_SIZE]; //circular buffer to store the most recent N readings
+    int16_t elements[DELAY_LINE_SIZE]; //circular buffer to store the most recent N readings
     uint8_t  newestElement_idx;  //index of the newest element in the circular buffer
 }delayLine;
 
@@ -488,15 +488,6 @@ int main(void)
 		  else {
 		      adc = adc_avg_scaled / 1000.0f;
 		  }
-		  ///
-
-		  if (channel_info[i - 1].is_temp) {
-		      adc = adc_avg_scaled / 100.0f;
-		  }
-		  else {
-		      adc = adc_avg_scaled / 1000.0f;
-		  }
-
 
 		  ADC_Channel_Info info = channel_info[i-1];
 		  adc_readings[i-1] = adc; // store the ADC value
