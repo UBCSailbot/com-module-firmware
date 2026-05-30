@@ -29,6 +29,16 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
+
+// moving average struct
+#define DELAY_LINE_SIZE 5
+typedef struct {
+    uint16_t elements[DELAY_LINE_SIZE]; //circular buffer to store the most recent N readings
+    uint8_t  newestElement_idx;  //index of the newest element in the circular buffer
+}delayLine;
+
+
 typedef struct {
     ADC_HandleTypeDef *hadc;
     uint32_t channel;
@@ -54,7 +64,6 @@ typedef struct {
 #define temp_threshold 55.0
 #define voltage_threshold 2.5
 #define CAN_TX_TIME 1000 //in milliseconds
-
 #define PDB_HEARTBEAT 0x130
 /* USER CODE END PD */
 
@@ -119,6 +128,15 @@ static void MX_FDCAN1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
+
+// moving avaerage function prototypes
+void delayLine_Init(delayLine *dl);
+void delayLine_addElement(delayLine *dl, int16_t newValue);
+int16_t delayLine_MovingAverage(delayLine *dl, int32_t *accumulator, int16_t x);
+
+
+
+
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
    set to 'Yes') calls __io_putchar() */
@@ -162,6 +180,43 @@ static float ADC_Select_Channel(uint32_t channelNumber)
       //return tempK - 273.15;
       if ((channelNumber == 2)||(channelNumber == 4)||(channelNumber == 5)) return tempK - 273.15; // 2 and 4 are TEMP values not ADC values
       else return v;
+}
+
+
+// moving average functions
+void delayLine_Init(delayLine *dl)
+{
+    dl->newestElement_idx = 0;
+
+    for (int i = 0; i < DELAY_LINE_SIZE; i++) {
+        dl->elements[i] = 0;
+    }
+}
+
+/*
+ 1-Find the slot that will be overwritten.
+ 2-Subtract its old value from the sum.
+ 3-Write the new value into that same slot.
+ */
+
+
+void delayLine_addElement(delayLine *dl, int16_t newValue)
+{
+    dl->newestElement_idx++;
+    dl->newestElement_idx = dl->newestElement_idx % (DELAY_LINE_SIZE);
+    dl->elements[dl->newestElement_idx] = newValue;
+}
+
+int16_t delayLine_MovingAverage(delayLine *dl, int32_t *accumulator, int16_t x)
+{
+    int oldest_idx = (dl->newestElement_idx + 1) % (DELAY_LINE_SIZE); // overflow check
+
+    *accumulator += x;
+    *accumulator -= dl->elements[oldest_idx];
+
+    delayLine_addElement(dl, x);
+
+    return *accumulator / DELAY_LINE_SIZE;
 }
 
 /*
@@ -304,7 +359,12 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
+	  delayLine adc_filters[7];
+	  int32_t adc_accumulators[7] = {0};
 
+	  for (int i = 0; i < 7; i++) {
+		  delayLine_Init(&adc_filters[i]);
+	  }
 	  /*
 	   * I2C Variable Declarations & ADC Initialization
 	   */
@@ -321,23 +381,24 @@ int main(void)
 	  I2C_buf[2] = 0x04; // selecting MANUAL MODE W/ AUTO SEQUENCING
 
 
-	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
-		  Error_Handler();
-	  }
-	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
-		  Error_Handler();
-	  }
+//	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+//		  Error_Handler();
+//	  }
+//	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+//		  Error_Handler();
+//	  }
 
 	  // I2C START SEQUENCE Bit
 	  I2C_buf[1] = 0x1E; // START SEQ register
 	  I2C_buf[2] = 0b1; // bit starts first conversion
 
-	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
-		  Error_Handler();
-	  }
-	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
-		  Error_Handler();
-	  }
+
+//	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR1,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+//		  Error_Handler();
+//	  }
+//	  if( HAL_I2C_Master_Transmit(&hi2c2,ADC_ADDR2,I2C_buf,3,HAL_MAX_DELAY) != HAL_OK ) {
+//		  Error_Handler();
+//	  }
 
 	/*
 	 * CAN Initialization
@@ -400,7 +461,43 @@ int main(void)
 	   * ADC For-loop Start
 	   */
 	  for(int i = 1; i <= 7; i++) {
-		  float adc = ADC_Select_Channel(i);
+		  // read the raw adc value
+		  float adc_raw = ADC_Select_Channel(i);
+
+		  int16_t adc_scaled;
+
+		  if (channel_info[i - 1].is_temp) {
+		      adc_scaled = (int16_t)(adc_raw * 100);
+		  }
+		  else {
+		      adc_scaled = (int16_t)(adc_raw * 1000);
+		  }
+
+		  // calculate the moving average
+		  int16_t adc_avg_scaled = delayLine_MovingAverage(
+		      &adc_filters[i - 1],
+		      &adc_accumulators[i - 1],
+		      adc_scaled
+		  );
+
+		  float adc;
+
+		  if (channel_info[i - 1].is_temp) {
+		      adc = adc_avg_scaled / 100.0f;
+		  }
+		  else {
+		      adc = adc_avg_scaled / 1000.0f;
+		  }
+		  ///
+
+		  if (channel_info[i - 1].is_temp) {
+		      adc = adc_avg_scaled / 100.0f;
+		  }
+		  else {
+		      adc = adc_avg_scaled / 1000.0f;
+		  }
+
+
 		  ADC_Channel_Info info = channel_info[i-1];
 		  adc_readings[i-1] = adc; // store the ADC value
 
@@ -546,6 +643,7 @@ int main(void)
 		               }
 		  }
 	  }
+
 	  /*
 	   * ADC For-loop end
 	   */
@@ -587,7 +685,7 @@ int main(void)
 	   * Current Sense I2C Receive & Calculations
 	   */
 	  // MPPT Board 1
-	  HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR1,I2C_buf,4,HAL_MAX_DELAY); //reads 4 bytes of raw voltage data, 2 bytes from each mppt channel
+	  //HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR1,I2C_buf,4,HAL_MAX_DELAY); //reads 4 bytes of raw voltage data, 2 bytes from each mppt channel
 
 	  // i2c buffer -> raw adc values from each mppt
 	  uint16_t raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
@@ -616,7 +714,7 @@ int main(void)
 	  // MPPT Board 2
 	  // same as above, just to different address & bytes
 
-	  HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR2,I2C_buf,4,HAL_MAX_DELAY);
+	  //HAL_I2C_Master_Receive(&hi2c2,ADC_ADDR2,I2C_buf,4,HAL_MAX_DELAY);
 
 	  raw1 = ((uint16_t)I2C_buf[0] << 8 ) | I2C_buf[1];
 	  raw2 = ((uint16_t)I2C_buf[2] << 8 ) | I2C_buf[3];
@@ -649,7 +747,7 @@ int main(void)
 		 //Error_Handler();
 	 }
 
-	 HAL_Delay(5000);
+	 HAL_Delay(500); //changed this from 5000ms to this should be tested
 
 	 count++;
 	 printf("count: %d \r\n",count);
