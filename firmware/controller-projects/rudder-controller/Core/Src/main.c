@@ -287,7 +287,7 @@ int main(void)
 	  if(NMEA0183__getScentenceType(data) == MESSAGE_SHR){
 
 		//Get IMU data from message
-	  	uint32_t heading = (atof(NMEA0183__getField(data, 2))+180)*100; //32 bits
+	  	uint32_t heading = (atof(NMEA0183__getField(data, 2)))*100; //32 bits
 	  	uint32_t pitch = (atof(NMEA0183__getField(data, 4))+180)*100; //32 bits
 	  	uint32_t roll = (atof(NMEA0183__getField(data, 5))+180)*100; //32 bits
 
@@ -1053,7 +1053,7 @@ void unpackWindData(uint8_t * rxData) {
 void unpackHeadingData(uint8_t * rxData) {
     uint32_t raw_heading = little_endian_bytes_to_uint32(&rxData[0]);
     printf("Raw heading: %lu \r\n", raw_heading);
-    controller.live.sailingState.desiredHeading = 360-(((float) raw_heading) / 1000); // heading in degrees
+    controller.live.sailingState.desiredHeading = ((float) raw_heading) / 1000; // heading in degrees
     printf("Command heading: %f \r\n", controller.live.sailingState.desiredHeading);
 }
 

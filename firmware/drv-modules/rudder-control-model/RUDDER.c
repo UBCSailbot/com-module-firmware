@@ -214,7 +214,7 @@ float getRudderAngle(float currentError) {
     vals->derivativeValue = derivative; 
     printf("Derivative: %f\r\n", derivative);
     // Calculating PID output
-    float outputAngle = PID->Kp * currentError + PID->Ki * integral - PID->Kd * derivative;
+    float outputAngle = PID->Kp * currentError + PID->Ki * integral + PID->Kd * derivative;
     // Saving error
     cState->previousFilteredError = cState->filteredError;
     // Scaling and clamping output and integral  
@@ -273,6 +273,10 @@ void runPID(float *rudderAngle) {
         error += 360;
     }
     
+    printf("Error runPID(): %f\r\n", error);
+    printf("Current heading runPID(): %f\r\n", sailing->currentHeading);
+    printf("Desired heading runPID(): %f\r\n", sailing->desiredHeading);
+
     State state = getState(error);
 
 	switch(state){
