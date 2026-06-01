@@ -20,7 +20,7 @@
 #include "RUDDER_PARAMS.h"
 
 PIDControllerFixed rudderFixedParams = {
-    .standardCoeffs = { .Kp = 1.2, .Ki = 0.05, .Kd = 0.02, .derivativeFilterFactor = 0.8,.integralDecayFactor = 0.98,
+    .standardCoeffs = { .Kp = 1.2, .Ki = 0.05, .Kd = 0.02, .derivativeFilterFactor = 0.1,.integralDecayFactor = 0.98,
         .errorThreshold = 2.0f, .headingTolerance = 5.0f, .angVelTolerance = 0.2f, .integralMax = 10000.0f },
     .tackingCoeffs  = { .Kp = 1.8, .Ki = 0.07, .Kd = 0.03, .derivativeFilterFactor = 0.8, .integralDecayFactor = 0.98,
         .errorThreshold = 3.0f, .headingTolerance = 7.0f, .angVelTolerance = 0.3f },
