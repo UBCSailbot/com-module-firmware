@@ -35,6 +35,7 @@
 #define DELAY_LINE_SIZE 5
 typedef struct {
     int16_t elements[DELAY_LINE_SIZE]; //circular buffer to store the most recent N readings
+    uint8_t count;
     uint8_t  newestElement_idx;  //index of the newest element in the circular buffer
 }delayLine;
 
@@ -187,6 +188,7 @@ static float ADC_Select_Channel(uint32_t channelNumber)
 void delayLine_Init(delayLine *dl)
 {
     dl->newestElement_idx = 0;
+    dl->count = 0;
 
     for (int i = 0; i < DELAY_LINE_SIZE; i++) {
         dl->elements[i] = 0;
@@ -211,12 +213,16 @@ int16_t delayLine_MovingAverage(delayLine *dl, int32_t *accumulator, int16_t x)
 {
     int oldest_idx = (dl->newestElement_idx + 1) % (DELAY_LINE_SIZE); // overflow check
 
-    *accumulator += x;
-    *accumulator -= dl->elements[oldest_idx];
+    if (dl->count == DELAY_LINE_SIZE) {
+        *accumulator -= dl->elements[oldest_idx];
+    } else {
+        dl->count++;
+    }
 
+    *accumulator += x;
     delayLine_addElement(dl, x);
 
-    return *accumulator / DELAY_LINE_SIZE;
+    return *accumulator / dl->count;
 }
 
 /*
@@ -738,7 +744,7 @@ int main(void)
 		 //Error_Handler();
 	 }
 
-	 HAL_Delay(500); //changed this from 5000ms to this should be tested
+	//  HAL_Delay(500); //changed this from 5000ms to this should be tested
 
 	 count++;
 	 printf("count: %d \r\n",count);
