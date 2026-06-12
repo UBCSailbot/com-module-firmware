@@ -8,6 +8,9 @@ typedef struct {
     float relWindAngle;
     float avgRelWindAngle;
 
+    float windSpeed;
+    float avgWindSpeed;
+
     float linearVel;
     float heelAngle;
 
@@ -15,14 +18,16 @@ typedef struct {
     float prevHeading;
 
     bool initialized;
+    bool fault_detected;
 } StateEstimate;
 
 void updateStateEstimate(
     StateEstimate *est,
     float measuredHeadingDeg,
     float measuredRelWindAngleDeg,
+    float measuredWindSpeed,
     float measuredLinearVelocity,
     float measuredHeelAngleDeg
-)
+);
 
-void applyEstimateToController(Controller *controller, StateEstimate *est)
+void applyEstimateToController(Controller *controller, StateEstimate *est);

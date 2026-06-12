@@ -24,6 +24,7 @@ void updateStateEstimate(
     StateEstimate *est,
     float measuredHeadingDeg,
     float measuredRelWindAngleDeg,
+    float measuredWindSpeed,
     float measuredLinearVelocity,
     float measuredHeelAngleDeg
 ) {
@@ -31,6 +32,9 @@ void updateStateEstimate(
 
     measuredHeadingDeg = wrap360(measuredHeadingDeg);
     measuredRelWindAngleDeg = wrap180(measuredRelWindAngleDeg);
+    if (measuredWindSpeed < 0.0f) {
+        measuredWindSpeed = 0.0f;
+    }
 
     if (!est->initialized) {
         est->heading = measuredHeadingDeg;
@@ -41,6 +45,9 @@ void updateStateEstimate(
 
         est->relWindAngle = measuredRelWindAngleDeg;
         est->avgRelWindAngle = measuredRelWindAngleDeg;
+
+        est->windSpeed = measuredWindSpeed;
+        est->avgWindSpeed = measuredWindSpeed;
 
         est->linearVel = measuredLinearVelocity;
         est->heelAngle = measuredHeelAngleDeg;
@@ -62,6 +69,7 @@ void updateStateEstimate(
     const float headingAlpha = 0.4f;
     const float yawRateAlpha = 0.3f;
     const float windAlpha = 0.2f;
+    const float windSpeedAlpha = 0.2f;
     const float velocityAlpha = 0.2f;
     const float heelAlpha = 0.2f;
 
@@ -78,6 +86,12 @@ void updateStateEstimate(
 
     est->avgRelWindAngle =
         lowPass(est->avgRelWindAngle, est->relWindAngle, 0.1f);
+
+    est->windSpeed =
+        lowPass(est->windSpeed, measuredWindSpeed, windSpeedAlpha);
+
+    est->avgWindSpeed =
+        lowPass(est->avgWindSpeed, est->windSpeed, 0.1f);
 
     est->linearVel =
         lowPass(est->linearVel, measuredLinearVelocity, velocityAlpha);
@@ -96,6 +110,7 @@ void applyEstimateToController(Controller *controller, StateEstimate *est)
 
     controller->live.windState.relativeWindAngle = est->relWindAngle;
     controller->live.windState.averageRelativeWindAngle = est->avgRelWindAngle;
+    controller->live.windState.windSpeed = est->windSpeed;
 
     controller->live.sailingState.linearVelocity = est->linearVel;
     controller->live.sailingState.heelAngle = est->heelAngle;

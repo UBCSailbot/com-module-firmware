@@ -161,3 +161,37 @@ static void enter_mode(
         sm->gybe_block_until_ms = now_ms + sm->gybe_cooldown_ms;
     }
 }
+
+static SailingMode evaluate_from_straight(
+    SailingStateMachine *sm,
+    const EstimatedBoatState *state,
+    const GuidanceCommand *cmd,
+    uint32_t now_ms
+)
+{
+    if (cmd->manual_mode) {
+        return MODE_MANUAL;
+    }
+
+    if (state->fault_detected) {
+        return MODE_FAULT;
+    }
+
+    if (is_in_irons(state)) {
+        return MODE_IRONS;
+    }
+
+    if (state->boat_speed_mps < sm->low_wind_threshold_mps) {
+        return MODE_LOW_WIND;
+    }
+
+    if (cmd->tack_requested) {
+        return MODE_TACKING;
+    }
+
+    if (cmd->gybe_requested) {
+        return MODE_GYBING;
+    }
+
+    return MODE_STRAIGHT;
+}
