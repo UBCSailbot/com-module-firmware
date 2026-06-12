@@ -72,6 +72,8 @@ typedef struct {
 	float outputMin;
 	float upwindIronsAngle;
 	float downwindIronsAngle;
+	float upwindIronsRange;
+	float downwindIronsRange;
 	float lowWindThreshold;
 } PhysicalParams;
 
@@ -117,6 +119,8 @@ typedef struct {
 typedef struct {
 	float windSpeed;
 	float windDirection;
+	float relativeWindAngle;
+	float averageRelativeWindAngle;
 } WindState;
 
 /* This struct contains the current sailing state

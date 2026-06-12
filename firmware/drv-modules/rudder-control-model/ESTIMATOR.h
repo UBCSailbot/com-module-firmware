@@ -1,7 +1,15 @@
 /*ESTIMATOR.H*/
 
+#ifndef ESTIMATOR_H_
+#define ESTIMATOR_H_
+
+#include <stdbool.h>
+#include <stdint.h>
+#include "RUDDER.h"
+
 typedef struct {
     float heading;
+    float avgHeading;
     float yawRate;
     float avgYawRate;
 
@@ -30,4 +38,6 @@ void updateStateEstimate(
     float measuredHeelAngleDeg
 );
 
-void applyEstimateToController(Controller *controller, StateEstimate *est);
+void applyEstimateToController(PIDController *controller, StateEstimate *est);
+
+#endif /* ESTIMATOR_H_ */

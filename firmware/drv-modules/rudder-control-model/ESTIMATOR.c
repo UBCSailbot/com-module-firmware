@@ -1,6 +1,8 @@
 /*ESTIMATOR.c
 */
 
+#include "ESTIMATOR.h"
+
 static float wrap360(float angle)
 {
     while (angle >= 360.0f) angle -= 360.0f;
@@ -18,6 +20,11 @@ static float wrap180(float angle)
 static float lowPass(float previous, float measurement, float alpha)
 {
     return alpha * measurement + (1.0f - alpha) * previous;
+}
+
+static float lowPassHeading(float previous, float measurement, float alpha)
+{
+    return wrap360(previous + alpha * wrap180(measurement - previous));
 }
 
 void updateStateEstimate(
@@ -38,6 +45,7 @@ void updateStateEstimate(
 
     if (!est->initialized) {
         est->heading = measuredHeadingDeg;
+        est->avgHeading = measuredHeadingDeg;
         est->prevHeading = measuredHeadingDeg;
 
         est->yawRate = 0.0f;
@@ -73,7 +81,10 @@ void updateStateEstimate(
     const float velocityAlpha = 0.2f;
     const float heelAlpha = 0.2f;
 
-    est->heading = lowPass(est->heading, measuredHeadingDeg, headingAlpha);
+    est->heading = lowPassHeading(est->heading, measuredHeadingDeg, headingAlpha);
+
+    est->avgHeading =
+        lowPassHeading(est->avgHeading, est->heading, 0.1f);
 
     est->yawRate =
         lowPass(est->yawRate, rawYawRate, yawRateAlpha);
@@ -103,10 +114,11 @@ void updateStateEstimate(
     est->lastUpdateMs = now;
 }
 
-void applyEstimateToController(Controller *controller, StateEstimate *est)
+void applyEstimateToController(PIDController *controller, StateEstimate *est)
 {
     controller->live.sailingState.currentHeading = est->heading;
-    controller->live.sailingState.averageAngularVelocity = est->avgYawRate;
+    controller->live.sailingState.averageHeading = est->avgHeading;
+    controller->live.sailingState.averageAngVelocity = est->avgYawRate;
 
     controller->live.windState.relativeWindAngle = est->relWindAngle;
     controller->live.windState.averageRelativeWindAngle = est->avgRelWindAngle;

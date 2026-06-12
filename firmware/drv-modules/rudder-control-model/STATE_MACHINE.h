@@ -1,3 +1,9 @@
+#ifndef STATE_MACHINE_H_
+#define STATE_MACHINE_H_
+
+#include <stdbool.h>
+#include <stdint.h>
+
 typedef enum {
     MODE_STRAIGHT,
     MODE_TACKING,
@@ -26,7 +32,17 @@ typedef struct {
 
     float maneuver_target_heading_deg;
     float maneuver_initial_heading_deg;
+
+    float low_wind_threshold;
+    bool fault_detected;
 } SailingStateMachine;
+
+typedef struct {
+    float average_heading_deg;
+    float average_rel_wind_angle_deg;
+    float boat_speed_mps;
+    bool fault_detected;
+} EstimatedBoatState;
 
 typedef struct {
     float desired_heading_deg;
@@ -34,4 +50,17 @@ typedef struct {
     bool gybe_requested;
     bool manual_mode;
 } GuidanceCommand;
+
+SailingMode SailingSM_Update(
+    SailingStateMachine *sm,
+    const EstimatedBoatState *state,
+    const GuidanceCommand *cmd,
+    uint32_t now_ms
+);
+
+bool isUpwind(const EstimatedBoatState *state);
+bool isDownwind(const EstimatedBoatState *state);
+bool is_in_irons(const EstimatedBoatState *state);
+
+#endif /* STATE_MACHINE_H_ */
 
