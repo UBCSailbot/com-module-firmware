@@ -48,7 +48,12 @@
 
 #define CAN_TX_DELAY_MS 100
 #define RUDDER_TO_MAINFRAME_DEBUG_ID 0x204
+#define RUDDER_TO_MAINFRAME_IMU_ID 0x214
+#define RUDDER_IMU_FRAME_LEN 64
 #define CONTROL_MODEL_PARAMS_ID 0x200
+#define MESSAGE_GGA 0x414747
+#define MESSAGE_VTG 0x475456
+#define MESSAGE_ROT 0x544F52
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -78,6 +83,7 @@ HAL_StatusTypeDef CanStartStatus;
 float desiredRudderAngle;
 
 uint8_t * rudder_debug_frame;
+uint8_t * rudder_imu_frame;
 
 //0 = auto mode, 1 = manual
 uint8_t controller_mode = 1;
@@ -124,13 +130,42 @@ int get_encoder_delta(int prev, int curr) {
 
 NMEA0183 *ecompass;
 const char PASHR_ENABLE_CMD[] = "$JASC,PASHR,10\x0D\x0A"; //enables PASHR sentence type
-const char GPHDT_FREQ[] = "$JASC,GPHDT,10\x0D\x0A"; //allows heading data received at 10Hz
+//const char GPHDT_FREQ[] = "$JASC,GPHDT,10\x0D\x0A"; //unused: GPHDT is not consumed
+const char GPGGA_ENABLE_CMD[] = "$JASC,GPGGA,10\x0D\x0A"; //enables GPS position data at 10Hz
+const char GPVTG_ENABLE_CMD[] = "$JASC,GPVTG,10\x0D\x0A"; //enables speed over ground data at 10Hz
+const char GPROT_ENABLE_CMD[] = "$JASC,GPROT,10\x0D\x0A"; //enables rate of turn data at 10Hz
 
 void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) {
     bytes[0] = (uint8_t)(value & 0xFF);
     bytes[1] = (uint8_t)((value >> 8) & 0xFF);
     bytes[2] = (uint8_t)((value >> 16) & 0xFF);
     bytes[3] = (uint8_t)((value >> 24) & 0xFF);
+}
+
+void int32_to_little_endian_bytes(int32_t value, uint8_t bytes[4]) {
+    uint32_to_little_endian_bytes((uint32_t) value, bytes);
+}
+
+void set_frame_uint32(uint8_t *frame, uint8_t index, uint32_t value) {
+    uint32_to_little_endian_bytes(value, &frame[index]);
+}
+
+void set_frame_int32(uint8_t *frame, uint8_t index, int32_t value) {
+    int32_to_little_endian_bytes(value, &frame[index]);
+}
+
+int32_t nmea_coordinate_to_decimal_degrees_x1e7(uint8_t *coordinate, uint8_t *direction) {
+    if (coordinate == NULL || direction == NULL || coordinate[0] == '\0' || direction[0] == '\0') {
+        return 0;
+    }
+
+    float raw_coordinate = atof((const char *) coordinate);
+    int32_t degrees = (int32_t) (raw_coordinate / 100.0f);
+    float minutes = raw_coordinate - (degrees * 100.0f);
+    float decimal_degrees = degrees + (minutes / 60.0f);
+
+    if (direction[0] == 'S' || direction[0] == 'W') decimal_degrees *= -1.0f;
+    return (int32_t) (decimal_degrees * 10000000.0f);
 }
 
 /* USER CODE END 0 */
@@ -163,7 +198,8 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   //CAN frame ID 0x204 tx_frame
-  rudder_debug_frame = (uint8_t * ) malloc(16);
+  rudder_debug_frame = (uint8_t *) malloc(16);
+  rudder_imu_frame = (uint8_t *) calloc(RUDDER_IMU_FRAME_LEN, 1);
 
   PIDControllerFixed fixedController = getRudderFixedParams();
   initController(fixedController);
@@ -261,11 +297,24 @@ int main(void)
   	  printf("PASHR enable error \x0D\x0A");
     }
 
-    //signal sent to set the transmission frequency for GPHDT sentence type
-    if(HAL_UART_Transmit(&huart3, (uint8_t*)GPHDT_FREQ, 16, IMU_DELAY) != HAL_OK){
-  	  printf("GPHDT frequency set error \x0D\x0A");
+    if(HAL_UART_Transmit(&huart3, (uint8_t *)GPGGA_ENABLE_CMD, 15, IMU_DELAY) != HAL_OK){
+  	  printf("GPGGA enable error \x0D\x0A");
     }
-  ecompass = NMEA0183__create(&huart3);
+
+    if(HAL_UART_Transmit(&huart3, (uint8_t *)GPVTG_ENABLE_CMD, 15, IMU_DELAY) != HAL_OK){
+  	  printf("GPVTG enable error \x0D\x0A");
+    }
+
+    if(HAL_UART_Transmit(&huart3, (uint8_t *)GPROT_ENABLE_CMD, 15, IMU_DELAY) != HAL_OK){
+  	  printf("GPROT enable error \x0D\x0A");
+    }
+
+    //signal sent to set the transmission frequency for GPHDT sentence type
+//    if(HAL_UART_Transmit(&huart3, (uint8_t*)GPHDT_FREQ, 16, IMU_DELAY) != HAL_OK){
+//  	  printf("GPHDT frequency set error \x0D\x0A");
+//    }
+
+    ecompass = NMEA0183__create(&huart3);
 
    // signal sent to initialize PASHR sentence type
 
@@ -284,7 +333,8 @@ int main(void)
 	  printf("Data integrity test: %d\x0D\x0A", NMEA0183__checkMessage(data));
 	  //		  printf("Message type: %s\x0D\x0A", NMEA0183__getField(data, 0));
 
-	  if(NMEA0183__getScentenceType(data) == MESSAGE_SHR){
+	  uint32_t sentence_type = NMEA0183__getScentenceType(data);
+	  if(sentence_type == MESSAGE_SHR){
 
 		//Get IMU data from message
 	  	uint32_t heading = (atof(NMEA0183__getField(data, 2)))*100; //32 bits
@@ -305,7 +355,43 @@ int main(void)
 
 	  	printf("Euler Data: %lu, %lu, %lu \x0D\x0A", heading, roll, pitch);
 
+	  	uint32_t imu_heading = (uint32_t)(atof(NMEA0183__getField(data, 2)) * 100.0f);
+	  	int32_t imu_roll = (int32_t)(atof(NMEA0183__getField(data, 4)) * 100.0f);
+	  	int32_t imu_pitch = (int32_t)(atof(NMEA0183__getField(data, 5)) * 100.0f);
+	  	int32_t imu_heave = (int32_t)(atof(NMEA0183__getField(data, 6)) * 1000.0f);
+	  	uint32_t imu_roll_accuracy = (uint32_t)(atof(NMEA0183__getField(data, 7)) * 1000.0f);
+	  	uint32_t imu_pitch_accuracy = (uint32_t)(atof(NMEA0183__getField(data, 8)) * 1000.0f);
+	  	uint32_t imu_heading_accuracy = (uint32_t)(atof(NMEA0183__getField(data, 9)) * 1000.0f);
+
+	  	set_frame_uint32(rudder_imu_frame, 0, imu_heading);
+	  	set_frame_int32(rudder_imu_frame, 4, imu_roll);
+	  	set_frame_int32(rudder_imu_frame, 8, imu_pitch);
+	  	set_frame_int32(rudder_imu_frame, 12, imu_heave);
+	  	set_frame_uint32(rudder_imu_frame, 36, imu_roll_accuracy);
+	  	set_frame_uint32(rudder_imu_frame, 40, imu_pitch_accuracy);
+	  	set_frame_uint32(rudder_imu_frame, 44, imu_heading_accuracy);
+
 	  	}
+	  else if(sentence_type == MESSAGE_GGA){
+		  set_frame_int32(rudder_imu_frame, 16, nmea_coordinate_to_decimal_degrees_x1e7(NMEA0183__getField(data, 2), NMEA0183__getField(data, 3)));
+		  set_frame_int32(rudder_imu_frame, 20, nmea_coordinate_to_decimal_degrees_x1e7(NMEA0183__getField(data, 4), NMEA0183__getField(data, 5)));
+
+		  if (NMEA0183__getField(data, 9) != NULL) set_frame_int32(rudder_imu_frame, 24, (int32_t)(atof((const char *)NMEA0183__getField(data, 9)) * 100.0f));
+		  if (NMEA0183__getField(data, 6) != NULL) rudder_imu_frame[48] = (uint8_t)atoi((const char *)NMEA0183__getField(data, 6));
+		  if (NMEA0183__getField(data, 7) != NULL) rudder_imu_frame[49] = (uint8_t)atoi((const char *)NMEA0183__getField(data, 7));
+	  }
+	  else if(sentence_type == MESSAGE_VTG){
+		  if (NMEA0183__getField(data, 7) != NULL) {
+			  set_frame_uint32(rudder_imu_frame, 28, (uint32_t)(atof((const char *)NMEA0183__getField(data, 7)) * 100.0f));
+		  }
+	  }
+	  else if(sentence_type == MESSAGE_ROT){
+		  uint8_t *rot_rate = NMEA0183__getField(data, 1);
+		  uint8_t *rot_status = NMEA0183__getField(data, 2);
+		  if (rot_rate != NULL && rot_status != NULL && rot_status[0] == 'A') {
+			  set_frame_int32(rudder_imu_frame, 32, (int32_t)(atof((const char *)rot_rate) * 100.0f));
+		  }
+	  }
 //Same data as above, easier for now to just do the one
 	  //	  	else if(NMEA0183__getScentenceType(data) == MESSAGE_HDT){
 //	  	  int8_t *heading_data = NMEA0183__getField(data, 1);
@@ -368,6 +454,13 @@ int main(void)
 
 		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_debug_frame)!=HAL_OK) {
 			printf("Err: CAN TX\r\n");
+		  }
+
+		  TxHeader1.Identifier         = RUDDER_TO_MAINFRAME_IMU_ID;
+		  TxHeader1.IdType             = (RUDDER_TO_MAINFRAME_IMU_ID>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
+		  TxHeader1.DataLength         = byte_to_dlc(RUDDER_IMU_FRAME_LEN);
+		  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,rudder_imu_frame)!=HAL_OK) {
+			printf("Err: IMU CAN TX\r\n");
 		  }
 
 	  }
