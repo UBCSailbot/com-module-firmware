@@ -50,7 +50,7 @@
 #define RUDDER_TO_MAINFRAME_DEBUG_ID 0x204
 #define RUDDER_TO_MAINFRAME_IMU_ID 0x214
 #define RUDDER_IMU_FRAME_LEN 64
-#define CONTROL_MODEL_PARAMS_ID 0x200
+#define CONTROL_MODEL_PARAMS_ID 0x210
 #define MESSAGE_GGA 0x414747
 #define MESSAGE_VTG 0x475456
 #define MESSAGE_ROT 0x544F52
@@ -1131,6 +1131,13 @@ uint8_t little_endian_bytes_to_uint8(const uint8_t *bytes) {
     return (uint8_t)little_endian_bytes_to_uint(bytes, 1);
 }
 
+float little_endian_bytes_to_float32(const uint8_t *bytes) {
+    uint32_t raw = little_endian_bytes_to_uint32(bytes);
+    float value;
+    memcpy(&value, &raw, sizeof(value));
+    return value;
+}
+
 void unpackGPSData(uint8_t * rxData) {
     uint32_t raw_speed = little_endian_bytes_to_uint32(&rxData[16]);
     controller.live.sailingState.linearVelocity = raw_speed / 3600; // speed in m/s
@@ -1164,6 +1171,20 @@ void unpackCoefficients(uint8_t * rxData) {
     printf("KI: %f\r\n", controller.fixed.standardCoeffs.Ki);
 	printf("KD: %f\r\n", controller.fixed.standardCoeffs.Kd);
 }
+
+void unpackRudderParams(uint8_t * rxData) {
+    uint8_t command_status = rxData[0];
+    RudderParamId param_id = (RudderParamId)rxData[1];
+    float value = little_endian_bytes_to_float32(&rxData[2]);
+
+    if (setRudderParam(param_id, value)) {
+        controller.fixed = getRudderFixedParams();
+        printf("Set rudder param command %u id %u to %f\r\n", command_status, (unsigned int)param_id, value);
+    } else {
+        printf("Invalid rudder param command %u id %u value %f\r\n", command_status, (unsigned int)param_id, value);
+    }
+}
+
 void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
   // Need a switch based on rxHeader->Identifier
   // WITHIN EACH CASE, extract data from rxData and set variable in sailing state
@@ -1199,9 +1220,10 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     case 0x041:
         // Wind data 2
-    	if (length == 4)
+    	if (length == 4) {
     		unpackWindData(rxData);
         break;
+      }
 
 //Won't get x070 frame this test
 //    case 0x070:
@@ -1211,9 +1233,17 @@ void processCANFrames(FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData) {
 
     case 0x200:
         // PID Coefficients
-    	if (length == 12)
+    	if (length == 12) {
     		unpackCoefficients(rxData);
         break;
+      }
+
+    case 0x210:
+      // Generic Tunable Params
+      if (length == 6) {
+        unpackRudderParams(rxData);
+        break;
+      }
 
     default:
     	break;
