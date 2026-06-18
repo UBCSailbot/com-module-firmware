@@ -91,7 +91,6 @@ PIDControllerLive initLiveController() {
     ControllerState cState;
     cState.lastTime  = HAL_GetTick();
     cState.currentTime = cState.lastTime;
-    cState.integralError = 0;
     // get wind data and initialize wind state
     volatile WindState wState = {0};
     // wState.windSpeed = getWindSpeed();
@@ -261,21 +260,23 @@ float getRudderAngle(float currentError) {
 	float dt = cState->currentTime -  cState->lastTime;
     // Calculating the integral addition
     float integral = cState->integralError + currentError * dt / 1000.0;
-//    if (dt < 1.0f){
-//    		integral = cState->integralError;
-//    }
+    if (dt < 1.0f){
+    		integral = cState->integralError;
+    }
 //    printf("Time %f \r\n", dt);
     printf("Integral %f \r\n",integral);
     // Clamp integral to prevent windup
-//    const float integralMax = PID->integralMax; // from your PhysicalParams or a #define
+    const float integralMax = PID->integralMax; // from your PhysicalParams or a #define
     // if (integral > integralMax) {
     //     integral = integralMax;
     // } else if (integral < -integralMax) {
     //     integral = -integralMax;
     // }
 
-//    // Save the clamped integral back
-//    cState->integralError = integral;
+    vals->integralValue = integral;
+
+    // Save the clamped integral back
+    cState->integralError = integral;
 
     // Low pass filtering the derivative
     cState->filteredError = PID->derivativeFilterFactor * currentError + (1 - PID->derivativeFilterFactor) * cState->previousFilteredError;
@@ -307,19 +308,18 @@ float getRudderAngle(float currentError) {
     if(outputAngle > params->outputMax) {
         outputAngle = params->outputMax;
         if(currentError < 0) {
-            cState->integralError += currentError * dt / 1000;
+            cState->integralError += currentError * dt / 1000; 
          }
 
     } else if(outputAngle < params->outputMin) {
         outputAngle = params->outputMin;
         if(currentError > 0) {
-            cState->integralError += currentError * dt / 1000;
+            cState->integralError += currentError * dt / 1000; 
         }
     } else {
         cState->integralError += currentError * dt / 1000;
         cState->integralError += currentError * dt / 1000;
     }
-    vals->integralValue = integral;
     // Apply integral decay
     cState->integralError *= PID->integralDecayFactor;
     cState->previousError = currentError;
@@ -331,12 +331,10 @@ float getRudderAngle(float currentError) {
 void updateControllerTime(float currentError) {
     PIDcoefficients *PID = &controller.live.activeCoeffs;
     ControllerState *cState = &controller.live.controllerState;
-    LiveValues *vals = &controller.live.liveValues;
     cState->lastTime = cState->currentTime;
 	cState->currentTime = HAL_GetTick();
     cState->previousError = currentError;    
-    cState->integralError *= PID->integralDecayFactor;
-    vals->integralValue = cState->integralError;
+    cState->integralError = cState->integralError * PID->integralDecayFactor;
 }
 
 // Runs control model based on current sailing state
@@ -489,7 +487,7 @@ float straightLine(float error) {
     float rudderAngle;
 	
     // if within error threshold, do not adjust rudder angle
-	if(fabs(error) < PID->errorThreshold) {
+	if(fabs(error) < PID->errorThreshold && !cState->isActive) {
         // update controller state without changing output
 		updateControllerTime(error);
         rudderAngle = 0;
