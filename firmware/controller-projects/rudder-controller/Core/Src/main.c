@@ -472,6 +472,10 @@ int main(void)
         Error_Handler();
       }
     }
+
+    printf("Running");
+
+
 	}
 
 
