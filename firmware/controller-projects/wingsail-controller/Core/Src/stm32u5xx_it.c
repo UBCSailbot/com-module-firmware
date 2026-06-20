@@ -22,6 +22,8 @@
 #include "stm32u5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "NMEA0183.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,7 +43,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,6 +59,13 @@
 extern FDCAN_HandleTypeDef hfdcan1;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel9;
 extern UART_HandleTypeDef huart2;
+extern DMA_HandleTypeDef handle_GPDMA1_Channel13;
+extern DMA_HandleTypeDef handle_GPDMA1_Channel14;
+extern DMA_HandleTypeDef handle_GPDMA1_Channel15;
+extern UART_HandleTypeDef hlpuart1;
+extern UART_HandleTypeDef huart5;
+extern UART_HandleTypeDef huart2;
+extern TIM_HandleTypeDef htim7;
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 /* USER CODE BEGIN EV */
 
@@ -216,17 +224,60 @@ void FDCAN1_IT0_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM7 global interrupt.
+  */
+void TIM7_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM7_IRQn 0 */
+
+  /* USER CODE END TIM7_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim7);
+  /* USER CODE BEGIN TIM7_IRQn 1 */
+
+  /* USER CODE END TIM7_IRQn 1 */
+}
+
+/**
   * @brief This function handles USART2 global interrupt.
   */
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
 
+  NMEA0183__IRQHandler(&huart2);
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
 
   /* USER CODE END USART2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles UART5 global interrupt.
+  */
+void UART5_IRQHandler(void)
+{
+  /* USER CODE BEGIN UART5_IRQn 0 */
+  NMEA0183__IRQHandler(&huart5);
+  /* USER CODE END UART5_IRQn 0 */
+  HAL_UART_IRQHandler(&huart5);
+  /* USER CODE BEGIN UART5_IRQn 1 */
+
+  /* USER CODE END UART5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles LPUART1 global interrupt.
+  */
+void LPUART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN LPUART1_IRQn 0 */
+  NMEA0183__IRQHandler(&hlpuart1);
+  /* USER CODE END LPUART1_IRQn 0 */
+  HAL_UART_IRQHandler(&hlpuart1);
+  /* USER CODE BEGIN LPUART1_IRQn 1 */
+
+  /* USER CODE END LPUART1_IRQn 1 */
 }
 
 /**
@@ -255,6 +306,45 @@ void GPDMA1_Channel9_IRQHandler(void)
   /* USER CODE BEGIN GPDMA1_Channel9_IRQn 1 */
 
   /* USER CODE END GPDMA1_Channel9_IRQn 1 */
+  * @brief This function handles GPDMA1 Channel 13 global interrupt.
+  */
+void GPDMA1_Channel13_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA1_Channel13_IRQn 0 */
+
+  /* USER CODE END GPDMA1_Channel13_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA1_Channel13);
+  /* USER CODE BEGIN GPDMA1_Channel13_IRQn 1 */
+
+  /* USER CODE END GPDMA1_Channel13_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA1 Channel 14 global interrupt.
+  */
+void GPDMA1_Channel14_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA1_Channel14_IRQn 0 */
+
+  /* USER CODE END GPDMA1_Channel14_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA1_Channel14);
+  /* USER CODE BEGIN GPDMA1_Channel14_IRQn 1 */
+
+  /* USER CODE END GPDMA1_Channel14_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA1 Channel 15 global interrupt.
+  */
+void GPDMA1_Channel15_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA1_Channel15_IRQn 0 */
+
+  /* USER CODE END GPDMA1_Channel15_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA1_Channel15);
+  /* USER CODE BEGIN GPDMA1_Channel15_IRQn 1 */
+
+  /* USER CODE END GPDMA1_Channel15_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

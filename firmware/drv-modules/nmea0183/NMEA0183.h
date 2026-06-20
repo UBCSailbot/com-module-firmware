@@ -24,7 +24,20 @@
 //--------------------------------------------------------------------------- INCLUDES ---------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#include "stm32u5xx_hal.h"
+#include "main.h"
+#include <stdbool.h>
+#include <stdio.h>
+
+#if defined(NMEA_DEBUG) || defined(DEBUG)
+#define NMEA_DEBUG_PRINT(...)                                                  \
+  do {                                                                         \
+    if (g_fw_enable_debug_prints != 0U) {                                      \
+      printf(__VA_ARGS__);                                                     \
+    }                                                                          \
+  } while (0)
+#else
+#define NMEA_DEBUG_PRINT(...) ((void)0)
+#endif
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- STRUCTURES ---------------------------------------------------------------------------
@@ -38,9 +51,10 @@
 
 //Constants for different NMEA data types. This is encoded as follows:
 //		00000000aaaaaaaabbbbbbbbcccccccc Where the bits are the ASCII abbreviation of the data type: "CBA".
-#define MESSAGE_VDM 0x4D4456
-#define MESSAGE_MWV 0x56574D
-#define MESSAGE_XDR 0x524458
+static const uint32_t MESSAGE_VDM = 0x4D4456;
+static const uint32_t MESSAGE_VDO = 0x4F4456;
+static const uint32_t MESSAGE_MWV = 0x56574D;
+static const uint32_t MESSAGE_XDR = 0x524458;
 
 //enum for the result of the checks conducted on a message
 typedef enum {
@@ -48,14 +62,14 @@ typedef enum {
 	BAD_START_CHARACTER = 1,
 	BAD_TERMINATION_SEQUENCE = 2,
 	BAD_CHECK_SUM = 3
-}MESSAGE_STATUS;
+} MESSAGE_STATUS;
 
 
 //The NMEA0183Raw data type
 typedef struct {
 	uint8_t scentenceData[MAX_SENTENCE_LENGTH];
 	uint8_t scentenceLength;
-}NMEA0183Raw;
+} NMEA0183Raw;
 
 //The NMEA0183 data type
 typedef struct {
@@ -66,6 +80,7 @@ typedef struct {
 	NMEA0183Raw dataBuffer[MAX_DATA_BUFFER_SIZE];
 	volatile uint8_t dataBufferReadIndex;
 	volatile uint8_t dataBufferWriteIndex;
+	volatile bool overflowed;
 } NMEA0183;
 
 
