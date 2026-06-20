@@ -61,6 +61,7 @@ void USART2_IRQHandler(void);
 void UART5_IRQHandler(void);
 void LPUART1_IRQHandler(void);
 void OTG_FS_IRQHandler(void);
+void GPDMA1_Channel9_IRQHandler(void);
 void GPDMA1_Channel13_IRQHandler(void);
 void GPDMA1_Channel14_IRQHandler(void);
 void GPDMA1_Channel15_IRQHandler(void);

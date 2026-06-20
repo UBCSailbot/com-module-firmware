@@ -44,9 +44,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "BRITER.h"
-#include "NMEA0183.h"
-//#include "BRITER.h"
-//#include "WINDSENSOR.h"
 #include "AIS.h"
 #include "GPS.h"
 #include "NMEA0183_scheduler.h"
@@ -86,18 +83,14 @@ I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
 
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart2;
-DMA_HandleTypeDef handle_GPDMA1_Channel9;
 UART_HandleTypeDef hlpuart1;
 UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef handle_GPDMA1_Channel9;
 DMA_HandleTypeDef handle_GPDMA1_Channel13;
 DMA_HandleTypeDef handle_GPDMA1_Channel14;
 DMA_HandleTypeDef handle_GPDMA1_Channel15;
-
-SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim7;
 
@@ -133,7 +126,6 @@ static void MX_USART2_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_UART5_Init(void);
 static void MX_LPUART1_UART_Init(void);
@@ -224,33 +216,7 @@ int main(void)
   MX_USB_OTG_FS_PCD_Init();
   MX_FDCAN1_Init();
   MX_SPI1_Init();
-  MX_USART2_UART_Init();
   MX_I2C1_Init();
-  /* USER CODE BEGIN 2 */
-  /* MCP2515 on SPI (classic CAN). Sail debug TX/RX uses FDCAN + can.c, not CANSPI_Transmit. */
-  (void)CANSPI_Initialize();
-  CAN_Init(&hfdcan1);
-  mastEncoderObject = BRITER__create(&huart2, 20);
-
-
-
-
-  //If briter_create() returned NULL, something went wrong which means there could be 
-  // - not enough memory( malloc failed)
-  // - USART2 not initialized yet
-  // - Enocoder hardware not connected
-
-  if(mastEncoderObject == NULL){
-    Error_Handler();
-  }
-
-  printf("Mast encoder initialized\r\n");
-
-  // Note: Helper functions moved outside main() if needed
-  // These functions are not currently used but kept for reference
-  // int get_encoder_delta(int prev, int curr) { ... }
-  // void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) { ... }
-
   MX_UART5_Init();
   MX_LPUART1_UART_Init();
   MX_TIM7_Init();
@@ -291,21 +257,25 @@ int main(void)
   nmea_scheduler_wind.channel = nmea_channel_wind;
   nmea_scheduler_wind.wind_sensor = wind_sensor;
   nmea_scheduler_wind.hfdcan1 = &hfdcan1;
+
+  mastEncoderObject = BRITER__create(&huart2, 20);
+  if (mastEncoderObject == NULL) {
+    Error_Handler();
+  }
+  printf("Mast encoder initialized\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  //100ms for transmission delay 
-  #define CAN_TX_DELAY_MS 100 
-
-  //Track when the last CAN message was sent
+  #define CAN_TX_DELAY_MS 100
   uint32_t lastCanTxTime = HAL_GetTick();
-
-  //Buffer to hold CAN message data
   uint8_t mastCanData[8] = {0};
 
   while (1)
   {
+    HAL_Delay(10);
+    uint32_t now_ms = HAL_GetTick();
+
     uint16_t rawValue = BRITER__getEncoderRaw(mastEncoderObject);
     float mastAngle = BRITER__floatAngle(mastEncoderObject);
 
@@ -327,33 +297,20 @@ int main(void)
     }
 
     memset(mastCanData, 0, sizeof(mastCanData));
-    /* 0x205: uint16_t degrees 0..359, little-endian (update Confluence if it still says 1 byte +180). */
     mastCanData[0] = (uint8_t)(mastDeg0to359 & 0xFFu);
     mastCanData[1] = (uint8_t)((mastDeg0to359 >> 8) & 0xFFu);
 
-    // "Try" to send mast ANGLE over CAN BUS
-    if(HAL_GetTick() - lastCanTxTime >= CAN_TX_DELAY_MS) { 
-      if(CAN_Transmit(MAST_ANGLE_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2, mastCanData, &hfdcan1) == HAL_OK) {
+    if (HAL_GetTick() - lastCanTxTime >= CAN_TX_DELAY_MS) {
+      if (CAN_Transmit(MAST_ANGLE_CAN_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_2,
+                       mastCanData, &hfdcan1) == HAL_OK) {
         lastCanTxTime = HAL_GetTick();
       }
-
-
-    } 
+    }
 
     BRITER__checkErrors(mastEncoderObject);
-
-    HAL_Delay(10);
-
-    /* Servo not driven from CAN in this scope; keep a neutral setpoint so existing init path stays exercised. */
-    set_servo_angle(0.0f);
     printf("Mast signed:%f deg  |  0..360:%f  |  CAN uint16:%u (Raw: %u)\r\n",
            mastAngle, angle0to360, (unsigned)mastDeg0to359, (unsigned)rawValue);
-  while (1)
-  {
-    HAL_Delay(10);
-    uint32_t now_ms = HAL_GetTick();
 
-    // NMEA0183 parsing
     debug_poll_wind_channel();
     if (NMEA0183__scheduler_step(&nmea_scheduler_ais_gps, now_ms)) {
       HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
@@ -362,25 +319,23 @@ int main(void)
       HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
     }
 
-   // CANSERVO
-    while (CAN_Receive(&canRxFrame) == HAL_OK){
+    while (CAN_Receive(&canRxFrame) == HAL_OK) {
       uint32_t id = canRxFrame.RxData1_Identifier;
-      if (id == 0x002 && canRxFrame.RxData1_BufferLength == 4){
+      if (id == 0x002 && canRxFrame.RxData1_BufferLength == 4) {
         uint32_t value = (((uint32_t)canRxFrame.RxData1[3]) << 24) |
                          (((uint32_t)canRxFrame.RxData1[2]) << 16) |
                          (((uint32_t)canRxFrame.RxData1[1]) << 8) |
                          ((uint32_t)canRxFrame.RxData1[0]);
-        angle = ((float) value) / 1000.0 - 90.0;
-        angle *= 8.0;
+        angle = ((float)value) / 1000.0f - 90.0f;
+        angle *= 8.0f;
       }
     }
 
-    if (angle < -SERVO_LIMIT){
-    	angle = -SERVO_LIMIT;
-    } else if (angle > SERVO_LIMIT){
-    	angle = SERVO_LIMIT;
+    if (angle < -SERVO_LIMIT) {
+      angle = -SERVO_LIMIT;
+    } else if (angle > SERVO_LIMIT) {
+      angle = SERVO_LIMIT;
     }
-
 
     set_servo_angle(angle);
 
