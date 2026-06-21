@@ -58,6 +58,8 @@
 extern FDCAN_HandleTypeDef hfdcan1;
 extern TIM_HandleTypeDef htim7;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel9;
+extern DMA_NodeTypeDef Node_GPDMA1_Channel15;
+extern DMA_QListTypeDef List_GPDMA1_Channel15;
 extern DMA_HandleTypeDef handle_GPDMA1_Channel15;
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart3;

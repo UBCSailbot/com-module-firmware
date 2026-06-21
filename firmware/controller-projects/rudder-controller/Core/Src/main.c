@@ -67,6 +67,8 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef handle_GPDMA1_Channel9;
+DMA_NodeTypeDef Node_GPDMA1_Channel15;
+DMA_QListTypeDef List_GPDMA1_Channel15;
 DMA_HandleTypeDef handle_GPDMA1_Channel15;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -825,7 +827,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 19200;
+  huart3.Init.BaudRate = 115200;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
