@@ -52,6 +52,7 @@
 #define RUDDER_TO_MAINFRAME_DEBUG_ID 0x204
 #define CONTROL_MODEL_PARAMS_ID 0x200
 #define IMU_HEADING_TIMEOUT_MS 200
+#define IMU_ATTITUDE_TIMEOUT_MS 200
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -279,6 +280,15 @@ int main(void)
 	    uint16_t heading_cd = (uint16_t)(imuHeading * 100.0f);
 	    rudder_debug_frame[6] = heading_cd & 0xFF;
 	    rudder_debug_frame[7] = (heading_cd >> 8) & 0xFF;
+	  }
+
+	  float imuHeel, imuYawRate;
+	  if (PLRS_IMU__isAttitudeFresh(&imu, IMU_ATTITUDE_TIMEOUT_MS) &&
+	      PLRS_IMU__getHeel(&imu, &imuHeel) &&
+	      PLRS_IMU__getYawRate(&imu, &imuYawRate)) {
+	    controller.live.sailingState.heelAngle = imuHeel;
+	    // Control model expects rad/s; the link reports deg/s.
+	    controller.live.sailingState.angularVelocity = imuYawRate * 0.0174532925f;
 	  }
 	  HAL_Delay(50);
 //	  printf("here\r\n");
