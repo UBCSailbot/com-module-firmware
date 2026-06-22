@@ -31,6 +31,7 @@
  */
 typedef enum {
     PLRS_IMU_MSG_HEADING = 0x01,
+    PLRS_IMU_MSG_ATTITUDE = 0x02,
 } PlrsImuMsgId;
 
 /**
@@ -98,6 +99,28 @@ bool plrs_imu_cobs_decode(const uint8_t *block, size_t len, uint8_t *out,
  */
 bool plrs_imu_heading_from_payload(const uint8_t *payload, size_t len,
                                    float *deg_out);
+
+/**
+ * Attitude payload: heading, roll, pitch (degrees) and yaw rate (deg/s).
+ */
+typedef struct {
+    float heading_deg;
+    float roll_deg;
+    float pitch_deg;
+    float yaw_rate_dps;
+} PlrsImuAttitude;
+
+/**
+ * @brief Parse an Attitude payload: four little-endian float32s.
+ *
+ * @param payload Payload bytes.
+ * @param len     Payload length.
+ * @param out     Set to the decoded attitude on success.
+ *
+ * @return true on success; false if len is not four float32s.
+ */
+bool plrs_imu_attitude_from_payload(const uint8_t *payload, size_t len,
+                                    PlrsImuAttitude *out);
 
 /*
  * Receiving.
