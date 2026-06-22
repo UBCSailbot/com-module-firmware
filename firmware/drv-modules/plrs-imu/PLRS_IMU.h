@@ -25,6 +25,12 @@ typedef struct {
     bool has_heading;
     float heading_deg;
     uint32_t heading_ms;
+
+    bool has_attitude;
+    float heel_deg;
+    float yaw_rate_dps;
+    uint32_t attitude_ms;
+
     uint32_t last_rx_ms;
 
     bool has_seq;
@@ -66,6 +72,37 @@ bool PLRS_IMU__getHeading(PLRS_IMU *self, float *deg_out);
  * @return true if a heading has arrived within timeout_ms.
  */
 bool PLRS_IMU__isFresh(const PLRS_IMU *self, uint32_t timeout_ms);
+
+/**
+ * @brief Read the latest heel angle in degrees (roll, starboard-down positive).
+ *
+ * @param self    The driver instance.
+ * @param deg_out Set to the latest heel angle.
+ *
+ * @return true if an Attitude frame has been received since init.
+ */
+bool PLRS_IMU__getHeel(PLRS_IMU *self, float *deg_out);
+
+/**
+ * @brief Read the latest yaw rate in degrees per second.
+ *
+ * @param self     The driver instance.
+ * @param dps_out  Set to the latest yaw rate.
+ *
+ * @return true if an Attitude frame has been received since init.
+ */
+bool PLRS_IMU__getYawRate(PLRS_IMU *self, float *dps_out);
+
+/**
+ * @brief Check whether the latest attitude (heel, yaw rate) is no older than
+ *   timeout_ms.
+ *
+ * @param self       The driver instance.
+ * @param timeout_ms Maximum attitude age.
+ *
+ * @return true if an Attitude frame has arrived within timeout_ms.
+ */
+bool PLRS_IMU__isAttitudeFresh(const PLRS_IMU *self, uint32_t timeout_ms);
 
 /**
  * @brief Tick of the last good frame of any message type.
