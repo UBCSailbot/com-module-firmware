@@ -47,48 +47,29 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
-
-#define WINDOW_SIZE 10
+#include "ESTIMATOR.h"
+#include "STATE_MACHINE.h"
 
 // Global controller instance
 PIDController controller;
 
-//State transition matrix
-#define STATE_COUNT 6
-
-// Defines allowed state transitions
-static const bool allowedTransitions[STATE_COUNT][STATE_COUNT] = {
-/* FROM:      TO:  STRAIGHT   TACKING   GYBING    LOWWIND  IRONS  MANUAL  */
-/* STRAIGHT */ { true,        true,     true,     true,     true,    true },
-/* TACKING  */  { true,        false,     false,    true,     true,     true },
-/* GYBING   */  { true,        false,    false,     true,     true,     true },
-/* LOWWIND*/ { true,        true,    true,    true,     true,     true },
-/* IRONS */  { true,        false,    false,    true,     true,     true },
-/* MANUAL   */  { true,        false,    false,    true,    true,    true }
-};
-
 /*Private function declarations*/
 
-static void updateAverages(void);
-static float movingAverage(float array[], int index, int size, float value);
 static float straightLine(float error);
 static float tacking(void);
 static float gybing(void);
 static float lowwind(float error);
 static float irons(float error);
-static bool isTackingCondition(float error);
-static bool isGybingCondition(float error);
-static void requestState(StateMachine *stateMachine, State next);
-static void updateStateMachine(StateMachine *stateMachine);
 
 // Initializes the live state of the PID controller
 PIDControllerLive initLiveController() {
     PIDControllerLive live;
     memset(&live, 0, sizeof(PIDControllerLive)); // Zero out the struct
     // initialize controller state - time, integral, etc
-    ControllerState cState;
+    ControllerState cState = {0};
     cState.lastTime  = HAL_GetTick();
     cState.currentTime = cState.lastTime;
     // get wind data and initialize wind state
@@ -109,29 +90,27 @@ PIDControllerLive initLiveController() {
     sState.averageAngVelocity = sState.angularVelocity;
     // sState.averageHeading = sState.currentHeading;
     // initialize tacking state
-    TackingState tState;
+    TackingState tState = {0};
     tState.isTacking = false;
+    tState.tackingAllowed = true;
+    tState.tackingBanStartTime = 0.0f;
+    tState.tackingStartTime = 0.0f;
+    tState.initialHeading = 0.0f;
+    tState.targetHeading = 0.0f;
     live.tackingState = tState;
     // initialize gybing state
-    GybingState gState;
+    GybingState gState = {0};
     gState.isGybing = false;
+    gState.gybingAllowed = true;
+    gState.gybingBanStartTime = 0.0f;
+    gState.gybingStartTime = 0.0f;
+    gState.initialHeading = 0.0f;
+    gState.targetHeading = 0.0f;
     live.gybingState = gState;
     // assign states to live controller
     LiveValues liveVals = {0};
 
     PIDcoefficients activeCoeffs = {0};
-
-    StateMachine sm;
-
-    sm.currentState = STRAIGHT;
-    sm.nextState = STRAIGHT;
-    sm.lastTransition = HAL_GetTick();
-
-    TransitionGuards guards = {0};
-
-    memset(guards.timestampBlock, 0, sizeof(guards.timestampBlock));
-
-    sm.transitionGuards = guards;
 
     live.activeCoeffs = activeCoeffs;
     live.controllerState = cState;
@@ -140,7 +119,7 @@ PIDControllerLive initLiveController() {
     live.tackingState = tState;
     live.gybingState = gState;
     live.liveValues = liveVals;
-    live.stateMachine = sm;
+    RudderSM_Init(&live.stateMachine);
 
     return live;
 }
@@ -152,55 +131,9 @@ void initController(PIDControllerFixed fixedController) {
     controller.fixed = fixedController;
 }
 
-// Initializes transition guards
-void initTransitionGuards(TransitionGuards *guards) {
-    memset(guards->timestampBlock, 0, sizeof(guards->timestampBlock));
-}
-
-// Blocks a state transition for a specified duration
-void blockTransition(TransitionGuards *guards, State from, State to, uint32_t durationMs)
-{
-    guards->timestampBlock[from][to] = HAL_GetTick() + durationMs;
-}
-
 // Updates live controller variables with current sensor data
 void updateControllerVariables () {
-    // Update the sailing and sea state in the controller
-//    controller.live.windState.windSpeed = getWindSpeed();
-//    controller.live.windState.windDirection = getWindDirection();
-//    controller.live.sailingState.linearVelocity = getLinearVelocity();
-//    controller.live.sailingState.angularVelocity = getAngularVelocity();
-//    controller.live.sailingState.heelAngle = getHeelAngle();
-//    controller.live.sailingState.currentHeading = getCurrentHeading();
-//    controller.live.sailingState.desiredHeading = getDesiredHeading();
-    updateAverages();
-}
-
-// Updates moving averages for linear velocity, angular velocity, and heading
-void updateAverages() {
-    // Simple moving average for linear velocity, angular velocity, and heading
-    static float linVelocityBuffer[WINDOW_SIZE] = {0.0f};
-    static float angVelocityBuffer[WINDOW_SIZE] = {0.0f};
-    static float headingBuffer[WINDOW_SIZE] = {0.0f};
-    static int index = 0;
-    static int count = 0;
-    index = (index + 1) % 10;
-    if(count < 10) {
-        count++;
-    }
-    controller.live.sailingState.averageLinVelocity = movingAverage(linVelocityBuffer, index, count, controller.live.sailingState.linearVelocity);
-    controller.live.sailingState.averageAngVelocity = movingAverage(angVelocityBuffer, index, count, controller.live.sailingState.angularVelocity);
-    controller.live.sailingState.averageHeading = movingAverage(headingBuffer, index, count, controller.live.sailingState.currentHeading);
-}
-
-// Computes the moving average of a value given a buffer
-float movingAverage(float array[], int index, int size, float value) {
-    array[index] = value;
-    float sum = 0;
-    for(int i = 0; i < size; i++) {
-        sum += array[i];
-    }
-    return sum / size;
+    Estimator_UpdateController(&controller);
 }
 
 // Resets live controller state variables
@@ -211,33 +144,7 @@ void resetController() {
     controller.live.controllerState.currentTime = controller.live.controllerState.lastTime;
     // Reset active coefficients to standard
     controller.live.activeCoeffs = controller.fixed.standardCoeffs;
-}
-
-// Requests a state transition in the state machine
-void requestState(StateMachine *stateMachine, State next) {
-    stateMachine->nextState = next;
-}
-
-// Updates the state machine based on requested state and allSowed transitions
-void updateStateMachine(StateMachine *stateMachine){
-
-    State from = stateMachine -> currentState;
-    State to = stateMachine -> nextState;
-
-    if(stateMachine -> currentState == stateMachine -> nextState){
-        return;
-    }
-
-    if(!allowedTransitions[stateMachine -> currentState][stateMachine -> nextState]){
-        return;
-    }
-
-    if(HAL_GetTick() < controller.live.stateMachine.transitionGuards.timestampBlock[from][to]){
-        return;
-    }
-
-    stateMachine -> currentState = stateMachine -> nextState;
-    stateMachine -> lastTransition = HAL_GetTick();
+    RudderSM_Init(&controller.live.stateMachine);
 }
 
 // Gets a new rudder angle based on the current error
@@ -357,8 +264,7 @@ void runPID(float *rudderAngle) {
         error += 360;
     }
     
-    getState(error);
-    updateStateMachine(&controller.live.stateMachine);
+    RudderSM_Update(&controller, error);
 
 	switch(controller.live.stateMachine.currentState){
 		case STRAIGHT:
@@ -376,34 +282,13 @@ void runPID(float *rudderAngle) {
 		case LOWWIND:
 			*rudderAngle = lowwind(error);
 			break;
-		case IRONS:
-			*rudderAngle = irons(error);
-			break;
+        case IRONS:
+            *rudderAngle = irons(error);
+            break;
+        default:
+            *rudderAngle = straightLine(error);
+            break;
 	}    
-}
-
-void getState(float error){
-    PhysicalParams *params = &controller.fixed.physicalParams;    
-    volatile SailingState *sailing = &controller.live.sailingState;
-    volatile WindState *wind = &controller.live.windState;
-    StateThresholds *thresholds = &controller.fixed.stateThresholds;
-    
-    #ifdef STRAIGHT_ONLY
-    requestState(&controller.live.stateMachine, STRAIGHT);
-    return;
-    #endif
-
-    if (isTackingCondition(error)) {
-        requestState(&controller.live.stateMachine, TACKING);
-    } else if (isGybingCondition(error)) {
-        requestState(&controller.live.stateMachine, GYBING);
-    } else if (wind->windSpeed < params->lowWindThreshold) {
-        requestState(&controller.live.stateMachine, LOWWIND);
-    } else if (isInIrons()) {
-        requestState(&controller.live.stateMachine, IRONS);
-    } else {
-        requestState(&controller.live.stateMachine, STRAIGHT); // Default to straight if no other conditions met
-    }
 }
 
 State returnState(){
@@ -411,67 +296,9 @@ State returnState(){
 	return state;
 }
 
-//To do, check if these conditions are correct - sign conventions, etc.
-bool isTackingCondition(float error) {
-    volatile WindState *wind = &controller.live.windState;
-    volatile SailingState *sailing = &controller.live.sailingState;
-
-    float relativeWind = wind->windDirection - sailing->desiredHeading;
-    float boatWindAngle = wind->windDirection - sailing->currentHeading;
-
-    if(controller.live.tackingState.tackingAllowed == false) {
-        return false;
-    }
-
-    if(controller.live.tackingState.isTacking) {
-        // If already tacking, continue until duration is over
-        if(HAL_GetTick() - controller.live.tackingState.tackingStartTime < controller.fixed.scalingCoeffs.tackTime) {
-            return true;
-        } else {
-            controller.live.tackingState.isTacking = false;
-            return false;
-        }
-    } else if(fabs(boatWindAngle) < 90 || fabs(boatWindAngle) > 270) {
-        // Check if the desired heading is on the opposite side of the wind direction
-        if((relativeWind > 0 && boatWindAngle < 0) || (relativeWind < 0 && boatWindAngle > 0)){
-            return true;
-        }
-    }
-    return false;    
-}
-
-//To do, check if these conditions are correct - sign conventions, etc.
-bool isGybingCondition(float error) {
-    volatile  WindState *wind = &controller.live.windState;
-    volatile SailingState *sailing = &controller.live.sailingState;
-
-    float relativeWind = wind->windDirection - sailing->desiredHeading;
-    float boatWindAngle = wind->windDirection - sailing->currentHeading;
-
-    if(controller.live.gybingState.gybingAllowed == false) {
-        return false;
-    }
-    
-    if(controller.live.gybingState.isGybing) {
-        // If already gybing, continue until duration is over
-        if(HAL_GetTick() - controller.live.gybingState.gybingStartTime < controller.fixed.scalingCoeffs.gybeTime) {
-            return true;
-        } else {
-            controller.live.gybingState.isGybing = false;
-            return false;
-        }
-    } else
-    if(fabs(boatWindAngle) > 90 && fabs(boatWindAngle) < 270) {
-        if((relativeWind > 0 && boatWindAngle < 0) || (relativeWind < 0 && boatWindAngle > 0)){
-            return true;
-        }
-    }
-    return false;    
-}
-
 // Control model for straight line sailing
 //TODO: Change so that the model returns to below our heading tolerance versus oscillating around the error threshold
-float straightLine(float error) {
+static float straightLine(float error) {
     PIDcoefficients *PID = &controller.live.activeCoeffs;
     volatile SailingState *sailing = &controller.live.sailingState;
     ControllerState *cState = &controller.live.controllerState;
@@ -499,7 +326,7 @@ float straightLine(float error) {
 }
 
 //Control model for tacking maneuvers
-float tacking() {
+static float tacking(void) {
     PIDcoefficients *PID = &controller.live.activeCoeffs;
     volatile SailingState *sailing = &controller.live.sailingState;
     TackingState *tacking = &controller.live.tackingState;
@@ -549,7 +376,7 @@ float tacking() {
     }
 }
 
-float gybing() {
+static float gybing(void) {
     PIDcoefficients *PID = &controller.live.activeCoeffs;
     volatile SailingState *sailing = &controller.live.sailingState;
     GybingState *gybing = &controller.live.gybingState;
@@ -598,8 +425,8 @@ float gybing() {
 }
 
 //low wind control model
-//TODO: Change so that the model returns to below our heading tolerance versus oscillating around the error threshold
-float lowwind(float error) {
+
+static float lowwind(float error) {
     PIDcoefficients *PID = &controller.live.activeCoeffs;
     volatile SailingState *sailing = &controller.live.sailingState;
     ControllerState *cState = &controller.live.controllerState;
@@ -625,9 +452,11 @@ float lowwind(float error) {
     return rudderAngle;
 }
 
-//Will need to figure out what side of the wind we are on - maybe default to straight line mode for ~30 seconds then allow attempted tack again
+// Will need to figure out what side of the wind we are on - maybe default to straight line mode for ~30 seconds then allow attempted tack again
 
-float irons() {
+static float irons(float error) {
+    (void)error;
+
     if(HAL_GetTick() - controller.live.ironsState.ironsBlockDuration > 30000) {
         controller.live.ironsState.isInIrons = false;
     }
@@ -640,10 +469,12 @@ float irons() {
         srand(HAL_GetTick()); 
         controller.live.tackingState.tackingAllowed = false;
         controller.live.gybingState.gybingAllowed = false;
+        controller.live.tackingState.tackingBanStartTime = HAL_GetTick();
+        controller.live.gybingState.gybingBanStartTime = HAL_GetTick();
 
         float randomAngle;
-        randomAngle = (srand() % 8) + 7.0f; // Random angle between 7 and 15 degrees
-        if(srand() % 2 == 0) {
+        randomAngle = (float)((rand() % 9) + 7); // Random angle between 7 and 15 degrees
+        if(rand() % 2 == 0) {
             randomAngle = -randomAngle; // Randomly choose left or right
         }
         controller.live.ironsState.randomAngle = randomAngle;
@@ -681,23 +512,6 @@ float irons() {
 }
 
 bool isInIrons() {
-    volatile WindState *wind = &controller.live.windState;
-    volatile SailingState *sailing = &controller.live.sailingState;
-    StateThresholds *thresholds = &controller.fixed.stateThresholds;
-    PhysicalParams *params = &controller.fixed.physicalParams;
-    if (sailing->angularVelocity < thresholds->ironsSpeed && sailing->angularVelocity < thresholds->stateironsRot && 
-        (fabs(wind->windDirection - sailing->currentHeading) < params->upwindIronsAngle || fabs(wind->windDirection - sailing->currentHeading) < params->downwindIronsAngle)) {
-        return true;
-    } else {
-        return false;
-    }        
+    return RudderSM_IsInIrons(&controller);
 }
-
-
-
-
-
-
-
-
 

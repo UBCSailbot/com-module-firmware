@@ -3,6 +3,8 @@
 
 #include "ESTIMATOR.h"
 
+#define ESTIMATOR_WINDOW_SIZE 10
+
 static float wrap360(float angle)
 {
     while (angle >= 360.0f) angle -= 360.0f;
@@ -27,6 +29,72 @@ static float lowPassHeading(float previous, float measurement, float alpha)
     return wrap360(previous + alpha * wrap180(measurement - previous));
 }
 
+static float movingAverage(float array[], int index, int size, float value)
+{
+    array[index] = value;
+
+    float sum = 0.0f;
+    for (int i = 0; i < size; i++) {
+        sum += array[i];
+    }
+
+    return sum / size;
+}
+
+void Estimator_UpdateController(PIDController *controller)
+{
+    if (controller == 0) {
+        return;
+    }
+
+    static float linVelocityBuffer[ESTIMATOR_WINDOW_SIZE] = {0.0f};
+    static float angVelocityBuffer[ESTIMATOR_WINDOW_SIZE] = {0.0f};
+    static float headingBuffer[ESTIMATOR_WINDOW_SIZE] = {0.0f};
+    static int index = 0;
+    static int count = 0;
+
+    /*
+     * Sensor reads belong here. They are still placeholders until the
+     * hardware-specific interfaces are wired in.
+     */
+//    controller->live.windState.windSpeed = getWindSpeed();
+//    controller->live.windState.windDirection = getWindDirection();
+//    controller->live.sailingState.linearVelocity = getLinearVelocity();
+//    controller->live.sailingState.angularVelocity = getAngularVelocity();
+//    controller->live.sailingState.heelAngle = getHeelAngle();
+//    controller->live.sailingState.currentHeading = getCurrentHeading();
+//    controller->live.sailingState.desiredHeading = getDesiredHeading();
+
+    index = (index + 1) % ESTIMATOR_WINDOW_SIZE;
+    if (count < ESTIMATOR_WINDOW_SIZE) {
+        count++;
+    }
+
+    controller->live.sailingState.averageLinVelocity =
+        movingAverage(
+            linVelocityBuffer,
+            index,
+            count,
+            controller->live.sailingState.linearVelocity
+        );
+
+    controller->live.sailingState.averageAngVelocity =
+        movingAverage(
+            angVelocityBuffer,
+            index,
+            count,
+            controller->live.sailingState.angularVelocity
+        );
+
+    controller->live.sailingState.averageHeading =
+        movingAverage(
+            headingBuffer,
+            index,
+            count,
+            controller->live.sailingState.currentHeading
+        );
+}
+
 void updateStateEstimate(
     StateEstimate *est,
     float measuredHeadingDeg,
@@ -35,6 +103,10 @@ void updateStateEstimate(
     float measuredLinearVelocity,
     float measuredHeelAngleDeg
 ) {
+    if (est == 0) {
+        return;
+    }
+
     uint32_t now = HAL_GetTick();
 
     measuredHeadingDeg = wrap360(measuredHeadingDeg);
@@ -116,6 +188,10 @@ void updateStateEstimate(
 
 void applyEstimateToController(PIDController *controller, StateEstimate *est)
 {
+    if (controller == 0 || est == 0) {
+        return;
+    }
+
     controller->live.sailingState.currentHeading = est->heading;
     controller->live.sailingState.averageHeading = est->avgHeading;
     controller->live.sailingState.averageAngVelocity = est->avgYawRate;

@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 #include "STATE_MACHINE.h"
 #include "RUDDER_PARAMS.h"
 
@@ -21,6 +22,226 @@ static bool time_reached(uint32_t now_ms, uint32_t target_ms)
     return (int32_t)(now_ms - target_ms) >= 0;
 }
 
+static const bool rudderAllowedTransitions[COUNT][COUNT] = {
+/* FROM:      TO:  STRAIGHT   TACKING   GYBING    LOWWIND  IRONS  MANUAL  */
+/* STRAIGHT */ { true,        true,     true,     true,     true,    true },
+/* TACKING  */ { true,        false,    false,    true,     true,    true },
+/* GYBING   */ { true,        false,    false,    true,     true,    true },
+/* LOWWIND  */ { true,        true,     true,     true,     true,    true },
+/* IRONS    */ { true,        false,    false,    true,     true,    true },
+/* MANUAL   */ { true,        false,    false,    true,     true,    true }
+};
+
+static void requestState(StateMachine *state_machine, State next)
+{
+    if (state_machine == NULL) {
+        return;
+    }
+
+    state_machine->nextState = next;
+}
+
+static void updateStateMachine(StateMachine *state_machine)
+{
+    if (state_machine == NULL) {
+        return;
+    }
+
+    State from = state_machine->currentState;
+    State to = state_machine->nextState;
+
+    if (from == to) {
+        return;
+    }
+
+    if (from >= COUNT || to >= COUNT) {
+        return;
+    }
+
+    if (!rudderAllowedTransitions[from][to]) {
+        return;
+    }
+
+    if (!time_reached(
+            HAL_GetTick(),
+            state_machine->transitionGuards.timestampBlock[from][to]
+        )) {
+        return;
+    }
+
+    state_machine->currentState = to;
+    state_machine->lastTransition = HAL_GetTick();
+}
+
+static bool isTackingCondition(PIDController *controller, float error)
+{
+    const volatile WindState *wind = &controller->live.windState;
+    const volatile SailingState *sailing = &controller->live.sailingState;
+    PIDcoefficients *pid = &controller->fixed.tackingCoeffs;
+
+    float desired_wind_angle =
+        wrap180(wind->windDirection - sailing->desiredHeading);
+    float boat_wind_angle =
+        wrap180(wind->windDirection - sailing->currentHeading);
+
+    if (!controller->live.tackingState.tackingAllowed) {
+        return false;
+    }
+
+    if (controller->live.tackingState.isTacking) {
+        uint32_t tack_duration_ms =
+            (uint32_t)(controller->fixed.scalingCoeffs.tackTime * 1000.0f);
+
+        if (HAL_GetTick() - controller->live.tackingState.tackingStartTime <
+            tack_duration_ms) {
+            return true;
+        }
+
+        controller->live.tackingState.isTacking = false;
+        return false;
+    }
+
+    if (abs_float(error) <= pid->headingTolerance) {
+        return false;
+    }
+
+    return abs_float(boat_wind_angle) < 90.0f &&
+           abs_float(desired_wind_angle) < 90.0f &&
+           ((desired_wind_angle > 0.0f && boat_wind_angle < 0.0f) ||
+            (desired_wind_angle < 0.0f && boat_wind_angle > 0.0f));
+}
+
+static bool isGybingCondition(PIDController *controller, float error)
+{
+    volatile WindState *wind = &controller->live.windState;
+    volatile SailingState *sailing = &controller->live.sailingState;
+    PIDcoefficients *pid = &controller->fixed.gybingCoeffs;
+
+    float desired_wind_angle =
+        wrap180(wind->windDirection - sailing->desiredHeading);
+    float boat_wind_angle =
+        wrap180(wind->windDirection - sailing->currentHeading);
+
+    if (!controller->live.gybingState.gybingAllowed) {
+        return false;
+    }
+
+    if (controller->live.gybingState.isGybing) {
+        uint32_t gybe_duration_ms =
+            (uint32_t)(controller->fixed.scalingCoeffs.gybeTime * 1000.0f);
+
+        if (HAL_GetTick() - controller->live.gybingState.gybingStartTime <
+            gybe_duration_ms) {
+            return true;
+        }
+
+        controller->live.gybingState.isGybing = false;
+        return false;
+    }
+
+    if (abs_float(error) <= pid->headingTolerance) {
+        return false;
+    }
+
+    return abs_float(boat_wind_angle) > 90.0f &&
+           abs_float(desired_wind_angle) > 90.0f &&
+           ((desired_wind_angle > 0.0f && boat_wind_angle < 0.0f) ||
+            (desired_wind_angle < 0.0f && boat_wind_angle > 0.0f));
+}
+
+void RudderSM_Init(StateMachine *state_machine)
+{
+    if (state_machine == NULL) {
+        return;
+    }
+
+    state_machine->currentState = STRAIGHT;
+    state_machine->nextState = STRAIGHT;
+    state_machine->lastTransition = HAL_GetTick();
+    memset(
+        state_machine->transitionGuards.timestampBlock,
+        0,
+        sizeof(state_machine->transitionGuards.timestampBlock)
+    );
+}
+
+void RudderSM_BlockTransition(
+    TransitionGuards *guards,
+    State from,
+    State to,
+    uint32_t duration_ms
+)
+{
+    if (guards == NULL || from >= COUNT || to >= COUNT) {
+        return;
+    }
+
+    guards->timestampBlock[from][to] = HAL_GetTick() + duration_ms;
+}
+
+void RudderSM_Update(PIDController *controller, float error)
+{
+    if (controller == NULL) {
+        return;
+    }
+
+    PhysicalParams *params = &controller->fixed.physicalParams;
+    volatile WindState *wind = &controller->live.windState;
+
+#ifdef STRAIGHT_ONLY
+    requestState(&controller->live.stateMachine, STRAIGHT);
+    updateStateMachine(&controller->live.stateMachine);
+    return;
+#endif
+
+    if (isTackingCondition(controller, error)) {
+        requestState(&controller->live.stateMachine, TACKING);
+    } else if (isGybingCondition(controller, error)) {
+        requestState(&controller->live.stateMachine, GYBING);
+    } else if (wind->windSpeed < params->lowWindThreshold) {
+        requestState(&controller->live.stateMachine, LOWWIND);
+    } else if (RudderSM_IsInIrons(controller)) {
+        requestState(&controller->live.stateMachine, IRONS);
+    } else {
+        requestState(&controller->live.stateMachine, STRAIGHT);
+    }
+
+    updateStateMachine(&controller->live.stateMachine);
+}
+
+bool RudderSM_IsInIrons(const PIDController *controller)
+{
+    if (controller == NULL) {
+        return false;
+    }
+
+    volatile WindState *wind = &controller->live.windState;
+    volatile SailingState *sailing = &controller->live.sailingState;
+    const StateThresholds *thresholds = &controller->fixed.stateThresholds;
+    const PhysicalParams *params = &controller->fixed.physicalParams;
+    float wind_angle =
+        abs_float(wrap180(wind->windDirection - sailing->currentHeading));
+    float upwind_range =
+        params->upwindIronsRange > 0.0f ?
+        params->upwindIronsRange :
+        params->upwindIronsAngle;
+    float downwind_range =
+        params->downwindIronsRange > 0.0f ?
+        params->downwindIronsRange :
+        params->downwindIronsAngle;
+    bool low_speed =
+        abs_float(sailing->linearVelocity) <= thresholds->ironsSpeed;
+    bool low_rotation =
+        abs_float(sailing->angularVelocity) <= thresholds->stateironsRot;
+    bool pointed_into_wind = wind_angle <= upwind_range;
+    bool pointed_dead_downwind =
+        abs_float(wind_angle - 180.0f) <= downwind_range;
+
+    return low_speed &&
+           low_rotation &&
+           (pointed_into_wind || pointed_dead_downwind);
+}
+
 static void enter_mode(
     SailingStateMachine *sm,
     SailingMode new_mode,
@@ -28,30 +249,35 @@ static void enter_mode(
     const GuidanceCommand *cmd,
     uint32_t now_ms
 );
+
 static SailingMode evaluate_from_straight(
     SailingStateMachine *sm,
     const EstimatedBoatState *state,
     const GuidanceCommand *cmd,
     uint32_t now_ms
 );
+
 static SailingMode evaluate_tacking(
     SailingStateMachine *sm,
     const EstimatedBoatState *state,
     const GuidanceCommand *cmd,
     uint32_t now_ms
 );
+
 static SailingMode evaluate_gybing(
     SailingStateMachine *sm,
     const EstimatedBoatState *state,
     const GuidanceCommand *cmd,
     uint32_t now_ms
 );
+
 static SailingMode evaluate_low_wind(
     SailingStateMachine *sm,
     const EstimatedBoatState *state,
     const GuidanceCommand *cmd,
     uint32_t now_ms
 );
+
 static SailingMode evaluate_irons(
     SailingStateMachine *sm,
     const EstimatedBoatState *state,

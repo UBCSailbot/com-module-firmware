@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "RUDDER.h"
 
 typedef enum {
     MODE_STRAIGHT,
@@ -62,5 +63,15 @@ bool isUpwind(const EstimatedBoatState *state);
 bool isDownwind(const EstimatedBoatState *state);
 bool is_in_irons(const EstimatedBoatState *state);
 
-#endif /* STATE_MACHINE_H_ */
+/* Legacy PID controller state-machine adapter. */
+void RudderSM_Init(StateMachine *state_machine);
+void RudderSM_BlockTransition(
+    TransitionGuards *guards,
+    State from,
+    State to,
+    uint32_t duration_ms
+);
+void RudderSM_Update(PIDController *controller, float error);
+bool RudderSM_IsInIrons(const PIDController *controller);
 
+#endif /* STATE_MACHINE_H_ */

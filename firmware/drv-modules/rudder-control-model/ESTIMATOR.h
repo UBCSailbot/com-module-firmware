@@ -39,5 +39,6 @@ void updateStateEstimate(
 );
 
 void applyEstimateToController(PIDController *controller, StateEstimate *est);
+void Estimator_UpdateController(PIDController *controller);
 
 #endif /* ESTIMATOR_H_ */

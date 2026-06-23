@@ -18,8 +18,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#ifndef HAL_GetTick
+uint32_t HAL_GetTick(void);
+#endif
+
+#ifndef RUDDER_TEST_BUILD
 #define STRAIGHT_ONLY
 #define TUNING_MODE
+#endif
 
 /* This struct gives coefficients for a PID controller
  * @param Kp - proportional gain (unitless)
