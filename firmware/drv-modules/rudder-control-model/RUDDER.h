@@ -17,6 +17,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "main.h"
 
 #define STRAIGHT_ONLY
 #define TUNING_MODE

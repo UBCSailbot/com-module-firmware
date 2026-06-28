@@ -43,10 +43,12 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "stm32u5xx_hal.h"
 #include "RUDDER.h"
 #include "RUDDER_PARAMS.h"
 
@@ -364,7 +366,7 @@ void runPID(float *rudderAngle) {
     printf("Current heading runPID(): %f\r\n", sailing->currentHeading);
     printf("Desired heading runPID(): %f\r\n", sailing->desiredHeading);
 
-    State state = getState(error);
+    State state = returnState(error);
 
 	switch(controller.live.stateMachine.currentState){
 		case STRAIGHT:
@@ -634,57 +636,59 @@ float lowwind(float error) {
 //Will need to figure out what side of the wind we are on - maybe default to straight line mode for ~30 seconds then allow attempted tack again
 
 float irons() {
-    if(HAL_GetTick() - controller.live.ironsState.ironsBlockDuration > 30000) {
-        controller.live.ironsState.isInIrons = false;
-    }
-    
-    if(!controller.live.ironsState.isInIrons) {
-        //set irons state
-        controller.live.ironsState.isInIrons = true;
-        controller.live.ironsState.ironsStartTime = HAL_GetTick();
-        //get and set random angle
-        srand(HAL_GetTick()); 
-        controller.live.tackingState.tackingAllowed = false;
-        controller.live.gybingState.gybingAllowed = false;
-
-        float randomAngle;
-        randomAngle = (srand() % 8) + 7.0f; // Random angle between 7 and 15 degrees
-        if(srand() % 2 == 0) {
-            randomAngle = -randomAngle; // Randomly choose left or right
-        }
-        controller.live.ironsState.randomAngle = randomAngle;
-    }
-
-    if(!isInIrons()) {
-        //exit irons state
-        controller.live.ironsState.isInIrons = false;
-        controller.live.ironsState.ironsEndTime = HAL_GetTick();
-
-        float desiredHeadingRelWind;
-        float currentHeadingRelWind;
-
-        desiredHeadingRelWind = controller.live.sailingState.desiredHeading - controller.live.windState.windDirection;
-        currentHeadingRelWind = controller.live.sailingState.currentHeading - controller.live.windState.windDirection;
-
-        if(desiredHeadingRelWind < 90 || desiredHeadingRelWind > 270) {
-            if(currentHeadingRelWind < 180) {
-                controller.live.ironsState.fixedHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f;
-            } else {
-                controller.live.ironsState.fixedHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f; 
-            }
-            
-        } else {
-            if(currentHeadingRelWind < 180) {
-                // Desired heading is to starboard of wind direction, tack to starboard
-                controller.live.sailingState.desiredHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f; // Add small padding
-            }
-            // Desired heading is to port of wind direction, tack to port
-            controller.live.sailingState.desiredHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f; // Add small padding
-        }
-    }
-
-    return controller.live.ironsState.randomAngle;
+	return 0;
 }
+//    if(HAL_GetTick() - controller.live.ironsState.ironsBlockDuration > 30000) {
+//        controller.live.ironsState.isInIrons = false;
+//    }
+//
+//    if(!controller.live.ironsState.isInIrons) {
+//        //set irons state
+//        controller.live.ironsState.isInIrons = true;
+//        controller.live.ironsState.ironsStartTime = HAL_GetTick();
+//        //get and set random angle
+//        srand(HAL_GetTick());
+//        controller.live.tackingState.tackingAllowed = false;
+//        controller.live.gybingState.gybingAllowed = false;
+//
+//        float randomAngle;
+//        randomAngle = (srand(HAL_GetTick()) % 8) + 7.0f; // Random angle between 7 and 15 degrees
+//        if(randomAngle % 2 == 0) {
+//            randomAngle = -randomAngle; // Randomly choose left or right
+//        }
+//        controller.live.ironsState.randomAngle = randomAngle;
+//    }
+//
+//    if(!isInIrons()) {
+//        //exit irons state
+//        controller.live.ironsState.isInIrons = false;
+//        controller.live.ironsState.ironsEndTime = HAL_GetTick();
+//
+//        float desiredHeadingRelWind;
+//        float currentHeadingRelWind;
+//
+//        desiredHeadingRelWind = controller.live.sailingState.desiredHeading - controller.live.windState.windDirection;
+//        currentHeadingRelWind = controller.live.sailingState.currentHeading - controller.live.windState.windDirection;
+//
+//        if(desiredHeadingRelWind < 90 || desiredHeadingRelWind > 270) {
+//            if(currentHeadingRelWind < 180) {
+//                controller.live.ironsState.fixedHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f;
+//            } else {
+//                controller.live.ironsState.fixedHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f;
+//            }
+//
+//        } else {
+//            if(currentHeadingRelWind < 180) {
+//                // Desired heading is to starboard of wind direction, tack to starboard
+//                controller.live.sailingState.desiredHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f; // Add small padding
+//            }
+//            // Desired heading is to port of wind direction, tack to port
+//            controller.live.sailingState.desiredHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f; // Add small padding
+//        }
+//    }
+//
+//    return controller.live.ironsState.randomAngle;
+
 
 bool isInIrons() {
     volatile WindState *wind = &controller.live.windState;
