@@ -89,6 +89,8 @@ uint8_t rudder_debug_frame[16] = {0};
 
 PLRS_IMU imu;
 
+uint32_t can_tx_failures = 0;
+
 //0 = auto mode, 1 = manual
 uint8_t controller_mode = 1;
 
@@ -346,8 +348,9 @@ int main(void)
 
     if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
       if(CAN_Transmit(RUDDER_TO_MAINFRAME_DEBUG_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_16, rudder_debug_frame, &hfdcan1) != HAL_OK){
-        Error_Handler();
+        can_tx_failures++;
       }
+      can_frame_tx_time = HAL_GetTick();
     }
 
 //    printf("Running\r\n");
