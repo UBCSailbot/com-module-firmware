@@ -514,4 +514,3 @@ static float irons(float error) {
 bool isInIrons() {
     return RudderSM_IsInIrons(&controller);
 }
-
