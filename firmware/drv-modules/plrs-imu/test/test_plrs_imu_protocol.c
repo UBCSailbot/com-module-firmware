@@ -134,12 +134,14 @@ static void test_attitude_roundtrip(void) {
     const PlrsImuAttitude want = {.heading_deg = -42.0f,
                                   .roll_deg = 12.5f,
                                   .pitch_deg = -3.25f,
-                                  .yaw_rate_dps = 7.75f};
-    uint8_t payload[16];
+                                  .yaw_rate_dps = 7.75f,
+                                  .heading_valid = true};
+    uint8_t payload[17];
     put_f32_le(want.heading_deg, &payload[0]);
     put_f32_le(want.roll_deg, &payload[4]);
     put_f32_le(want.pitch_deg, &payload[8]);
     put_f32_le(want.yaw_rate_dps, &payload[12]);
+    payload[16] = 1;
 
     uint8_t frame[PLRS_IMU_MAX_FRAME];
     size_t len = build_frame(PLRS_IMU_PROTOCOL_VERSION, PLRS_IMU_MSG_ATTITUDE, 3,
@@ -157,6 +159,7 @@ static void test_attitude_roundtrip(void) {
     CHECK(got.roll_deg == want.roll_deg);
     CHECK(got.pitch_deg == want.pitch_deg);
     CHECK(got.yaw_rate_dps == want.yaw_rate_dps);
+    CHECK(got.heading_valid == true);
 }
 
 static void test_wrong_version(void) {

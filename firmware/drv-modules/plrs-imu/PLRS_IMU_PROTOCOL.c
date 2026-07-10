@@ -84,13 +84,14 @@ bool plrs_imu_heading_from_payload(const uint8_t *payload, size_t len,
 
 bool plrs_imu_attitude_from_payload(const uint8_t *payload, size_t len,
                                     PlrsImuAttitude *out) {
-    if (len != 4 * sizeof(float)) {
+    if (len != 4 * sizeof(float) + 1) {
         return false;
     }
     out->heading_deg = plrs_imu_read_f32_le(&payload[0]);
     out->roll_deg = plrs_imu_read_f32_le(&payload[4]);
     out->pitch_deg = plrs_imu_read_f32_le(&payload[8]);
     out->yaw_rate_dps = plrs_imu_read_f32_le(&payload[12]);
+    out->heading_valid = payload[16] != 0;
     return true;
 }
 

@@ -15,6 +15,7 @@ void PLRS_IMU__init(PLRS_IMU *self, UART_HandleTypeDef *huart) {
     self->has_seq = false;
     self->last_seq = 0;
     self->drops = 0;
+    self->heading_valid = false;
     HAL_UART_Receive_DMA(huart, self->rx_dma, sizeof(self->rx_dma));
 }
 
@@ -49,6 +50,7 @@ static void PLRS_IMU__onFrame(PLRS_IMU *self, const PlrsImuFrame *frame) {
             self->yaw_rate_dps = att.yaw_rate_dps;
             self->has_attitude = true;
             self->attitude_ms = now;
+            self->heading_valid = att.heading_valid;
         }
         break;
     }
@@ -117,6 +119,10 @@ bool PLRS_IMU__isAttitudeFresh(const PLRS_IMU *self, uint32_t timeout_ms) {
         return false;
     }
     return HAL_GetTick() - self->attitude_ms <= timeout_ms;
+}
+
+bool PLRS_IMU__isHeadingValid(const PLRS_IMU *self) {
+    return self->heading_valid;
 }
 
 uint32_t PLRS_IMU__lastFrameTick(const PLRS_IMU *self) {

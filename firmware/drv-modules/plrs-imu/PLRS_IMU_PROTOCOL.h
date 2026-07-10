@@ -15,7 +15,7 @@
  * Constants and definitions.
  */
 
-#define PLRS_IMU_PROTOCOL_VERSION 1
+#define PLRS_IMU_PROTOCOL_VERSION 2
 #define PLRS_IMU_DELIMITER 0x00u
 
 #define PLRS_IMU_MAX_PAYLOAD 64
@@ -101,23 +101,28 @@ bool plrs_imu_heading_from_payload(const uint8_t *payload, size_t len,
                                    float *deg_out);
 
 /**
- * Attitude payload: heading, roll, pitch (degrees) and yaw rate (deg/s).
+ * Attitude payload: heading, roll, pitch (degrees), yaw rate (deg/s), and a
+ * heading_valid flag. heading_valid is true when the sender's fused heading is
+ * GNSS-anchored; when false, heading is free-drifting and must not be steered
+ * to. Wire layout: four little-endian float32s followed by one flag byte.
  */
 typedef struct {
     float heading_deg;
     float roll_deg;
     float pitch_deg;
     float yaw_rate_dps;
+    bool heading_valid;
 } PlrsImuAttitude;
 
 /**
- * @brief Parse an Attitude payload: four little-endian float32s.
+ * @brief Parse an Attitude payload: four little-endian float32s then a flag
+ *        byte (heading_valid).
  *
  * @param payload Payload bytes.
  * @param len     Payload length.
  * @param out     Set to the decoded attitude on success.
  *
- * @return true on success; false if len is not four float32s.
+ * @return true on success; false if len is not four float32s plus one byte.
  */
 bool plrs_imu_attitude_from_payload(const uint8_t *payload, size_t len,
                                     PlrsImuAttitude *out);

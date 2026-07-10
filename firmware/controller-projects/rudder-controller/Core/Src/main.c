@@ -90,6 +90,7 @@ uint8_t rudder_debug_frame[16] = {0};
 PLRS_IMU imu;
 
 uint32_t can_tx_failures = 0;
+uint32_t can_rx_failures = 0;
 
 //0 = auto mode, 1 = manual
 uint8_t controller_mode = 1;
@@ -1154,14 +1155,17 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
 	  if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
 	  {
-    // Read message from RX FIFO 0
+    // Read message from RX FIFO 0. A failed read must not brick rudder control
+    // or IMU servicing (e.g. a CAN glitch on the bench with no proper bus), so
+    // count it and drop the frame instead of calling Error_Handler().
 		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
 		{
-			Error_Handler();
+			can_rx_failures++;
+			return;
 		}
-	  }
      //Process the received message
     processCANFrames(&RxHeader1, RxData1);
+	  }
 }
 /* USER CODE END 4 */
 

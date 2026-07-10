@@ -36,6 +36,10 @@ typedef struct {
     bool has_seq;
     uint8_t last_seq;
     uint32_t drops;
+
+    // Kept last so the fixed imu_live.py word-offset map (heading_deg..drops)
+    // stays valid. True when the sender's fused heading is GNSS-anchored.
+    bool heading_valid;
 } PLRS_IMU;
 
 /**
@@ -103,6 +107,20 @@ bool PLRS_IMU__getYawRate(PLRS_IMU *self, float *dps_out);
  * @return true if an Attitude frame has arrived within timeout_ms.
  */
 bool PLRS_IMU__isAttitudeFresh(const PLRS_IMU *self, uint32_t timeout_ms);
+
+/**
+ * @brief Whether the latest Attitude frame reported a GNSS-anchored heading.
+ *
+ * When false, heading is free-drifting (e.g. no dual-antenna GNSS fix) and
+ * should not be steered to. Independent of freshness; check
+ * PLRS_IMU__isAttitudeFresh too.
+ *
+ * @param self The driver instance.
+ *
+ * @return true if the last Attitude frame set heading_valid; false if none
+ *   received or the sender flagged heading invalid.
+ */
+bool PLRS_IMU__isHeadingValid(const PLRS_IMU *self);
 
 /**
  * @brief Tick of the last good frame of any message type.
