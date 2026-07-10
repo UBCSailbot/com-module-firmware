@@ -6,13 +6,13 @@ Some examples of what might be good to include:
 * etc.)
 
 # Structure of the Control Model
-The control model is essentially a very simple state machine that determines the boat's sailing state and cycles through accordingly.
+The control model is split into three pieces: rudder PID output, state estimation, and sailing state transitions.
 
-There is one key function, runPID, that is intended to be called in the main loop once per cycle. This is the function that contains the state machine and will execute everything accordingly.
+There is one key function, runPID, that is intended to be called in the main loop once per cycle. This function coordinates estimation, state-machine updates, and the preserved PID output logic.
 
 There are currently four states implemented - straight line, tacking, gybing, and low winds. Irons has yet to be implemented. Each of these states has it's own coefficients that must be initialised and tuned separately.
 
-The control model functionality is contained in RUDDER.c, while the external fixed parameters are to be stored in RUDDER_PARAMS.c. RUDDER_PARAMS.h contains functions to get, set, and edit PID paramters and the like.
+The PID output and state-specific rudder commands are contained in RUDDER.c. Sailing-state transition logic is contained in STATE_MACHINE.c. Estimation and moving averages are contained in ESTIMATOR.c. The external fixed parameters are stored in RUDDER_PARAMS.c. RUDDER_PARAMS.h contains functions to get, set, and edit PID parameters and the like.
 
 # Variables and Such
 
@@ -27,4 +27,18 @@ Currently there are just placeholder functions for sensor values. These need to 
 
 We are considering how various updates at different times should be handled. This is not currently being handled.
 
+## Unit Tests
 
+Host-side unit tests for state-machine transitions and PID controller behavior live in `tests/test_rudder_control.c`.
+
+On Windows, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File firmware/drv-modules/rudder-control-model/tests/run_tests.ps1
+```
+
+On systems with `make`, run:
+
+```sh
+make -C firmware/drv-modules/rudder-control-model/tests test
+```

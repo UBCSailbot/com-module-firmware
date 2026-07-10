@@ -33,8 +33,8 @@ PIDControllerFixed rudderFixedParams = {
         .outputMin = -30.0f,
         .outputMax = 30.0f,
         .lowWindThreshold = 1.5f,
-        .upwindIronsAngle = 30.0f,
-        .downwindIronsAngle = 150.0f
+        .upwindIronsRange = 45.0f,
+        .downwindIronsRange = 45.0f
     },
 
     .scalingCoeffs = {
