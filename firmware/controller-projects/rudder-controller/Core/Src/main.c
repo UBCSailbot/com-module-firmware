@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <can.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 

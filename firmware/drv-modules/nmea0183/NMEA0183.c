@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <main.h>
 
 //This array provides a way to find the associated NEMA0183 object with a UART interface.
 void * huartNMEALookup[MAX_NMEA_CHANNELS][2] = {{NULL, NULL},{NULL, NULL},{NULL, NULL}};
