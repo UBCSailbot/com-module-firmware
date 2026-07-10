@@ -313,7 +313,7 @@ int main(void)
 
     uint16_t currentDerivative = (controller.live.liveValues.derivativeValue + 300) * 100;
     rudder_debug_frame[12] = currentDerivative & 0xFF;
-//    printf("currentderivative: %f \r\n", controller.live.liveValues.derivativeValue);
+    printf("current derivative: %f \r\n", controller.live.liveValues.derivativeValue);
     rudder_debug_frame[13] = (((uint16_t) currentDerivative) >> 8) & 0xFF;
 
     uint16_t currentIntegral = controller.live.liveValues.integralValue + 30000;
@@ -349,14 +349,9 @@ int main(void)
 
     if (can_frame_tx_time + CAN_TX_DELAY_MS < HAL_GetTick()){
       if(CAN_Transmit(RUDDER_TO_MAINFRAME_DEBUG_ID, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_16, rudder_debug_frame, &hfdcan1) != HAL_OK){
-        can_tx_failures++;
+        Error_Handler();
       }
-      can_frame_tx_time = HAL_GetTick();
     }
-
-//    printf("Running\r\n");
-
-
 	}
 
 
