@@ -1,7 +1,6 @@
 *.bin
 *.elf
 *.list
-test_rudder_control.exe
 *.map
 *.list
 !objects.list

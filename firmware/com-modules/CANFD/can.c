@@ -244,14 +244,17 @@ static int CAN_DequeueFrame(CAN_Frame *frame) {
  * 			CANFD heartbeat signal. The CAN transmit will send empty bytes with the
  * 			enclosure heartbeat ID. The interval will be setup as 10sec.
  */
+/* Heartbeat CAN TX failures. Counted, not fatal: with no CAN bus/ACK on the
+ * bench the 10s heartbeat would otherwise Error_Handler() the whole board. */
+volatile uint32_t can_heartbeat_tx_failures = 0;
+
 __weak void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance == TIM7) {
 		uint8_t tx_heart = 0;
 		if (CAN_Transmit(heartbeat_id, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_0, &tx_heart, &hfdcan1) != HAL_OK){
-			Error_Handler();
-			/* HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET); */ //debug
-		} /* else HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7); */ // debug
+			can_heartbeat_tx_failures++;
+		}
 	}
 }
 
