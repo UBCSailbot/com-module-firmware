@@ -18,8 +18,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#ifndef HAL_GetTick
+uint32_t HAL_GetTick(void);
+#endif
+
+#ifndef RUDDER_TEST_BUILD
 #define STRAIGHT_ONLY
 #define TUNING_MODE
+#endif
 
 /* This struct gives coefficients for a PID controller
  * @param Kp - proportional gain (unitless)
@@ -72,6 +78,8 @@ typedef struct {
 	float outputMin;
 	float upwindIronsAngle;
 	float downwindIronsAngle;
+	float upwindIronsRange;
+	float downwindIronsRange;
 	float lowWindThreshold;
 } PhysicalParams;
 
@@ -117,6 +125,8 @@ typedef struct {
 typedef struct {
 	float windSpeed;
 	float windDirection;
+	float relativeWindAngle;
+	float averageRelativeWindAngle;
 } WindState;
 
 /* This struct contains the current sailing state
