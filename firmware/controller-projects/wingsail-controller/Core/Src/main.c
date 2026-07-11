@@ -27,6 +27,7 @@
 //#include "WINDSENSOR.h"
 #include "AIS.h"
 #include "GPS.h"
+#include "BRITER.h"
 #include "NMEA0183_scheduler.h"
 #include "stm32u5xx.h"
 #include "can.h"
