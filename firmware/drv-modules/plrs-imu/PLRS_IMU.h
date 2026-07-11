@@ -31,7 +31,7 @@ typedef enum {
  * branch on this constant, so main.c needs no change to switch.
  */
 #ifndef PLRS_IMU_ATTITUDE_SOURCE
-#define PLRS_IMU_ATTITUDE_SOURCE PLRS_IMU_SRC_FUSED
+#define PLRS_IMU_ATTITUDE_SOURCE PLRS_IMU_SRC_RAW
 #endif
 
 /**
