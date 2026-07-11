@@ -108,8 +108,8 @@ extern uint8_t g_fw_enable_can_prints;
 #define SERVO_GATE_GPIO_Port GPIOC
 #define SOL_GATE_Pin GPIO_PIN_11
 #define SOL_GATE_GPIO_Port GPIOE
-#define ENC_GATE_Pin GPIO_PIN_9
-#define ENC_GATE_GPIO_Port GPIOE
+#define ENC_GATE_Pin GPIO_PIN_7
+#define ENC_GATE_GPIO_Port GPIOG
 #define AIS_GATE_Pin GPIO_PIN_0
 #define AIS_GATE_GPIO_Port GPIOG
 

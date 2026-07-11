@@ -114,6 +114,8 @@ static void MX_UART4_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+BRITER * encoderObject;
+
 static void debug_log_wind_sentence(const NMEA0183Raw *message) {
   size_t display_len;
 
@@ -230,6 +232,8 @@ int main(void)
     nmea_scheduler_wind.channel = nmea_channel_wind;
     nmea_scheduler_wind.wind_sensor = wind_sensor;
     nmea_scheduler_wind.hfdcan1 = &hfdcan1;
+
+    encoderObject = BRITER__create(&huart2, 50);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -269,6 +273,8 @@ int main(void)
 
 
     set_servo_angle(angle);
+
+    printf("Encode angle: %f\r\n", BRITER__floatAngle(encoderObject));
 
     /* USER CODE END WHILE */
 
@@ -762,7 +768,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 4800;
+  huart2.Init.BaudRate = 9600;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -771,8 +777,7 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_SWAP_INIT;
-  huart2.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
@@ -1004,6 +1009,10 @@ PUTCHAR_PROTOTYPE
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
   (void)huart;
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
+	BRITER__handleDMA(encoderObject, huart, size);
 }
 /* USER CODE END 4 */
 
