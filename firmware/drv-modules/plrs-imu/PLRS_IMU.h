@@ -14,6 +14,27 @@
 #define PLRS_IMU_RX_BUFFER_SIZE 256
 
 /**
+ * Which attitude source feeds the rudder control model.
+ *
+ * FUSED is the sender's EKF Attitude (msg 0x02); RAW is the MTi-3 onboard
+ * orientation (msg 0x03), which bypasses that filter. Both frames always
+ * arrive; this only selects which one getHeel/getYawRate/isAttitudeFresh read.
+ */
+typedef enum {
+    PLRS_IMU_SRC_FUSED = 0,
+    PLRS_IMU_SRC_RAW,
+} PlrsImuAttitudeSource;
+
+/**
+ * Compile-time attitude source. Set to PLRS_IMU_SRC_RAW to steer on the raw MTi
+ * heel and yaw rate while the sender's EKF is being worked on. The getters
+ * branch on this constant, so main.c needs no change to switch.
+ */
+#ifndef PLRS_IMU_ATTITUDE_SOURCE
+#define PLRS_IMU_ATTITUDE_SOURCE PLRS_IMU_SRC_FUSED
+#endif
+
+/**
  * Driver instance. Caller-owned storage; treat the fields as opaque.
  */
 typedef struct {
@@ -36,6 +57,14 @@ typedef struct {
     bool has_seq;
     uint8_t last_seq;
     uint32_t drops;
+
+    // Raw attitude (msg 0x03): MTi-3 onboard heel and yaw rate, bypassing the
+    // sender's EKF. Placed after drops so the imu_live.py word-offset map
+    // (heading_deg..drops) stays valid.
+    bool has_raw_attitude;
+    float raw_heel_deg;
+    float raw_yaw_rate_dps;
+    uint32_t raw_attitude_ms;
 
     // Kept last so the fixed imu_live.py word-offset map (heading_deg..drops)
     // stays valid. True when the sender's fused heading is GNSS-anchored.
@@ -80,20 +109,24 @@ bool PLRS_IMU__isFresh(const PLRS_IMU *self, uint32_t timeout_ms);
 /**
  * @brief Read the latest heel angle in degrees (roll, starboard-down positive).
  *
+ * Reads the source selected by PLRS_IMU_ATTITUDE_SOURCE (fused or raw).
+ *
  * @param self    The driver instance.
  * @param deg_out Set to the latest heel angle.
  *
- * @return true if an Attitude frame has been received since init.
+ * @return true if a frame of the selected source has been received since init.
  */
 bool PLRS_IMU__getHeel(PLRS_IMU *self, float *deg_out);
 
 /**
  * @brief Read the latest yaw rate in degrees per second.
  *
+ * Reads the source selected by PLRS_IMU_ATTITUDE_SOURCE (fused or raw).
+ *
  * @param self     The driver instance.
  * @param dps_out  Set to the latest yaw rate.
  *
- * @return true if an Attitude frame has been received since init.
+ * @return true if a frame of the selected source has been received since init.
  */
 bool PLRS_IMU__getYawRate(PLRS_IMU *self, float *dps_out);
 
@@ -101,10 +134,12 @@ bool PLRS_IMU__getYawRate(PLRS_IMU *self, float *dps_out);
  * @brief Check whether the latest attitude (heel, yaw rate) is no older than
  *   timeout_ms.
  *
+ * Checks the source selected by PLRS_IMU_ATTITUDE_SOURCE (fused or raw).
+ *
  * @param self       The driver instance.
  * @param timeout_ms Maximum attitude age.
  *
- * @return true if an Attitude frame has arrived within timeout_ms.
+ * @return true if a frame of the selected source arrived within timeout_ms.
  */
 bool PLRS_IMU__isAttitudeFresh(const PLRS_IMU *self, uint32_t timeout_ms);
 

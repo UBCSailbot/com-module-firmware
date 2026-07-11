@@ -15,6 +15,10 @@ void PLRS_IMU__init(PLRS_IMU *self, UART_HandleTypeDef *huart) {
     self->has_seq = false;
     self->last_seq = 0;
     self->drops = 0;
+    self->has_raw_attitude = false;
+    self->raw_heel_deg = 0.0f;
+    self->raw_yaw_rate_dps = 0.0f;
+    self->raw_attitude_ms = 0;
     self->heading_valid = false;
     HAL_UART_Receive_DMA(huart, self->rx_dma, sizeof(self->rx_dma));
 }
@@ -51,6 +55,17 @@ static void PLRS_IMU__onFrame(PLRS_IMU *self, const PlrsImuFrame *frame) {
             self->has_attitude = true;
             self->attitude_ms = now;
             self->heading_valid = att.heading_valid;
+        }
+        break;
+    }
+    case PLRS_IMU_MSG_RAW_ATTITUDE: {
+        PlrsImuRawAttitude raw;
+        if (plrs_imu_raw_attitude_from_payload(frame->payload,
+                                               frame->payload_len, &raw)) {
+            self->raw_heel_deg = raw.heel_deg;
+            self->raw_yaw_rate_dps = raw.yaw_rate_dps;
+            self->has_raw_attitude = true;
+            self->raw_attitude_ms = HAL_GetTick();
         }
         break;
     }
@@ -99,6 +114,13 @@ bool PLRS_IMU__isFresh(const PLRS_IMU *self, uint32_t timeout_ms) {
 }
 
 bool PLRS_IMU__getHeel(PLRS_IMU *self, float *deg_out) {
+    if (PLRS_IMU_ATTITUDE_SOURCE == PLRS_IMU_SRC_RAW) {
+        if (!self->has_raw_attitude) {
+            return false;
+        }
+        *deg_out = self->raw_heel_deg;
+        return true;
+    }
     if (!self->has_attitude) {
         return false;
     }
@@ -107,6 +129,13 @@ bool PLRS_IMU__getHeel(PLRS_IMU *self, float *deg_out) {
 }
 
 bool PLRS_IMU__getYawRate(PLRS_IMU *self, float *dps_out) {
+    if (PLRS_IMU_ATTITUDE_SOURCE == PLRS_IMU_SRC_RAW) {
+        if (!self->has_raw_attitude) {
+            return false;
+        }
+        *dps_out = self->raw_yaw_rate_dps;
+        return true;
+    }
     if (!self->has_attitude) {
         return false;
     }
@@ -115,6 +144,12 @@ bool PLRS_IMU__getYawRate(PLRS_IMU *self, float *dps_out) {
 }
 
 bool PLRS_IMU__isAttitudeFresh(const PLRS_IMU *self, uint32_t timeout_ms) {
+    if (PLRS_IMU_ATTITUDE_SOURCE == PLRS_IMU_SRC_RAW) {
+        if (!self->has_raw_attitude) {
+            return false;
+        }
+        return HAL_GetTick() - self->raw_attitude_ms <= timeout_ms;
+    }
     if (!self->has_attitude) {
         return false;
     }
