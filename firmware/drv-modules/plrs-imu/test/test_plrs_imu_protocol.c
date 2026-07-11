@@ -162,6 +162,31 @@ static void test_attitude_roundtrip(void) {
     CHECK(got.heading_valid == true);
 }
 
+static void test_raw_attitude_roundtrip(void) {
+    PlrsImuParser p = {0};
+    const PlrsImuRawAttitude want = {.heel_deg = 12.5f, .yaw_rate_dps = -7.75f};
+    uint8_t payload[8];
+    put_f32_le(want.heel_deg, &payload[0]);
+    put_f32_le(want.yaw_rate_dps, &payload[4]);
+
+    uint8_t frame[PLRS_IMU_MAX_FRAME];
+    size_t len = build_frame(PLRS_IMU_PROTOCOL_VERSION,
+                             PLRS_IMU_MSG_RAW_ATTITUDE, 4, payload,
+                             sizeof(payload), false, frame);
+
+    PlrsImuFrame out;
+    CHECK(feed_all(&p, frame, len, &out) == PLRS_IMU_FRAME_OK);
+    CHECK(out.msg_id == PLRS_IMU_MSG_RAW_ATTITUDE);
+    CHECK(out.seq == 4);
+    CHECK(out.payload_len == sizeof(payload));
+
+    PlrsImuRawAttitude got = {0};
+    CHECK(plrs_imu_raw_attitude_from_payload(out.payload, out.payload_len,
+                                             &got));
+    CHECK(got.heel_deg == want.heel_deg);
+    CHECK(got.yaw_rate_dps == want.yaw_rate_dps);
+}
+
 static void test_wrong_version(void) {
     PlrsImuParser p = {0};
     uint8_t payload[4];
@@ -236,6 +261,7 @@ int main(void) {
     test_cobs_decode_doc_vector();
     test_heading_roundtrip();
     test_attitude_roundtrip();
+    test_raw_attitude_roundtrip();
     test_wrong_version();
     test_bad_crc();
     test_overflow();

@@ -95,6 +95,16 @@ bool plrs_imu_attitude_from_payload(const uint8_t *payload, size_t len,
     return true;
 }
 
+bool plrs_imu_raw_attitude_from_payload(const uint8_t *payload, size_t len,
+                                        PlrsImuRawAttitude *out) {
+    if (len != 2 * sizeof(float)) {
+        return false;
+    }
+    out->heel_deg = plrs_imu_read_f32_le(&payload[0]);
+    out->yaw_rate_dps = plrs_imu_read_f32_le(&payload[4]);
+    return true;
+}
+
 /*
  * Receiving.
  */

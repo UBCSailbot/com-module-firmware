@@ -32,6 +32,7 @@
 typedef enum {
     PLRS_IMU_MSG_HEADING = 0x01,
     PLRS_IMU_MSG_ATTITUDE = 0x02,
+    PLRS_IMU_MSG_RAW_ATTITUDE = 0x03,
 } PlrsImuMsgId;
 
 /**
@@ -126,6 +127,30 @@ typedef struct {
  */
 bool plrs_imu_attitude_from_payload(const uint8_t *payload, size_t len,
                                     PlrsImuAttitude *out);
+
+/**
+ * Raw attitude payload: heel and yaw rate straight from the sender's MTi-3
+ * onboard orientation, bypassing its fusion EKF. heel is roll from the sensor's
+ * own AHRS quaternion; yaw_rate is the world-frame yaw rate off that quaternion
+ * and the raw gyro, unfiltered. Wire layout: two little-endian float32s.
+ */
+typedef struct {
+    float heel_deg;
+    float yaw_rate_dps;
+} PlrsImuRawAttitude;
+
+/**
+ * @brief Parse a RawAttitude payload: two little-endian float32s (heel, yaw
+ *        rate).
+ *
+ * @param payload Payload bytes.
+ * @param len     Payload length.
+ * @param out     Set to the decoded raw attitude on success.
+ *
+ * @return true on success; false if len is not two float32s.
+ */
+bool plrs_imu_raw_attitude_from_payload(const uint8_t *payload, size_t len,
+                                        PlrsImuRawAttitude *out);
 
 /*
  * Receiving.
