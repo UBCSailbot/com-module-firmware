@@ -8,8 +8,8 @@ present is the only connection.
 
 Data path:  openocd (telnet :4444)  --mdw-->  imu struct  -->  matplotlib
 
-The five fields of interest are consecutive in memory, so a single
-`mdw <base> 9` fetches them all. Only the base address (&imu.heading_deg) is
+The fields of interest are consecutive in memory, so a single
+`mdw <base> 14` fetches them all. Only the base address (&imu.heading_deg) is
 resolved from the ELF at startup, so the tool survives the global moving on a
 rebuild as long as the struct layout is unchanged.
 
@@ -35,12 +35,13 @@ from collections import deque
 
 # Word offsets within the read, relative to &imu.heading_deg. Fixed by the
 # PLRS_IMU struct layout (see PLRS_IMU.h), independent of where imu lands.
-OFF_HEADING = 0  # float, deg
-OFF_HEEL = 3     # float, deg
-OFF_YAW = 4      # float, deg/s
-OFF_LAST_RX = 6  # uint32, HAL tick ms of last good frame
-OFF_DROPS = 8    # uint32, cumulative dropped frames
-READ_WORDS = 9
+OFF_HEADING = 0        # float, deg
+OFF_HEEL = 3           # float, deg
+OFF_YAW = 4            # float, deg/s
+OFF_LAST_RX = 6        # uint32, HAL tick ms of last good frame
+OFF_DROPS = 8          # uint32, cumulative dropped frames
+OFF_HEADING_VALID = 13 # bool, sender's fused heading is GNSS-anchored
+READ_WORDS = 14
 
 # Relative to this script, so it resolves no matter the CWD it's launched from.
 ELF_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -133,7 +134,8 @@ def main() -> None:
         deadline = time.time() + args.selftest
         while time.time() < deadline:
             w = ocd.read_words(base, READ_WORDS)
-            print(f"heading={word_to_float(w[OFF_HEADING]):7.2f}  "
+            print(f"heading={word_to_float(w[OFF_HEADING]):7.2f}"
+                  f"{' ' if w[OFF_HEADING_VALID] & 1 else '!'} "
                   f"heel={word_to_float(w[OFF_HEEL]):7.2f}  "
                   f"yaw={word_to_float(w[OFF_YAW]):7.2f}  "
                   f"last_rx_ms={w[OFF_LAST_RX]:>8}  drops={w[OFF_DROPS]}")
@@ -192,10 +194,15 @@ def main() -> None:
             ax.relim(); ax.autoscale_view(scalex=False)
 
         stale = (now - state["last_rx_wall"]) * 1000 > args.stale_ms
+        hdg_valid = bool(w[OFF_HEADING_VALID] & 1)
+        # Grayed heading trace = the sender flags it free-drifting (no GNSS
+        # anchor); the firmware ignores it in that state, so should you.
+        ln_hd.set_color("tab:red" if hdg_valid else "lightgray")
         status.set_text(
             ("LINK STALE" if stale else "LINK LIVE")
+            + ("" if hdg_valid else "   HDG DRIFTING")
             + f"   last_rx_ms={last_rx}   drops={state['drops']}")
-        status.set_color("tab:red" if stale else "tab:green")
+        status.set_color("tab:red" if stale or not hdg_valid else "tab:green")
         return ln_heel, ln_yaw, ln_hd, status
 
     _anim = FuncAnimation(fig, update, interval=1000.0 / args.hz,

@@ -274,7 +274,10 @@ int main(void)
 	  PLRS_IMU__service(&imu);
 
 	  float imuHeading;
+	  // heading_valid gates on the sender's GNSS anchor: a free-drifting
+	  // heading (GNSS outage) must not steer; hold the last valid one.
 	  if (PLRS_IMU__isFresh(&imu, IMU_HEADING_TIMEOUT_MS) &&
+	      PLRS_IMU__isHeadingValid(&imu) &&
 	      PLRS_IMU__getHeading(&imu, &imuHeading)) {
 	    // Link reports compass degrees in -180..180; the control model and the
 	    // desired heading from CAN use 0..360.

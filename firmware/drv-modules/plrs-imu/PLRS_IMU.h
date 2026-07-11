@@ -26,12 +26,14 @@ typedef enum {
 } PlrsImuAttitudeSource;
 
 /**
- * Compile-time attitude source. Set to PLRS_IMU_SRC_RAW to steer on the raw MTi
- * heel and yaw rate while the sender's EKF is being worked on. The getters
- * branch on this constant, so main.c needs no change to switch.
+ * Compile-time attitude source. FUSED steers on the sender's EKF output
+ * (bias-corrected, heel-aware yaw rate; filtered heel); set to
+ * PLRS_IMU_SRC_RAW to fall back to the raw MTi values if the filter is ever
+ * in question. The getters branch on this constant, so main.c needs no
+ * change to switch.
  */
 #ifndef PLRS_IMU_ATTITUDE_SOURCE
-#define PLRS_IMU_ATTITUDE_SOURCE PLRS_IMU_SRC_RAW
+#define PLRS_IMU_ATTITUDE_SOURCE PLRS_IMU_SRC_FUSED
 #endif
 
 /**
