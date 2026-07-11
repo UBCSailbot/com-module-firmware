@@ -274,17 +274,22 @@ int main(void)
 	  PLRS_IMU__service(&imu);
 
 	  float imuHeading;
-	  // heading_valid gates on the sender's GNSS anchor: a free-drifting
-	  // heading (GNSS outage) must not steer; hold the last valid one.
 	  if (PLRS_IMU__isFresh(&imu, IMU_HEADING_TIMEOUT_MS) &&
-	      PLRS_IMU__isHeadingValid(&imu) &&
 	      PLRS_IMU__getHeading(&imu, &imuHeading)) {
 	    // Link reports compass degrees in -180..180; the control model and the
 	    // desired heading from CAN use 0..360.
 	    if (imuHeading < 0.0f) imuHeading += 360.0f;
-	    controller.live.sailingState.currentHeading = imuHeading;
+
+	    // heading_valid gates the CONTROL input only: a free-drifting heading
+	    // (no GNSS anchor) must not steer, so currentHeading holds the last
+	    // valid value. Telemetry still publishes every fresh heading, with the
+	    // valid flag in byte 5 so the mainframe can judge it.
+	    if (PLRS_IMU__isHeadingValid(&imu)) {
+	      controller.live.sailingState.currentHeading = imuHeading;
+	    }
 
 	    uint16_t heading_cd = (uint16_t)(imuHeading * 100.0f);
+	    rudder_debug_frame[5] = PLRS_IMU__isHeadingValid(&imu) ? 1 : 0;
 	    rudder_debug_frame[6] = heading_cd & 0xFF;
 	    rudder_debug_frame[7] = (heading_cd >> 8) & 0xFF;
 	  }
