@@ -249,7 +249,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM7) {
 		uint8_t tx_heart = 0;
 		if (CAN_Transmit(heartbeat_id, FDCAN_STANDARD_ID, FDCAN_DLC_BYTES_0, &tx_heart, &hfdcan1) != HAL_OK){
-			Error_Handler();
+//			Error_Handler();
 			/* HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_SET); */ //debug
 		} /* else HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7); */ // debug
 	}
