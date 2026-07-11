@@ -102,14 +102,16 @@ extern uint8_t g_fw_enable_can_prints;
 /* USER CODE BEGIN Private defines */
 #define LIGHT_GATE_Pin GPIO_PIN_14
 #define LIGHT_GATE_GPIO_Port GPIOF
-#define WIND_GATE_Pin GPIO_PIN_3
-#define WIND_GATE_GPIO_Port GPIOF
-#define SERVO_GATE_Pin GPIO_PIN_5
-#define SERVO_GATE_GPIO_Port GPIOF
-#define SOL_GATE_Pin GPIO_PIN_0
-#define SOL_GATE_GPIO_Port GPIOG
-#define ENC_GATE_Pin GPIO_PIN_1
-#define ENC_GATE_GPIO_Port GPIOG
+#define WIND_GATE_Pin GPIO_PIN_8
+#define WIND_GATE_GPIO_Port GPIOG
+#define SERVO_GATE_Pin GPIO_PIN_6
+#define SERVO_GATE_GPIO_Port GPIOC
+#define SOL_GATE_Pin GPIO_PIN_11
+#define SOL_GATE_GPIO_Port GPIOE
+#define ENC_GATE_Pin GPIO_PIN_9
+#define ENC_GATE_GPIO_Port GPIOE
+#define AIS_GATE_Pin GPIO_PIN_0
+#define AIS_GATE_GPIO_Port GPIOG
 
 /* USER CODE END Private defines */
 
