@@ -17,6 +17,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "main.h"
 
 #ifndef HAL_GetTick
 uint32_t HAL_GetTick(void);

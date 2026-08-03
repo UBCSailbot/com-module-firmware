@@ -1,3 +1,4 @@
 [submodule "firmware/PLRS-IMU"]
 	path = firmware/PLRS-IMU
 	url = https://github.com/UBCSailbot/PLRS-IMU.git
+	branch = main
