@@ -153,14 +153,14 @@ uint32_t getBinaryBits(uint8_t data[], uint16_t startPosition,
   uint8_t startByte = startPosition / 6;
   uint8_t endByte = endPosition / 6;
   uint16_t length = endPosition - startPosition;
-  uint32_t output = 0;
+  uint64_t output = 0;
   for (uint8_t i = startByte; i <= endByte; i++) {
     output <<= 6;
     output += convertSixBit(data[i]);
   }
   output >>= 5 - ((endPosition) % 6);
-  output &= ((1u << (length + 1u)) - 1u);
-  return output;
+  output &= ((1ull << (length + 1u)) - 1u);
+  return (uint32_t)output;
 }
 
 void getAsciiString(uint8_t input[], uint8_t output[], uint16_t startBit,
