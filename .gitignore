@@ -20,3 +20,4 @@
 *.exe
 test_state_machine.c
 
+__pycache__
