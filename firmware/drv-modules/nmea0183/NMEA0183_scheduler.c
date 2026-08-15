@@ -58,7 +58,7 @@ bool NMEA0183__scheduler_step(NMEA0183_Scheduler *scheduler, uint32_t now_ms) {
     } else if (sentence_type == MESSAGE_MWV || sentence_type == MESSAGE_XDR) {
       if (scheduler->wind_sensor && scheduler->hfdcan1) {
         parsed = WIND_SENSOR__parseMessage(scheduler->wind_sensor, message);
-        if (parsed) {
+        if (parsed && sentence_type == MESSAGE_MWV) {
           HAL_StatusTypeDef status = WIND_SENSOR__CAN_transmit(
               scheduler->wind_sensor, scheduler->hfdcan1);
           if (status == HAL_OK) {
