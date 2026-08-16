@@ -7,7 +7,7 @@ on:
 
 jobs:
   ioc-sync:
-    name: CubeMX .ioc in sync with generated code
+    name: CubeMX .ioc peripherals match generated code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

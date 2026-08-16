@@ -80,19 +80,43 @@ We do not require an in-depth understanding of version control and git, but you 
 
 **Main Branch:** This is where our finalized, reviewed code goes. Only properly documented, clean, and functional code should be included in (the caveat being that some pre-existing code may not follow this standard). To get code in the main branch, you must make a PR with two people signing off on it, one of whom should be an ELEC lead.
 
-## On-water tests: tagged and on main
+### The flow
 
-**Firmware for an on-water test must be built from a tagged commit on `main`.** Not a working branch, not a local build.
+```
+feature branch -> working branch -> main -> tag -> test
+```
 
-A tag is the only reliable answer to "what was actually running?" after something misbehaves. Working branches move; the flashed build may no longer exist.
+Merges to `main` are squashed; merge commits and rebase are disabled. A squashed branch is no longer an ancestor of `main`, so keeping it alive makes the next PR conflict against everything. After yours merges, reset it (warn anyone else on it first):
 
-1. Merge to `main` via the normal PR process.
-2. `git tag -a v0.2.0 -m "<changes>"` and `git push origin v0.2.0`.
-3. Build and flash from the tag, and record it in the test log.
+```sh
+git fetch origin && git reset --hard origin/main && git push --force-with-lease
+```
 
-Tags are `vMAJOR.MINOR.PATCH`: MINOR for new functionality, PATCH for fixes.
+Keep working branches short-lived. `main` once sat ten months behind, and four branches had each grown their own copy of the shared CAN library.
 
-If a board's firmware can't be traced to a tag, treat the test results as unverified.
+## Testing
+
+Test firmware comes from a tag on `main`. Not a working branch, not a local build. A tag is the only reliable answer to "what was running?".
+
+1. Merge to `main`.
+2. `git tag -a v0.2.0 -m "<changes>"; git push origin v0.2.0`.
+3. Cut a release from `docs/release-template.md`.
+4. Flash every board from the tag, and record it in the test log.
+
+`vMAJOR.MINOR.PATCH`: MINOR for features, PATCH for fixes.
+
+Firmware that can't be traced to a tag makes the results unverified. A board flashed from a working branch is not running the tag, even when the source looks the same: v0.1.0 shipped with every project on rudder's `can.c`, which is not what the wingsail board had been flashed with.
+
+## CI
+
+Two jobs per PR, run from the flake so local and CI match. `nix develop .#ci`.
+
+- `.ioc` check: compares each project's declared peripherals against the `MX_*_Init` calls in its generated `main.c`, and pins the CubeMX version. It does **not** check pins, clocks or DMA, so a green tick is weaker than "the config matches".
+- host tests: `make -C firmware/tests test`.
+
+CubeMX is not run in CI. It opens a modal migrate dialog on any version mismatch, even headless, so it hangs.
+
+Known gaps: `tools/ioc-version-exceptions.txt` lists projects still off the pinned CubeMX version, and `tools/ioc-sync-ignore.txt` lists accepted `.ioc` drift. Both are debt; empty them by regenerating, don't add to them.
 
 ## Linking modules to controller-projects
 
