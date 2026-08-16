@@ -30,6 +30,15 @@ SKIP = {
 }
 SKIP_PREFIX = ("NUCLEO", "STM32", "B-U5", "LPBAM")
 
+# The single CubeMX version every project must be generated with. Pinning this
+# is what makes the generated code comparable across projects, and it is the
+# only practical guard available: running CubeMX itself in CI is not viable,
+# because it raises a modal migrate/continue dialog whenever the project
+# version differs from the installed one, even in -q script mode.
+#
+# Projects listed in tools/ioc-version-exceptions.txt are exempt, with a reason.
+EXPECTED_CUBEMX = "6.15.0"
+
 
 def read(path):
     try:
@@ -73,9 +82,25 @@ def load_ignore(root):
     return out
 
 
+def load_version_exceptions(root):
+    """{ioc_path: reason} for projects allowed to be off EXPECTED_CUBEMX."""
+    f = root / "tools" / "ioc-version-exceptions.txt"
+    out = {}
+    if not f.exists():
+        return out
+    for line in f.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        path, reason = line.split(":", 1)
+        out[path.strip()] = reason.strip()
+    return out
+
+
 def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
     ignore = load_ignore(root)
+    version_ok = load_version_exceptions(root)
     iocs = sorted(p for p in root.rglob("*.ioc") if ".git" not in p.parts)
     if not iocs:
         print("no .ioc files found", file=sys.stderr)
@@ -100,7 +125,14 @@ def main():
                  if not any(related(p, i) for p in periphs)} - allowed
 
         ver = re.search(r"^MxCube\.Version=(.+)$", txt, re.M)
-        ver = ver.group(1) if ver else "?"
+        ver = ver.group(1).strip() if ver else "?"
+        if ver != EXPECTED_CUBEMX and rel not in version_ok:
+            bad += 1
+            print(f"VERSION {rel}")
+            print(f"        generated with CubeMX {ver}, expected "
+                  f"{EXPECTED_CUBEMX}")
+            print("        regenerate it, or add it to "
+                  "tools/ioc-version-exceptions.txt with a reason")
         if missing or extra:
             bad += 1
             print(f"DRIFT {rel}  (CubeMX {ver})")
