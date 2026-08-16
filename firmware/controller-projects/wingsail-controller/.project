@@ -45,7 +45,7 @@
 		<link>
 			<name>briter-encoders</name>
 			<type>2</type>
-			<location>/home/michael/university/sailbot/com-module-firmware/firmware/drv-modules/briter-encoders</location>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
 		</link>
 		<link>
 			<name>nmea0183</name>
