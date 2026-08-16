@@ -42,7 +42,8 @@ const uint8_t headingRegisterAddress = 0x1A;
 const uint8_t accX_LSB_RegisterAddress = 0x55;
 
 //The register and value that needs to be sent for the IMU to leave CONFIG mode and enter IMU mode
-const uint8_t imuModeData[] = { 0x3D, 0x08 };
+//const uint8_t imuModeData[] = { 0x3D, 0x08 };
+const uint8_t imuModeData[] = { 0x3D, 0x0C };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------- OBJECT MANAGEMENT ---------------------------------------------------------------------------
@@ -51,7 +52,7 @@ const uint8_t imuModeData[] = { 0x3D, 0x08 };
 
 //Initializes the IMU object
 void IMU__init(IMU* self, I2C_HandleTypeDef* i2cChannel, TIM_HandleTypeDef* timChannel, uint8_t timeBetweenSamples, volatile uint32_t* headingOutput, volatile uint32_t* rollOutput, volatile uint32_t* pitchOutput, volatile uint32_t* accX_Offset, volatile uint32_t* accY_Offset, volatile uint32_t* accZ_Offset, volatile uint32_t* magX_Offset, volatile uint32_t* magY_Offset, volatile uint32_t* magZ_Offset, volatile uint32_t* gyrX_Offset, volatile uint32_t* gyrY_Offset, volatile uint32_t* gyrZ_Offset) {
-
+//void IMU__init(IMU* self, I2C_HandleTypeDef* i2cChannel, TIM_HandleTypeDef* timChannel, uint8_t timeBetweenSamples, volatile uint32_t* headingOutput, volatile uint32_t* rollOutput, volatile uint32_t* pitchOutput) {
 	//Copy the required data to the IMU object
 	self->I2cHandle = i2cChannel;
 	self->timHandle = timChannel;
@@ -86,12 +87,14 @@ void IMU__init(IMU* self, I2C_HandleTypeDef* i2cChannel, TIM_HandleTypeDef* timC
 }
 
 IMU* IMU__create(I2C_HandleTypeDef* i2cChannel, TIM_HandleTypeDef* timChannel, uint8_t timeBetweenSamples, volatile uint32_t* headingOutput,  volatile uint32_t* rollOutput, volatile uint32_t* pitchOutput, volatile uint32_t* accX_Offset, volatile uint32_t* accY_Offset, volatile uint32_t* accZ_Offset, volatile uint32_t* magX_Offset, volatile uint32_t* magY_Offset, volatile uint32_t* magZ_Offset, volatile uint32_t* gyrX_Offset, volatile uint32_t* gyrY_Offset, volatile uint32_t* gyrZ_Offset) {
+//IMU* IMU__create(I2C_HandleTypeDef* i2cChannel, TIM_HandleTypeDef* timChannel, uint8_t timeBetweenSamples, volatile uint32_t* headingOutput,  volatile uint32_t* rollOutput, volatile uint32_t* pitchOutput){
 	//Allocate memory for the IMU object and initialize it
 	IMU* result = (IMU*)malloc(sizeof(IMU));
 	result->inputBuffer = (uint8_t *) malloc(MAX_INPUT_BUFFER);
 	result->calibStat = (uint8_t *) malloc(1);
 	result->calibObject = (CALIBSTAT*) malloc(sizeof(CALIBSTAT));
 	IMU__init(result, i2cChannel, timChannel, timeBetweenSamples, headingOutput, rollOutput, pitchOutput, accX_Offset, accY_Offset, accZ_Offset, magX_Offset, magY_Offset, magZ_Offset, gyrX_Offset, gyrY_Offset, gyrZ_Offset);
+//	IMU__init(result, i2cChannel, timChannel, timeBetweenSamples, headingOutput, rollOutput, pitchOutput);
 	return result;
 }
 
@@ -117,11 +120,13 @@ CALIBSTAT* BNO055_ReadCalibStat(IMU* self){
 		//CALIBSTAT* calibObject;
 		//returnVal = (CALIBSTAT*) malloc(sizeof(CALIBSTAT));
 
+		//********this hard-faults whether its constants or bit-masking???????????????????????
 		uint8_t calibVal = *(self->calibStat);
 		self->calibObject->sysStat = (calibVal >> 6) & 0x03;
 		self->calibObject->gyrStat = (calibVal >> 4) & 0x03;
 		self->calibObject->accStat = (calibVal >> 2) & 0x03;
 		self->calibObject->magStat = (calibVal) & 0x03;
+
 
 		/*self->calibObject->sysStat = ((uint8_t) self->calibStat >> 6) & 0x03;
 		self->calibObject->gyrStat = ((uint8_t) self->calibStat >> 4) & 0x03;
@@ -155,12 +160,12 @@ void IMU__handleTxDMA(IMU* self, I2C_HandleTypeDef *I2cHandle){
 	if(self->I2cHandle->Instance == I2cHandle->Instance){
 		if(self->data_flag == 1){
 			if(HAL_I2C_Master_Receive_DMA(I2cHandle, BNO055_ADDR, self->inputBuffer, 6) != HAL_OK){
-				printf("Error: failed to receive euler data \r\n");
+//				printf("Error: failed to receive euler data \r\n");
 			}
 		}
 		else if (self->data_flag == 2){
 			if (HAL_I2C_Master_Receive_DMA(I2cHandle, BNO055_ADDR, self->inputBuffer, 18) != HAL_OK){
-				printf("Error: failed to receive offset data \r\n");
+//				printf("Error: failed to receive offset data \r\n");
 			}
 		}
 	}
@@ -169,11 +174,12 @@ void IMU__handleTxDMA(IMU* self, I2C_HandleTypeDef *I2cHandle){
 void IMU__handleRxDMA(IMU* self, I2C_HandleTypeDef *I2cHandle){
 	if(self->I2cHandle->Instance == I2cHandle->Instance){
 		if(self->data_flag == 1){
-			self->headingOutput[0] = (self->inputBuffer[1] << 8 | self->inputBuffer[0]) * EULER_CONSTANT;
-			self->rollOutput[0] = (self->inputBuffer[2] << 8 | self->inputBuffer[3]);
-			self->pitchOutput[0] = (self->inputBuffer[4] << 8 | self->inputBuffer[5]);
+			self->headingOutput[0] = (uint16_t)(self->inputBuffer[1] << 8 | self->inputBuffer[0]) * EULER_CONSTANT;
+			self->rollOutput[0] = (int16_t)(self->inputBuffer[2] << 8 | self->inputBuffer[3]) * EULER_CONSTANT;
+			self->pitchOutput[0] = (int16_t)(self->inputBuffer[4] << 8 | self->inputBuffer[5]) * EULER_CONSTANT;
 		}
 		else if(self->data_flag == 2){
+
 			self->accX_Offset[0] = (self->inputBuffer[1] << 8 | self->inputBuffer[0]) * EULER_CONSTANT;
 			self->accY_Offset[0] = (self->inputBuffer[2] << 8 | self->inputBuffer[3]) * EULER_CONSTANT;
 			self->accZ_Offset[0] = (self->inputBuffer[4] << 8 | self->inputBuffer[5]) * EULER_CONSTANT;
@@ -183,6 +189,17 @@ void IMU__handleRxDMA(IMU* self, I2C_HandleTypeDef *I2cHandle){
 			self->gyrX_Offset[0] = (self->inputBuffer[12] << 8 | self->inputBuffer[13]) * EULER_CONSTANT;
 			self->gyrY_Offset[0] = (self->inputBuffer[14] << 8 | self->inputBuffer[15]) * EULER_CONSTANT;
 			self->gyrZ_Offset[0] = (self->inputBuffer[16] << 8 | self->inputBuffer[17]) * EULER_CONSTANT;
+
+//			uint8_t offsetReg = *(self->Offset);
+//			offset->accX_Offset[0] = (self->inputBuffer[1] << 8 | self->inputBuffer[0]) * EULER_CONSTANT;
+//			offset->accY_Offset[0] = (self->inputBuffer[2] << 8 | self->inputBuffer[3]) * EULER_CONSTANT;
+//			offset->accZ_Offset[0] = (self->inputBuffer[4] << 8 | self->inputBuffer[5]) * EULER_CONSTANT;
+//			offset->magX_Offset[0] = (self->inputBuffer[6] << 8 | self->inputBuffer[7]) * EULER_CONSTANT;
+//			offset->magY_Offset[0] = (self->inputBuffer[8] << 8 | self->inputBuffer[9]) * EULER_CONSTANT;
+//			offset->magZ_Offset[0] = (self->inputBuffer[10] << 8 | self->inputBuffer[11]) * EULER_CONSTANT;
+//			offset->gyrX_Offset[0] = (self->inputBuffer[12] << 8 | self->inputBuffer[13]) * EULER_CONSTANT;
+//			offset->gyrY_Offset[0] = (self->inputBuffer[14] << 8 | self->inputBuffer[15]) * EULER_CONSTANT;
+//			offset->gyrZ_Offset[0] = (self->inputBuffer[16] << 8 | self->inputBuffer[17]) * EULER_CONSTANT;
 		}
 		self->data_flag = 0;
 	}
@@ -192,7 +209,7 @@ void IMU__updateBuffer(IMU* self, TIM_HandleTypeDef* timChannel){
 	if(self->timHandle->Instance == timChannel->Instance){
 		if(self->data_flag == 0){
 			if(HAL_I2C_Master_Transmit_DMA(self->I2cHandle, BNO055_ADDR, (uint8_t *) &headingRegisterAddress, 1) != HAL_OK){
-				printf("Error: failed to transmit signal for euler data \r\n");
+//				printf("Error: failed to transmit signal for euler data \r\n");
 			}
 			else{
 				self->data_flag = 1;
@@ -204,7 +221,7 @@ void IMU__updateBuffer(IMU* self, TIM_HandleTypeDef* timChannel){
 void IMU_getOffset(IMU* self){
 	if(self->data_flag == 0){
 		if(HAL_I2C_Master_Transmit_DMA(self->I2cHandle, BNO055_ADDR, (uint8_t *) &accX_LSB_RegisterAddress, 1) != HAL_OK){
-			printf("Error: failed to transmit signal for offset data \r\n");
+//			printf("Error: failed to transmit signal for offset data \r\n");
 		}
 		else{
 			self->data_flag = 2;

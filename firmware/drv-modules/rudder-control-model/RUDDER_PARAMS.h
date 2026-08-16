@@ -1,0 +1,121 @@
+/* RUDDER_PARAMS.h
+ *  Created on: Oct 18, 2025
+ *      Author: Emma Duong
+ * 
+ * This header file declares the fixed parameters for the PID controller used in Polaris' rudder control system.
+ * These parameters include PID coefficients for different sailing states, scaling factors,
+ * physical constraints, and state thresholds.
+ * 
+ * Key Functions:
+ * - getRudderFixedParams: Returns the fixed PID controller parameters.
+ * - updateRudderFixedParams: Updates the PID coefficients for a specified sailing mode.
+ * - updateRudderScalingParams: Updates the scaling coefficients.
+ * 
+*/
+
+#ifndef RUDDER_PARAMS_H_
+#define RUDDER_PARAMS_H_
+#include "RUDDER.h"
+
+/* Enum for different PID modes corresponding to sailing states */
+typedef enum {
+    STANDARD_COEFFS,
+    TACKING_COEFFS,
+    GYBING_COEFFS,
+    LOW_WIND_COEFFS
+} PIDMode;
+
+typedef enum {
+    STANDARD_KP = 0,
+    STANDARD_KI,
+    STANDARD_KD,
+    STANDARD_INTEGRAL_MAX,
+    STANDARD_INTEGRAL_DECAY,
+    STANDARD_DERIVATIVE_FILTER,
+    STANDARD_ERROR_THRESHOLD,
+    STANDARD_HEADING_TOLERANCE,
+    STANDARD_ANG_VEL_TOLERANCE,
+
+    TACKING_KP,
+    TACKING_KI,
+    TACKING_KD,
+    TACKING_INTEGRAL_MAX,
+    TACKING_INTEGRAL_DECAY,
+    TACKING_DERIVATIVE_FILTER,
+    TACKING_ERROR_THRESHOLD,
+    TACKING_HEADING_TOLERANCE,
+    TACKING_ANG_VEL_TOLERANCE,
+
+    GYBING_KP,
+    GYBING_KI,
+    GYBING_KD,
+    GYBING_INTEGRAL_MAX,
+    GYBING_INTEGRAL_DECAY,
+    GYBING_DERIVATIVE_FILTER,
+    GYBING_ERROR_THRESHOLD,
+    GYBING_HEADING_TOLERANCE,
+    GYBING_ANG_VEL_TOLERANCE,
+
+    LOW_WIND_KP,
+    LOW_WIND_KI,
+    LOW_WIND_KD,
+    LOW_WIND_INTEGRAL_MAX,
+    LOW_WIND_INTEGRAL_DECAY,
+    LOW_WIND_DERIVATIVE_FILTER,
+    LOW_WIND_ERROR_THRESHOLD,
+    LOW_WIND_HEADING_TOLERANCE,
+    LOW_WIND_ANG_VEL_TOLERANCE,
+
+    VELOCITY_FACTOR,
+    HEEL_FACTOR,
+    TACK_TIME,
+    GYBE_TIME,
+    TACK_HEADING_PADDING,
+    GYBE_HEADING_PADDING,
+    AVERAGE_WINDOW_SIZE,
+
+    OUTPUT_MAX,
+    OUTPUT_MIN,
+    UPWIND_IRONS_ANGLE,
+    DOWNWIND_IRONS_ANGLE,
+    LOW_WIND_THRESHOLD,
+
+    STATE_LOW_WIND_THRESHOLD,
+    TACKING_LIN_THRESHOLD,
+    TACKING_ROT_THRESHOLD,
+    GYBING_LIN_THRESHOLD,
+    GYBING_ROT_THRESHOLD,
+    IRONS_SPEED,
+    STATE_IRONS_ROT,
+
+    PARAM_COUNT
+} RudderParamId;
+
+/* Getter for the fixed PID controller parameters */
+PIDControllerFixed getRudderFixedParams();
+
+/* Setter for the PID coefficients in the fixed PID controller parameters
+    * @param PIDCoeffs - the new PID coefficients to set
+    * @param mode - the sailing mode for which to set the coefficients
+    */
+
+void updateRudderFixedParams(PIDcoefficients PIDCoeffs, PIDMode mode);
+
+/* Setter for the scaling coefficients in the fixed PID controller parameters
+    * @param scalingCoeffs - pointer to the new ScalingCoefficients struct
+    */
+
+void updateRudderScalingParams(ScalingCoefficients scalingCoeffs);
+
+/* Getter for pid coefficients
+    * @param mode - desired set of coeffs
+    */
+PIDcoefficients getPIDCoeffs(PIDMode mode);
+
+/* Getter for scaling coefficients */
+ScalingCoefficients getScalingCoeffs();
+
+bool setRudderParam(RudderParamId id, float value);
+bool getRudderParam(RudderParamId id, float *value);
+
+#endif /* RUDDER_PARAMS_H_ */
