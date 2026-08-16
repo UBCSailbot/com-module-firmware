@@ -39,6 +39,16 @@
         # neither the host unit tests nor the .ioc check need them, and CubeMX
         # alone is a ~1GB unfree download that would dominate every run.
         ci = pkgs.mkShell {
+          # firmware/tests builds at -O0 with -Werror. nixpkgs' cc-wrapper adds
+          # -D_FORTIFY_SOURCE by default, and glibc then warns that fortify
+          # needs optimisation, which -Werror turns into a hard error. The
+          # default differs between a NixOS host and a plain runner, so set it
+          # explicitly rather than relying on the ambient environment.
+          hardeningDisable = [
+            "fortify"
+            "fortify3"
+          ];
+
           packages = [
             pkgs.gcc
             pkgs.gnumake
@@ -47,6 +57,12 @@
         };
 
         default = pkgs.mkShell {
+          # Same reason as the ci shell: firmware/tests is -O0 -Werror.
+          hardeningDisable = [
+            "fortify"
+            "fortify3"
+          ];
+
           packages = [
             self.packages.${pkgs.system}.stm32cubemx
 
