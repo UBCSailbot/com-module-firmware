@@ -6,6 +6,11 @@
 
 static int g_failures = 0;
 
+/* CubeMX defines these in the generated main.c on target. can.c references them
+ * as extern, so the host build has to supply them. */
+FDCAN_HandleTypeDef hfdcan1;
+TIM_HandleTypeDef htim7;
+
 static FDCAN_TxHeaderTypeDef g_last_tx_header;
 static uint8_t g_last_tx_data[64];
 static uint8_t g_last_tx_data_size = 0;

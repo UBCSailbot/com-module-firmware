@@ -47,6 +47,14 @@ typedef struct {
 #define FDCAN_IT_RX_FIFO0_NEW_MESSAGE 0x01U
 #define FDCAN_IT_RX_FIFO1_NEW_MESSAGE 0x02U
 
+/* Bus-error notifications CAN_Init activates. Distinct bits are all the host
+ * tests need; the values do not have to match the silicon. */
+#define FDCAN_IT_ERROR_WARNING       0x04U
+#define FDCAN_IT_ERROR_PASSIVE       0x08U
+#define FDCAN_IT_BUS_OFF             0x10U
+#define FDCAN_IT_ARB_PROTOCOL_ERROR  0x20U
+#define FDCAN_IT_DATA_PROTOCOL_ERROR 0x40U
+
 #define FDCAN_RX_FIFO0 0U
 
 #define FDCAN_DATA_FRAME 0U

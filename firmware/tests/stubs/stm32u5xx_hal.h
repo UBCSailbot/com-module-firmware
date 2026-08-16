@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+/* On target this comes from the CMSIS compiler header and marks a symbol as
+ * overridable. Host builds link only one definition, so it expands to nothing. */
+#ifndef __weak
+#define __weak
+#endif
+
 typedef struct {
     volatile uint32_t CR1;
     volatile uint32_t CR2;
@@ -111,6 +117,34 @@ static inline void HAL_GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin,
     (void)GPIOx;
     (void)GPIO_Pin;
     (void)PinState;
+}
+
+typedef struct {
+    volatile uint32_t CR1;
+    volatile uint32_t DIER;
+    volatile uint32_t SR;
+    volatile uint32_t CNT;
+    volatile uint32_t ARR;
+} TIM_TypeDef;
+
+typedef struct {
+    TIM_TypeDef *Instance;
+} TIM_HandleTypeDef;
+
+/* CANFD uses TIM7 for the 10s heartbeat and compares htim->Instance against it.
+ * Mirror CMSIS and make it a memory-mapped address (the real STM32U5 TIM7 base)
+ * so no linker symbol is needed; the host never dereferences it. */
+#define TIM7 ((TIM_TypeDef *)0x40001400UL)
+
+/**
+ * @brief Stub HAL timer base start in interrupt mode.
+ *
+ * @param htim Timer handle to start.
+ * @return HAL_OK for host tests.
+ */
+static inline HAL_StatusTypeDef HAL_TIM_Base_Start_IT(TIM_HandleTypeDef *htim) {
+    (void)htim;
+    return HAL_OK;
 }
 
 #endif
