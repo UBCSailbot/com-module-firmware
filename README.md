@@ -100,12 +100,23 @@ Test firmware comes from a tag on `main`. Not a working branch, not a local buil
 
 1. Merge to `main`.
 2. `git tag -a v0.2.0 -m "<changes>"; git push origin v0.2.0`.
-3. Cut a release: date, dryland or on-water, commit, per-board verification.
+3. Cut a release from `docs/release-template.md`.
 4. Flash every board from the tag, and record it in the test log.
 
 `vMAJOR.MINOR.PATCH`: MINOR for features, PATCH for fixes.
 
-Firmware that can't be traced to a tag makes the results unverified.
+Firmware that can't be traced to a tag makes the results unverified. A board flashed from a working branch is not running the tag, even when the source looks the same: v0.1.0 shipped with every project on rudder's `can.c`, which is not what the wingsail board had been flashed with.
+
+## CI
+
+Two jobs per PR, run from the flake so local and CI match. `nix develop .#ci`.
+
+- `.ioc` check: compares each project's declared peripherals against the `MX_*_Init` calls in its generated `main.c`, and pins the CubeMX version. It does **not** check pins, clocks or DMA, so a green tick is weaker than "the config matches".
+- host tests: `make -C firmware/tests test`.
+
+CubeMX is not run in CI. It opens a modal migrate dialog on any version mismatch, even headless, so it hangs.
+
+Known gaps: `tools/ioc-version-exceptions.txt` lists projects still off the pinned CubeMX version, and `tools/ioc-sync-ignore.txt` lists accepted `.ioc` drift. Both are debt; empty them by regenerating, don't add to them.
 
 ## Linking modules to controller-projects
 
