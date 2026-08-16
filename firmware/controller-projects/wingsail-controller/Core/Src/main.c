@@ -21,9 +21,20 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "BRITER.h"
-#include "RUDDERPID.h"
 #include <stdio.h>
+#include <string.h>
+//#include "BRITER.h"
+//#include "WINDSENSOR.h"
+#include "AIS.h"
+#include "GPS.h"
+#include "BRITER.h"
+#include "NMEA0183_scheduler.h"
+#include "stm32u5xx.h"
+#include "can.h"
+#include "CANSPI.h"
+#include "CANSERVO.h"
+#include "stm32u5xx_hal.h"
+#include "stm32u5xx_hal_uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,7 +44,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define SERVO_LIMIT 80
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,28 +55,35 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-DAC_HandleTypeDef hdac1;
-
 FDCAN_HandleTypeDef hfdcan1;
 
+SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim7;
+
+UART_HandleTypeDef huart4;
+UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef handle_GPDMA1_Channel9;
+DMA_HandleTypeDef handle_GPDMA1_Channel13;
+DMA_HandleTypeDef handle_GPDMA1_Channel14;
+DMA_HandleTypeDef handle_GPDMA1_Channel15;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-FDCAN_FilterTypeDef sFilterConfig;
-FDCAN_TxHeaderTypeDef TxHeader1;
-FDCAN_RxHeaderTypeDef RxHeader1;
-FDCAN_RxHeaderTypeDef RxHeader2;
-uint8_t RxData1[64];
-uint8_t RxData2[64];
-HAL_StatusTypeDef CanStartStatus;
-
-float desiredRudderAngle = 0;
-
-char uartBuffer[128];
+static AIS_PARSER *ais_parser;
+static AIS_CAN_BATCH ais_batch;
+static GPS *gps;
+static WIND_SENSOR *wind_sensor;
+static NMEA0183 *nmea_channel_ais_gps;
+static NMEA0183 *nmea_channel_wind;
+static NMEA0183_Scheduler nmea_scheduler_ais_gps;
+static NMEA0183_Scheduler nmea_scheduler_wind;
+static CAN_Frame canRxFrame;
+static float angle = 0.0f;
+uint8_t g_fw_enable_debug_prints = 0;
+uint8_t g_fw_enable_can_prints = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,21 +91,21 @@ void SystemClock_Config(void);
 static void SystemPower_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
+static void MX_ADC1_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_UCPD1_Init(void);
-static void MX_ADC1_Init(void);
-static void MX_USB_OTG_FS_PCD_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_DAC1_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_FDCAN1_Init(void);
+static void MX_SPI1_Init(void);
+static void MX_UART5_Init(void);
+static void MX_TIM7_Init(void);
+static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
    set to 'Yes') calls __io_putchar() */
-static uint8_t byte_to_dlc(uint8_t len);
-static uint8_t dlc_to_bytes(uint8_t len);
-
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
@@ -97,185 +115,37 @@ static uint8_t dlc_to_bytes(uint8_t len);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 BRITER * encoderObject;
-int get_encoder_delta(int prev, int curr) {
-      int delta = curr - prev;
-      if (delta > 512) delta -= 1024;
-      if (delta < -512) delta += 1024;
-      return delta;
+
+static void debug_log_wind_sentence(const NMEA0183Raw *message) {
+  size_t display_len;
+
+  if ((message == NULL) || (g_fw_enable_debug_prints == 0U)) {
+    return;
   }
 
-  void run_motor_speed_test() {
-      float speed;
-      for (speed = -1.0f; speed <= 1.0001f; speed += 0.05f) {
-
-          // Turn off motor and wait 1 second
-          Set_Motor_Calibrated(0.0f);
-          HAL_Delay(1000);
-
-          // Set motor speed and wait 1 second before measurement
-          Set_Motor_Calibrated(speed);
-          HAL_Delay(1000);
-
-          // Start averaging over 10 seconds
-          int initial_encoder = BRITER__getEncoderRaw(encoderObject);
-          uint32_t start_time = HAL_GetTick();
-
-          int32_t accumulated_delta = 0;
-          int prev_encoder = initial_encoder;
-
-          while (HAL_GetTick() - start_time < 10000) {
-              HAL_Delay(20); // Small delay to avoid spamming
-
-              int curr_encoder = BRITER__getEncoderRaw(encoderObject);
-              accumulated_delta += get_encoder_delta(prev_encoder, curr_encoder);
-              prev_encoder = curr_encoder;
-          }
-
-          // Convert to degrees per second
-          float revolutions = accumulated_delta / 1024.0f;
-          float degrees = revolutions * 360.0f;
-          float degrees_per_second = degrees / 10.0f;
-
-          // Print result
-          printf("Speed setting: %.2f -> Avg deg/s: %.2f\r\n", speed, degrees_per_second);
-      }
-
-      // Stop motor at the end
-      Set_Motor_Raw(0.0f);
+  display_len = message->scentenceLength;
+  while ((display_len > 0U) &&
+         ((message->scentenceData[display_len - 1U] == '\r') ||
+          (message->scentenceData[display_len - 1U] == '\n') ||
+          (message->scentenceData[display_len - 1U] == '\0'))) {
+    display_len--;
   }
 
-#include "main.h"
-#include <stdio.h>
-#include <stdbool.h>
-#include <math.h>
-
-
-#define MOTION_THRESHOLD_DPS 1.0f
-#define MEASURE_DURATION_MS 3000
-#define STEP 0.002f
-
-
-bool motor_has_motion(float speed) {
-    Set_Motor_Raw(speed);
-    HAL_Delay(1000);  // settle time
-
-    int start_enc = BRITER__getEncoderRaw(encoderObject);
-    int prev_enc = start_enc;
-    int32_t total_delta = 0;
-    uint32_t start_time = HAL_GetTick();
-
-    while (HAL_GetTick() - start_time < MEASURE_DURATION_MS) {
-        HAL_Delay(20);
-        int curr_enc = BRITER__getEncoderRaw(encoderObject);
-        total_delta += get_encoder_delta(prev_enc, curr_enc);
-        prev_enc = curr_enc;
-    }
-
-    Set_Motor_Raw(0.0f);  // stop motor after test
-    HAL_Delay(500);
-
-    float revs = total_delta / 1024.0f;
-    float deg = revs * 360.0f;
-    float dps = deg / (MEASURE_DURATION_MS / 1000.0f);
-
-    return fabsf(dps) > MOTION_THRESHOLD_DPS;
+  printf("[WIND][RAW] len=%u data=\"%.*s\"\r\n", message->scentenceLength,
+         (int)display_len, message->scentenceData);
 }
 
-void find_motor_deadband() {
-    float lower_cutoff = 0.0f;
-    float upper_cutoff = 0.0f;
-    bool lower_found = false;
-    bool upper_found = false;
+static void debug_poll_wind_channel(void) {
+  NMEA0183Raw *message;
 
-    // Negative direction
-    for (float speed = -0.01f; speed >= -0.4f; speed -= STEP) {
-    	printf("Trying speed %.3f\x0D\x0A", speed);
-        if (motor_has_motion(speed)) {
-            lower_cutoff = speed;
-            lower_found = true;
-            break;
-        }
-    }
+  if (nmea_channel_wind == NULL) {
+    return;
+  }
 
-    // Positive direction
-    for (float speed = 0.01f; speed <= 0.4f; speed += STEP) {
-    	printf("Trying speed %.3f\x0D\x0A", speed);
-        if (motor_has_motion(speed)) {
-            upper_cutoff = speed;
-            upper_found = true;
-            break;
-        }
-    }
-
-    if (lower_found && upper_found) {
-        printf("Deadband range: %.3f to %.3f (no motion)\r\n", lower_cutoff, upper_cutoff);
-    } else {
-        printf("Could not determine deadband precisely.\r\n");
-    }
-}
-
-void run_velocity_monitor() {
-    Set_Motor_Raw(1.0f);  // Start motor at full speed
-
-    int prev_encoder = BRITER__getEncoderRaw(encoderObject);
-    uint32_t prev_time = HAL_GetTick();
-
-    while (1) {
-        HAL_Delay(200);  // wait 1 second
-
-        int curr_encoder = BRITER__getEncoderRaw(encoderObject);
-        uint32_t curr_time = HAL_GetTick();
-
-        int delta = get_encoder_delta(prev_encoder, curr_encoder);
-        float revs = delta / 1024.0f;
-        float degrees = revs * 360.0f;
-
-        float elapsed_sec = (curr_time - prev_time) / 1000.0f;
-        float dps = degrees / elapsed_sec;
-
-        printf("Velocity: %.2f deg/s\r\n", dps);
-
-        prev_encoder = curr_encoder;
-        prev_time = curr_time;
-    }
-}
-
-// Current motor speed state
-float currentSpeed = 0.0f;
-
-// Set motor speed and update state
-void updateMotorSpeed(float newSpeed) {
-    Set_Motor_Calibrated(newSpeed);
-    currentSpeed = newSpeed;
-}
-
-void processUserInput(char input) {
-    if (input == 'a') {
-        if (fabs(currentSpeed) > 0.0f) {
-            updateMotorSpeed(0.0f);
-        } else {
-            updateMotorSpeed(0.1f);
-        }
-    } else if (input == 'd') {
-        if (fabs(currentSpeed) > 0.0f) {
-            updateMotorSpeed(0.0f);
-        } else {
-            updateMotorSpeed(-0.1f);
-        }
-    } else if (input == 'z') {
-    	updateMotorSpeed(0.0f);
-    	BRITER__zeroPosition(encoderObject);
-    } else {
-    	updateMotorSpeed(0.0f);
-    }
-}
-
-
-void uint32_to_little_endian_bytes(uint32_t value, uint8_t bytes[4]) {
-    bytes[0] = (uint8_t)(value & 0xFF);
-    bytes[1] = (uint8_t)((value >> 8) & 0xFF);
-    bytes[2] = (uint8_t)((value >> 16) & 0xFF);
-    bytes[3] = (uint8_t)((value >> 24) & 0xFF);
+  message = NMEA0183__getTopBufferItem(nmea_channel_wind);
+  if (message != NULL) {
+    debug_log_wind_sentence(message);
+  }
 }
 /* USER CODE END 0 */
 
@@ -312,150 +182,99 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_GPDMA1_Init();
+  MX_ADC1_Init();
   MX_ICACHE_Init();
   MX_UCPD1_Init();
-  MX_ADC1_Init();
-  MX_USB_OTG_FS_PCD_Init();
-  MX_USART2_UART_Init();
   MX_USART1_UART_Init();
-  MX_DAC1_Init();
+  MX_USART2_UART_Init();
+  MX_USB_OTG_FS_PCD_Init();
   MX_FDCAN1_Init();
+  MX_SPI1_Init();
+  MX_UART5_Init();
+  MX_TIM7_Init();
+  MX_UART4_Init();
   /* USER CODE BEGIN 2 */
-  //CAN
-  /* Configure standard ID reception filter to Rx buffer 0 */
-    sFilterConfig.IdType = FDCAN_STANDARD_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    sFilterConfig.FilterID1 = 0x000;
-    sFilterConfig.FilterID2 = 0x7FF;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
+  CANSPI_Initialize();
+  CAN_Init(&hfdcan1, 0x132);
 
-    /* Configure extended ID reception filter to Rx FIFO 1 */
-    sFilterConfig.IdType = FDCAN_EXTENDED_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_RANGE_NO_EIDM;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
-    sFilterConfig.FilterID1 = 0x1111111;
-    sFilterConfig.FilterID2 = 0x2222222;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-      Error_Handler();
-    }
+  // Power cycle all attached sensors
+  HAL_GPIO_WritePin(LIGHT_GATE_GPIO_Port, LIGHT_GATE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(WIND_GATE_GPIO_Port, WIND_GATE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(SERVO_GATE_GPIO_Port, SERVO_GATE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(SOL_GATE_GPIO_Port, SOL_GATE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(AIS_GATE_GPIO_Port, AIS_GATE_Pin, GPIO_PIN_RESET);
+    HAL_Delay(10);
+    HAL_GPIO_WritePin(LIGHT_GATE_GPIO_Port, LIGHT_GATE_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(WIND_GATE_GPIO_Port, WIND_GATE_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(SERVO_GATE_GPIO_Port, SERVO_GATE_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(SOL_GATE_GPIO_Port, SOL_GATE_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(ENC_GATE_GPIO_Port, ENC_GATE_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(AIS_GATE_GPIO_Port, AIS_GATE_Pin, GPIO_PIN_SET);
 
-    /* Configure global filter:
-       Filter all remote frames with STD and EXT ID
-       Reject non matching frames with STD ID and EXT ID */
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    nmea_channel_ais_gps = NMEA0183__create(&huart5);
+    nmea_channel_wind = NMEA0183__create(&huart4);
 
-    /*##-2 Start FDCAN controller (continuous listening CAN bus) ##############*/
-    CanStartStatus = HAL_FDCAN_Start(&hfdcan1);
-    if (CanStartStatus != HAL_OK)
-    {
-      Error_Handler();
-    }
+    ais_parser = AIS__create();
+    memset(&ais_batch, 0, sizeof(ais_batch));
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    gps = GPS__create(nmea_channel_ais_gps);
+    wind_sensor = WIND_SENSOR__create(nmea_channel_wind);
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
-    {
-      Error_Handler();
-    }
-    char uartLine[128];
-      uint8_t canDLC, canData[64];
-      uint32_t canID = 0;
-      uint8_t * txMsg = (uint8_t *) malloc (4);
+    memset(&nmea_scheduler_ais_gps, 0, sizeof(nmea_scheduler_ais_gps));
+    nmea_scheduler_ais_gps.channel = nmea_channel_ais_gps;
+    nmea_scheduler_ais_gps.ais_parser = ais_parser;
+    nmea_scheduler_ais_gps.ais_batch = &ais_batch;
+    nmea_scheduler_ais_gps.gps = gps;
+    nmea_scheduler_ais_gps.hfdcan1 = &hfdcan1;
 
-  //Other
-  uint32_t ts = HAL_GetTick();
-  float errorSum = 0.0f;
-  int32_t heading = 0;
+    memset(&nmea_scheduler_wind, 0, sizeof(nmea_scheduler_wind));
+    nmea_scheduler_wind.channel = nmea_channel_wind;
+    nmea_scheduler_wind.wind_sensor = wind_sensor;
+    nmea_scheduler_wind.hfdcan1 = &hfdcan1;
 
-  uint32_t *pastTS = &ts;
-  float *integralError = &errorSum;
-  int32_t *past_encoder_heading = &heading;
-
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET); // Encoder en
-//  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_1, GPIO_PIN_SET); // Motor en
-  HAL_Delay(500);
-
-  MOTOR_CONFIG motorConfig = {
-        .motorDacPeripheral = &hdac1,
-        .motorDacChannel = DAC_CHANNEL_2,
-        .enableGPIOPeripheral = GPIOG,
-        .enableGPIOPin = GPIO_PIN_1,
-        .reverseGPIOPeripheral = GPIOF,
-        .reverseGPIOPin = GPIO_PIN_13
-  };
-
-  Setup_Motor(motorConfig);
-  HAL_Delay(1000);
-  Set_Motor_Raw(0);
-  encoderObject = BRITER__create(&huart2, 20);
-
-
-
-
-  HAL_Delay(2000);
-  Enable_Motor();
-  char rx_char;
-//  run_motor_speed_test();
-//  find_motor_deadband();
-//  run_velocity_monitor();
+    encoderObject = BRITER__create(&huart2, 50);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(1000);
-//	  Set_Motor(0, hdac1);
-//	  HAL_Delay(10000);
-//	  Set_Motor(1, hdac1);
-//	  printf("Encoder Reading Raw: %i\x0D\x0A", BRITER__getEncoderRaw(encoderObject));
-//	  printf("Encoder Reading Clamp: %i\x0D\x0A", BRITER__clampAngle(encoderObject));
-	  printf("Encoder Reading Float: %f\x0D\x0A", BRITER__floatAngle(encoderObject));
-	  printf("Desired Rudder Angle: %f\x0D\x0A", desiredRudderAngle);
+    HAL_Delay(10);
+    uint32_t now_ms = HAL_GetTick();
 
-	  TxHeader1.Identifier         = 0x204;
-	  		TxHeader1.IdType             = (0x204>0x7FF) ? FDCAN_EXTENDED_ID : FDCAN_STANDARD_ID;
-	  		TxHeader1.TxFrameType        = FDCAN_DATA_FRAME;
-	  		TxHeader1.DataLength         = byte_to_dlc(4);  /* HAL expects DLC in bits [19:16] */
-	  		TxHeader1.ErrorStateIndicator= FDCAN_ESI_ACTIVE;
-	  		TxHeader1.BitRateSwitch      = FDCAN_BRS_ON;
-	  		TxHeader1.FDFormat           = FDCAN_FD_CAN;
-	  		TxHeader1.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
+    // NMEA0183 parsing
+    debug_poll_wind_channel();
+    if (NMEA0183__scheduler_step(&nmea_scheduler_ais_gps, now_ms)) {
+      HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+    }
+    if (NMEA0183__scheduler_step(&nmea_scheduler_wind, now_ms)) {
+      HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+    }
 
-	  uint32_t canRudderMSG;
-	  if (BRITER__floatAngle(encoderObject) != ENCODER_NOT_READY_SENTINEL){
-		  canRudderMSG = (BRITER__floatAngle(encoderObject) + 90.0) * 1000.0f;
-	  } else {
-		  canRudderMSG = 181000;
-	  }
+   // CANSERVO
+    while (CAN_Receive(&canRxFrame) == HAL_OK){
+      uint32_t id = canRxFrame.RxData1_Identifier;
+      if (id == 0x002 && canRxFrame.RxData1_BufferLength == 4){
+        uint32_t value = (((uint32_t)canRxFrame.RxData1[3]) << 24) |
+                         (((uint32_t)canRxFrame.RxData1[2]) << 16) |
+                         (((uint32_t)canRxFrame.RxData1[1]) << 8) |
+                         ((uint32_t)canRxFrame.RxData1[0]);
+        angle = ((float) value) / 1000.0 - 90.0;
+        angle *= 8.0;
+      }
+    }
 
-	  uint32_to_little_endian_bytes(canRudderMSG, txMsg);
-
-	  if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&TxHeader1,txMsg)!=HAL_OK) {
-//		  Error_Handler();
-		  printf("Error\r\n");
-	  }
-//	  if (HAL_UART_Receive(&huart1, (uint8_t*)&rx_char, 1, 100) == HAL_OK) {
-//		  processUserInput(rx_char);
-//	  }
+    if (angle < -SERVO_LIMIT){
+    	angle = -SERVO_LIMIT;
+    } else if (angle > SERVO_LIMIT){
+    	angle = SERVO_LIMIT;
+    }
 
 
-//	  PI_Motor(0, BRITER__clampAngle(encoderObject),
-//	  	              integralError, pastTS,
-//	  	               past_encoder_heading, hdac1);
+    set_servo_angle(angle);
+
+    printf("Encode angle: %f\r\n", BRITER__floatAngle(encoderObject));
 
     /* USER CODE END WHILE */
 
@@ -483,15 +302,15 @@ void SystemClock_Config(void)
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
-                              |RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_MSI;
+                              |RCC_OSCILLATORTYPE_MSI|RCC_OSCILLATORTYPE_MSIK;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_4;
-  RCC_OscInitStruct.LSIDiv = RCC_LSI_DIV1;
+  RCC_OscInitStruct.MSIKClockRange = RCC_MSIKRANGE_4;
+  RCC_OscInitStruct.MSIKState = RCC_MSIK_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
   RCC_OscInitStruct.PLL.PLLMBOOST = RCC_PLLMBOOST_DIV1;
@@ -588,61 +407,6 @@ static void MX_ADC1_Init(void)
 }
 
 /**
-  * @brief DAC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC1_Init(void)
-{
-
-  /* USER CODE BEGIN DAC1_Init 0 */
-
-  /* USER CODE END DAC1_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-  DAC_AutonomousModeConfTypeDef sAutonomousMode = {0};
-
-  /* USER CODE BEGIN DAC1_Init 1 */
-
-  /* USER CODE END DAC1_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac1.Instance = DAC1;
-  if (HAL_DAC_Init(&hdac1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT2 config
-  */
-  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_DISABLE;
-  sConfig.DAC_DMADoubleDataMode = DISABLE;
-  sConfig.DAC_SignedFormat = DISABLE;
-  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
-  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_EXTERNAL;
-  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Autonomous Mode
-  */
-  sAutonomousMode.AutonomousModeState = DAC_AUTONOMOUS_MODE_DISABLE;
-  if (HAL_DACEx_SetConfigAutonomousMode(&hdac1, &sAutonomousMode) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC1_Init 2 */
-
-  /* USER CODE END DAC1_Init 2 */
-
-}
-
-/**
   * @brief FDCAN1 Initialization Function
   * @param None
   * @retval None
@@ -701,8 +465,12 @@ static void MX_GPDMA1_Init(void)
   __HAL_RCC_GPDMA1_CLK_ENABLE();
 
   /* GPDMA1 interrupt Init */
-    HAL_NVIC_SetPriority(GPDMA1_Channel9_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel9_IRQn);
+    HAL_NVIC_SetPriority(GPDMA1_Channel13_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel13_IRQn);
+    HAL_NVIC_SetPriority(GPDMA1_Channel14_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel14_IRQn);
+    HAL_NVIC_SetPriority(GPDMA1_Channel15_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel15_IRQn);
 
   /* USER CODE BEGIN GPDMA1_Init 1 */
 
@@ -746,44 +514,193 @@ static void MX_ICACHE_Init(void)
 }
 
 /**
-  * @brief UCPD1 Initialization Function
+  * @brief SPI1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_UCPD1_Init(void)
+static void MX_SPI1_Init(void)
 {
 
-  /* USER CODE BEGIN UCPD1_Init 0 */
+  /* USER CODE BEGIN SPI1_Init 0 */
 
-  /* USER CODE END UCPD1_Init 0 */
+  /* USER CODE END SPI1_Init 0 */
 
-  LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
+  SPI_AutonomousModeConfTypeDef HAL_SPI_AutonomousMode_Cfg_Struct = {0};
 
-  /* Peripheral clock enable */
-  LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_UCPD1);
+  /* USER CODE BEGIN SPI1_Init 1 */
 
-  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
-  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
-  /**UCPD1 GPIO Configuration
-  PB15   ------> UCPD1_CC2
-  PA15 (JTDI)   ------> UCPD1_CC1
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 0x7;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
+  hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
+  hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
+  hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
+  hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
+  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+  hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
+  hspi1.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
+  hspi1.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  HAL_SPI_AutonomousMode_Cfg_Struct.TriggerState = SPI_AUTO_MODE_DISABLE;
+  HAL_SPI_AutonomousMode_Cfg_Struct.TriggerSelection = SPI_GRP1_GPDMA_CH0_TCF_TRG;
+  HAL_SPI_AutonomousMode_Cfg_Struct.TriggerPolarity = SPI_TRIG_POLARITY_RISING;
+  if (HAL_SPIEx_SetConfigAutonomousMode(&hspi1, &HAL_SPI_AutonomousMode_Cfg_Struct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
   */
-  GPIO_InitStruct.Pin = LL_GPIO_PIN_15;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+static void MX_TIM7_Init(void)
+{
 
-  GPIO_InitStruct.Pin = LL_GPIO_PIN_15;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  /* USER CODE BEGIN TIM7_Init 0 */
 
-  /* USER CODE BEGIN UCPD1_Init 1 */
+  /* USER CODE END TIM7_Init 0 */
 
-  /* USER CODE END UCPD1_Init 1 */
-  /* USER CODE BEGIN UCPD1_Init 2 */
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE END UCPD1_Init 2 */
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 31999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 49999;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
+  * @brief UART4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART4_Init(void)
+{
+
+  /* USER CODE BEGIN UART4_Init 0 */
+
+  /* USER CODE END UART4_Init 0 */
+
+  /* USER CODE BEGIN UART4_Init 1 */
+
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 4800;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart4, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart4, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART4_Init 2 */
+
+  /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
+  * @brief UART5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART5_Init(void)
+{
+
+  /* USER CODE BEGIN UART5_Init 0 */
+
+  /* USER CODE END UART5_Init 0 */
+
+  /* USER CODE BEGIN UART5_Init 1 */
+
+  /* USER CODE END UART5_Init 1 */
+  huart5.Instance = UART5;
+  huart5.Init.BaudRate = 38400;
+  huart5.Init.WordLength = UART_WORDLENGTH_8B;
+  huart5.Init.StopBits = UART_STOPBITS_1;
+  huart5.Init.Parity = UART_PARITY_NONE;
+  huart5.Init.Mode = UART_MODE_TX_RX;
+  huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart5.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart5.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart5.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart5.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart5, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart5, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART5_Init 2 */
+
+  /* USER CODE END UART5_Init 2 */
 
 }
 
@@ -884,6 +801,48 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * @brief UCPD1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UCPD1_Init(void)
+{
+
+  /* USER CODE BEGIN UCPD1_Init 0 */
+
+  /* USER CODE END UCPD1_Init 0 */
+
+  LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* Peripheral clock enable */
+  LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_UCPD1);
+
+  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOB);
+  LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+  /**UCPD1 GPIO Configuration
+  PB15   ------> UCPD1_CC2
+  PA15 (JTDI)   ------> UCPD1_CC1
+  */
+  GPIO_InitStruct.Pin = LL_GPIO_PIN_15;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = LL_GPIO_PIN_15;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* USER CODE BEGIN UCPD1_Init 1 */
+
+  /* USER CODE END UCPD1_Init 1 */
+  /* USER CODE BEGIN UCPD1_Init 2 */
+
+  /* USER CODE END UCPD1_Init 2 */
+
+}
+
+/**
   * @brief USB_OTG_FS Initialization Function
   * @param None
   * @retval None
@@ -932,20 +891,28 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_3|GPIO_PIN_5|GPIO_PIN_14, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0|GPIO_PIN_1|LED_RED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0|GPIO_PIN_1|LED_RED_Pin|GPIO_PIN_7
+                          |GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_9|GPIO_PIN_11, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CAN_CS_GPIO_Port, CAN_CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6|LED_GREEN_Pin|GPIO_PIN_10, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, UCPD_DBn_Pin|LED_BLUE_Pin, GPIO_PIN_RESET);
@@ -956,26 +923,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PF13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pins : PF3 PF5 PF14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_5|GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PG0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  /*Configure GPIO pins : PG0 PG1 PG7 PG8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_7|GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PG1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  /*Configure GPIO pins : PE9 PE11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_11;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : UCPD_FLT_Pin */
   GPIO_InitStruct.Pin = UCPD_FLT_Pin;
@@ -983,12 +950,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(UCPD_FLT_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : CAN_CS_Pin */
+  GPIO_InitStruct.Pin = CAN_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CAN_CS_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : LED_RED_Pin */
   GPIO_InitStruct.Pin = LED_RED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LED_RED_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC6 PC10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_GREEN_Pin */
   GPIO_InitStruct.Pin = LED_GREEN_Pin;
@@ -1021,82 +1002,17 @@ PUTCHAR_PROTOTYPE
   /* Place your implementation of fputc here */
   /* e.g. write a character to the USART1 and Loop until the end of transmission */
   HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
+
   return ch;
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  (void)huart;
 }
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
-	PI_Motor(desiredRudderAngle, BRITER__floatAngle(encoderObject), BRITER__getLastReadTimestamp(encoderObject));
-}
-
-static uint8_t dlc_to_bytes(uint8_t dlc) {
-    static const uint8_t dlc_lut[16] = {
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64
-    };
-    return dlc_lut[dlc & 0x0F];
-}
-
-static uint8_t byte_to_dlc(uint8_t len) {
-	if (len <= 8) return len;
-    else if (len == 12) return 9;
-    else if (len == 16) return 10;
-    else if (len == 20) return 11;
-    else if (len == 24) return 12;
-    else if (len == 32) return 13;
-    else if (len == 48) return 14;
-    else return 15;
-}
-
-uint32_t little_endian_bytes_to_uint32(uint8_t * bytes) {
-    return (uint32_t)bytes[0]
-         | ((uint32_t)bytes[1] << 8)
-         | ((uint32_t)bytes[2] << 16)
-         | ((uint32_t)bytes[3] << 24);
-}
-
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
-  if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
-  {
-    /* Retrieve Rx messages from RX FIFO0 */
-    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
-    {
-		Error_Handler();
-//		HAL_GPIO_WritePin(GPIOG, GPIO_PIN_2, GPIO_PIN_RESET);
-    }
-
-    /* For testing: To print to terminal */
-    uint8_t length = dlc_to_bytes(RxHeader1.DataLength);
-
-//    snprintf(uartBuffer, sizeof(uartBuffer),
-//			"\r\nReceived CAN Frame:\r\nID: 0x%X\r\nLength: %lu\r\nData: ",
-//			RxHeader1.Identifier, length);
-//
-//	HAL_UART_Transmit(&huart1, (uint8_t *)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
-//	for (uint8_t i = 0; i < length; i++) {
-//		snprintf(uartBuffer, sizeof(uartBuffer), "0x%X ", RxData1[i]);
-//		HAL_UART_Transmit(&huart1, (uint8_t *)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
-//	}
-
-//	HAL_UART_Transmit(&huart1, (uint8_t *)"\r\n", 2, HAL_MAX_DELAY);
-
-	if(RxHeader1.Identifier == 0x001 && length == 5){
-		if(RxData1[4] >> 7 == 1){
-			printf("Manual Mode\r\n");
-		} else
-			printf("Auto Mode\r\n");
-
-		uint32_t rawSteeringCMD = little_endian_bytes_to_uint32(RxData1);
-		desiredRudderAngle = rawSteeringCMD / 1000.0f - 90;
-
-//		printf("Steering Direction: %f\r\n", desiredRudderAngle);
-
-	}
-	/* For testing: END*/
-
-  }
-
-//  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 }
 /* USER CODE END 4 */
 
@@ -1109,7 +1025,6 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  Disable_Motor();
   while (1)
   {
   }

@@ -1,14 +1,15 @@
+# Build artifacts
 *.bin
 *.elf
 *.list
 *.map
-*.list
 !objects.list
 *.d
 *.o
 *.su
 *.metadata
 *.settings
+*.exe
 
 #Debug
 *Debug/
@@ -16,8 +17,21 @@
 *Release/
 *release
 
+# Code editors
 *.vscode
-*.exe
+*.idea
+*.cache
+
+# Agent instructions
+*/AGENTS.md
+
+# Tooling artifacts
+compile_commands.json
+firmware/compile_commands.json
+.clangd
+
+# Host test artifacts
+firmware/tests/build/
 test_state_machine.c
 
 __pycache__

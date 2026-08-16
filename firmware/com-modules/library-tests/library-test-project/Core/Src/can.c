@@ -8,31 +8,12 @@
  *
  *  @details The implementation includes buffer management, initialization, transmission, and
  *           reception handling with callback functions for handling received messages.
- *           NEW UPDATE: Messages are enqueued in interrupt context and dequeued
- *           in application context to prevent data corruption and race conditions
- *           + library adjusted to only standard filter
  */
 
 /* Includes ------------------------------------------------------------------*/
 #include "can.h"
 #include "main.h"
 #include <stdio.h>
-<<<<<<<< HEAD:firmware/com-modules/CANFD/can.c
-#include <string.h>
-#include <stdbool.h>
-
-/* Variables ------------------------------------------------------------------*/
-#define CAN_RX_QUEUE_SIZE 100 						/* Arbitrary queue size*/
-static CAN_Frame CAN_Rx_Queue[CAN_RX_QUEUE_SIZE];	/* Rx Circular Buffer */
-static volatile uint8_t canRxHead = 0;				/* Head index of buffer */
-static volatile uint8_t canRxTail = 0;				/* Tail index of buffer */
-HAL_StatusTypeDef CanStartStatus; 					/* Status of FDCAN start operation */
-
-/* Static Functions -----------------------------------------------------------*/
-static int CAN_DequeueFrame(CAN_Frame *frame);
-static void CAN_EnqueueFrame(uint32_t id, uint8_t len, const uint8_t *data);
-uint8_t dlc_to_bytes(uint8_t dlc);
-========
 
 /* Variables ------------------------------------------------------------------*/
 FDCAN_HandleTypeDef hfdcan1;  		/* Handle for FDCAN1 */
@@ -41,19 +22,41 @@ uint8_t* RxData1 = NULL; 			/* Pointer to receive buffer for FIFO0 (Standard ID)
 uint8_t* RxData2 = NULL; 			/* Pointer to receive buffer for FIFO1 (Extended ID)*/
 uint16_t RxData1_BufferLength = 0; 	/* Length of data received in FIFO0 */
 uint16_t RxData2_BufferLength = 0; 	/* Length of data received in FIFO1 */
->>>>>>>> origin/can-library:firmware/com-modules/library-tests/library-test-project/Core/Src/can.c
 
 /* Functions ------------------------------------------------------------------*/
+
+/**
+ * @brief Allocates memory for FDCAN receive buffers.
+ * @param RxData1_Length: Length of buffer for FIFO0.
+ * @param RxData2_Length: Length of buffer for FIFO1.
+ */
+void CAN_SetRxBufferSize(uint16_t RxData1_Length, uint16_t RxData2_Length) {
+    if (RxData1 != NULL) {
+        free(RxData1);
+    }
+    if (RxData2 != NULL) {
+        free(RxData2);
+    }
+
+    RxData1_BufferLength = RxData1_Length;
+    RxData2_BufferLength = RxData2_Length;
+
+    RxData1 = (uint8_t* )malloc(RxData1_Length);
+    RxData2 = (uint8_t* )malloc(RxData2_Length);
+    if (RxData1 == NULL || RxData2 == NULL) {
+        Error_Handler();
+    }
+}
+
 /**
  * @brief 	Initializes the FDCAN module.
  * @details In order:
- * 			Configures standard ID reception filter to Rx FIFO 0
+ * 			Configures standard ID reception filter to Rx buffer
  * 			Configures extended ID reception filter to Rx FIFO 1
  * 			Configures global filter: Filter all remote frames with STD and EXT ID
  * 									  Reject non matching frames with STD ID and EXT ID
  * 			Starts the FDCAN controller (continuous listening CAN bus)
  * 			Activates Notifications
- * @note    Calls Error_Handler() if any configuration step fails.
  */
 void CAN_Init(void) {
 	/*##-1 Configures FDCAN meta data and controllers*/
@@ -116,8 +119,7 @@ void CAN_Init(void) {
  * 						FDCAN_DLC_BYTES_24, FDCAN_DLC_BYTES_32, FDCAN_DLC_BYTES_48,
  * 						FDCAN_DLC_BYTES_64
  * @param 	DataBuffer: Pointer to the TxData buffer.
- * @param   hfdcan1: Pointer to the FDCAN handle structure.
- * @return 	HAL_StatusTypeDef HAL_OK if successful, !HAL_OK (other HAL status) otherwise.
+ * @return 	HAL_StatusTypeDef HAL_OK if successful, !HAL_OK otherwise.
  */
 HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t DataLength, uint8_t* DataBuffer) {
     FDCAN_TxHeaderTypeDef TxHeader;
@@ -131,35 +133,7 @@ HAL_StatusTypeDef CAN_Transmit(uint32_t Identifier, uint32_t IdType, uint32_t Da
     TxHeader.FDFormat = FDCAN_FD_CAN;
     TxHeader.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
 
-<<<<<<<< HEAD:firmware/com-modules/CANFD/can.c
-    return HAL_FDCAN_AddMessageToTxFifoQ(hfdcan1, &TxHeader, DataBuffer);
-}
-
-/**
- * @brief   Copies received CAN Rx data and adds metadata into a local user-provided buffer.
- * @param   RxData_buffer: Pointer to buffer where received data will be copied.
- *                         Buffer format: {ID[0], ID[1], ID[2], ID[3], Length, Data[0], ..., Data[n]}
- *                         - Bytes 0-3: 32-bit identifier in little-endian
- *                         - Byte 4: Data length in uint8_t
- *                         - Bytes 5+: Actual data payload
- * @return  HAL_StatusTypeDef: HAL_OK if a message was received, HAL_ERROR if queue is empty.
- * @note    Should be called from the main application context, not from ISR.
- *          The queue uses a circular buffer.
- */
-HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
-    CAN_Frame frame;
-    if (CAN_DequeueFrame(&frame) == 0) return HAL_ERROR;
-
-    RxData_buffer[0] = (uint8_t)(frame.RxData1_Identifier & 0xFF);
-    RxData_buffer[1] = (uint8_t)((frame.RxData1_Identifier >> 8) & 0xFF);
-    RxData_buffer[2] = (uint8_t)((frame.RxData1_Identifier >> 16) & 0xFF);
-    RxData_buffer[3] = (uint8_t)((frame.RxData1_Identifier >> 24) & 0xFF);
-    RxData_buffer[4] = frame.RxData1_BufferLength;
-    memcpy(RxData_buffer + 5, frame.RxData1, frame.RxData1_BufferLength);
-    return HAL_OK;
-========
     return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, DataBuffer);
->>>>>>>> origin/can-library:firmware/com-modules/library-tests/library-test-project/Core/Src/can.c
 }
 
 /**
@@ -181,6 +155,7 @@ HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
  *               - When processing of urgent messages
  */
 
+
 /**
  * @brief Callback function for handling messages received in FIFO0.
  * @param hfdcan: Pointer to FDCAN handle.
@@ -189,53 +164,24 @@ HAL_StatusTypeDef CAN_Receive(uint8_t *RxData_buffer) {
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
     if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
         FDCAN_RxHeaderTypeDef RxHeader;
-<<<<<<<< HEAD:firmware/com-modules/CANFD/can.c
-        uint8_t tmp[64];
-        memset(tmp, 0, 64);
-
-        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, tmp) != HAL_OK) {
-========
         if (RxData1 == NULL) {
             Error_Handler();
         }
         if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, RxData1) != HAL_OK) {
->>>>>>>> origin/can-library:firmware/com-modules/library-tests/library-test-project/Core/Src/can.c
             Error_Handler();
         }
-<<<<<<<< HEAD:firmware/com-modules/CANFD/can.c
-
-		CAN_EnqueueFrame(RxHeader.Identifier, dlc_to_bytes(RxHeader.DataLength), tmp);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-========
         //check actual length incoming against the buf len rather than stringcmp?
         RxData1_BufferLength = RxHeader.DataLength;
->>>>>>>> origin/can-library:firmware/com-modules/library-tests/library-test-project/Core/Src/can.c
     }
     /* added for debug */
     //HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 }
 
-/* HELPER FUNCTIONS BELOW */
-
 /**
- * @brief   Adds a received CAN frame to the circular queue.
- * @param   id: CAN message identifier (11-bit standard).
- * @param   len: Length of the data payload in bytes.
- * @param   data: Pointer to the data payload buffer.
- * @details This function implements a circular buffer with overflow handling.
- *          If the queue is full (head catches up to tail), the oldest message is
- *          discarded to make room for the new message; new messages always available.
+ * @brief Callback function for handling messages received in FIFO1.
+ * @param hfdcan: Pointer to FDCAN handle.
+ * @param RxFifo1ITs: FIFO1 interrupt flags.
  */
-<<<<<<<< HEAD:firmware/com-modules/CANFD/can.c
-static void CAN_EnqueueFrame(uint32_t id, uint8_t len, const uint8_t *data) {
-    uint8_t next = (canRxHead + 1) % CAN_RX_QUEUE_SIZE;
-    if (next == canRxTail)  canRxTail = (canRxTail + 1) % CAN_RX_QUEUE_SIZE;
-
-    CAN_Rx_Queue[canRxHead].RxData1_Identifier = id;
-    CAN_Rx_Queue[canRxHead].RxData1_BufferLength = len;
-    memcpy(CAN_Rx_Queue[canRxHead].RxData1, data, len);
-    canRxHead = next;
-========
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
     if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
         FDCAN_RxHeaderTypeDef RxHeader;
@@ -247,26 +193,20 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
         }
         RxData2_BufferLength = RxHeader.DataLength;
     }
->>>>>>>> origin/can-library:firmware/com-modules/library-tests/library-test-project/Core/Src/can.c
 }
 
 /**
- * @brief   Removes and retrieves the oldest CAN frame from the circular queue.
- * @param   frame: Pointer to CAN_Frame structure where the retrieved frame will be stored.
- * @return  int: 1 if a frame was successfully retrieved, 0 if the queue is empty.
- * @details This function provides thread-safe reading from the queue by checking if
- *          the queue is empty (tail == head) before attempting to read. The volatile
- *          queue indices ensure memory consistency between ISR and main loop contexts.
- * @note    This function should be called from the main application context, not from ISR.
- *          Always check the return value before using the retrieved frame data.
+ * @brief  	Prints the received RxDataX recived from FIFO0 and FIFO1.
+ *
+ * @details This function checks if there is received data in the Rx buffers
+ * 			If data is available, it prints it in hexadecimal format;
+ * 			otherwise, it indicates that no data has been received.
+ *
+ * @note 	This function assumes that RxData1 and RxData2 have been allocated and
+ *       	populated by the Rx FIFO callbacks.
+ *
+ * @retval 	None
  */
-<<<<<<<< HEAD:firmware/com-modules/CANFD/can.c
-static int CAN_DequeueFrame(CAN_Frame *frame) {
-	if (canRxTail == canRxHead) return 0;
-	*frame = CAN_Rx_Queue[canRxTail];
-	canRxTail = (canRxTail + 1) % CAN_RX_QUEUE_SIZE;
-	return 1;
-========
 void CAN_PrintRxData(void) {
     if (RxData1 != NULL && RxData1_BufferLength > 0) {
         printf("FIFO0 Received: ");
@@ -287,5 +227,4 @@ void CAN_PrintRxData(void) {
     } else {
         printf("FIFO1: No data received.\n");
     }
->>>>>>>> origin/can-library:firmware/com-modules/library-tests/library-test-project/Core/Src/can.c
 }

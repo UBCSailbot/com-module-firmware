@@ -33,9 +33,14 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>CV7-windsensor</name>
+			<name>CANFD</name>
 			<type>2</type>
-			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/CV7-windsensor</locationURI>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/com-modules/CANFD</locationURI>
+		</link>
+		<link>
+			<name>MDB961WP</name>
+			<type>2</type>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/MDB961WP</locationURI>
 		</link>
 		<link>
 			<name>briter-encoders</name>
@@ -43,9 +48,9 @@
 			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/briter-encoders</locationURI>
 		</link>
 		<link>
-			<name>servo-solenoid</name>
+			<name>nmea0183</name>
 			<type>2</type>
-			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/servo-solenoid</locationURI>
+			<locationURI>$%7BPARENT-2-PROJECT_LOC%7D/drv-modules/nmea0183</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
