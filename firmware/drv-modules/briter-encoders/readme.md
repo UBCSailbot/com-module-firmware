@@ -6,8 +6,8 @@ Unless otherwise noted all IOC settings are that of default. Note that different
 ## UART
 * Using the `USART2` peripheral
 * Set the baud rate to `9600 Bits/s`
-* Under Advanced Features -> TX Pin Active Level Inversion should be `True`
-* Under Advanced Features -> RX Pin Active Level Inversion should be `True`
+* Under Advanced Features -> TX Pin Active Level Inversion should be `False`
+* Under Advanced Features -> RX Pin Active Level Inversion should be `False`
 * In NVIC Settings the `USART2 Global Interrupts` should be enabled
 ## GPDMA1
 * Channel 9 should be set to `Standard Request Mode`
@@ -36,6 +36,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
 	BRITER__handleDMA(encoderObject, huart, size);
 }
 ```
+## Powering the Encoder With the PCB
+To power the encoder atatched to the PCB, pin PG0 has to be set to high. In order to do this, go to the IOC file, assign pin PG0 as an analog output. Next, add the following code before the main while loop to provide power to the encoder: 
+```
+HAL_GPIO_WritePin(GPIOG, GPIO_PIN_0, GPIO_PIN_SET);
+```
+
+## Extra Funtionality
 Other code can be put in these functions for other peripherals/timers and their required callbacks, but these functions must be called. Without these, the data collection will not happen.
 ## Getting Data
 The `encoderAngle` variable will always have the up-to-date heading information since it was sent to the BRITER__create function. Note this variable may be modified at any time.

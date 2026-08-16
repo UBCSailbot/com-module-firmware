@@ -40,20 +40,37 @@ typedef struct {
 	volatile uint8_t magStat;
 } CALIBSTAT;
 
+//The offset data type
+typedef struct{
+	volatile uint32_t * accX_Offset;
+	volatile uint32_t * accY_Offset;
+	volatile uint32_t * accZ_Offset;
+	volatile uint32_t * magX_Offset;
+	volatile uint32_t * magY_Offset;
+	volatile uint32_t * magZ_Offset;
+	volatile uint32_t * gyrX_Offset;
+	volatile uint32_t * gyrY_Offset;
+	volatile uint32_t * gyrZ_Offset;
+}OFFSET;
+
 //The IMU data type
 typedef struct {
 	I2C_HandleTypeDef* I2cHandle;
 	TIM_HandleTypeDef* timHandle;
 	//allocated memory to store euler angle data output
-	volatile uint32_t * headingOutput;
-	volatile uint32_t * rollOutput;
-	volatile uint32_t * pitchOutput;
+//	volatile uint32_t * headingOutput;
+//	volatile uint32_t * rollOutput;
+//	volatile uint32_t * pitchOutput;
+	float * headingOutput;
+	float * rollOutput;
+	float * pitchOutput;
 	uint8_t * inputBuffer;
 	uint8_t * calibStat;
 	CALIBSTAT* calibObject;
 	//flag determining whether reading euler data or offset data
 	uint8_t data_flag;
 	//allocated memory to store offset data output
+//	OFFSET* offfset;
 	volatile uint32_t * accX_Offset;
 	volatile uint32_t * accY_Offset;
 	volatile uint32_t * accZ_Offset;

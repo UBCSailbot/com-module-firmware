@@ -1,0 +1,10 @@
+# Projects allowed to be off the pinned CubeMX version (EXPECTED_CUBEMX in
+# check_ioc_sync.py). Format:
+#   <path to .ioc>: <reason>
+#
+# Every entry is debt. Delete the line once the project is regenerated on the
+# pinned version.
+
+firmware/controller-projects/wingsail-controller/wingsail-controller.ioc: bumped to 6.16.1; CubeMX cannot downgrade a project, so returning it to 6.15.0 needs a deliberate .ioc revert and a re-verify against the flashed board
+firmware/com-modules/library-tests/fdcan-serial-project/FDCAN_Serial.ioc: on 6.12.1 with FW_U5 V1.6.0; upgrading also moves the firmware pack, so regenerate and retest before removing this line
+firmware/com-modules/library-tests/library-test-project/Communication Module.ioc: on 6.10.0 with FW_U5 V1.1.1; oldest project, upgrade jumps two firmware packs. Also carries the I2C3/I2C4 drift in ioc-sync-ignore.txt, which must be fixed in the same regeneration

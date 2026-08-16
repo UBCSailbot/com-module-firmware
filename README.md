@@ -80,6 +80,20 @@ We do not require an in-depth understanding of version control and git, but you 
 
 **Main Branch:** This is where our finalized, reviewed code goes. Only properly documented, clean, and functional code should be included in (the caveat being that some pre-existing code may not follow this standard). To get code in the main branch, you must make a PR with two people signing off on it, one of whom should be an ELEC lead.
 
+## On-water tests: tagged and on main
+
+**Firmware for an on-water test must be built from a tagged commit on `main`.** Not a working branch, not a local build.
+
+A tag is the only reliable answer to "what was actually running?" after something misbehaves. Working branches move; the flashed build may no longer exist.
+
+1. Merge to `main` via the normal PR process.
+2. `git tag -a v0.2.0 -m "<changes>"` and `git push origin v0.2.0`.
+3. Build and flash from the tag, and record it in the test log.
+
+Tags are `vMAJOR.MINOR.PATCH`: MINOR for new functionality, PATCH for fixes.
+
+If a board's firmware can't be traced to a tag, treat the test results as unverified.
+
 ## Linking modules to controller-projects
 
 ```controller-projects``` is where whole projects are created, while ```___-modules``` is where small modules are written.
