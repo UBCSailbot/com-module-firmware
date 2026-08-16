@@ -1,0 +1,8 @@
+# Known, accepted .ioc drift. Format:
+#   <path to .ioc>: <SYMBOL>[,<SYMBOL>...]  # why
+#
+# Entries here are real drift that has been reviewed and consciously deferred,
+# not false positives. Fixing one means adding the peripheral in CubeMX and
+# regenerating, then deleting the line.
+
+firmware/com-modules/library-tests/library-test-project/Communication Module.ioc: I2C3,I2C4  # hand-written inits; the .ioc declares only I2C1/I2C2, so a CubeMX regen would delete MX_I2C3_Init and MX_I2C4_Init. Test project, not flight code.
