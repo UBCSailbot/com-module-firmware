@@ -1,4 +1,6 @@
 {
+  makeWrapper,
+  symlinkJoin,
   fdupes,
   buildFHSEnv,
   fetchzip,
@@ -103,10 +105,24 @@ let
       platforms = [ "x86_64-linux" ];
     };
   };
-in
-buildFHSEnv {
+  # CubeMX hardcodes $HOME/.stm32cubemx (device database, ~1GB) and
+  # $HOME/STM32Cube/Repository (firmware packs, several hundred MB more).
+  # Redirecting HOME does not move them: the JDK resolves user.home from the
+  # password database, not the environment. Bind-mounting inside the existing
+  # bubblewrap sandbox does work, and keeps the user's real home clean.
+  #
+  # extraBwrapArgs is interpolated into a shell script, so these expand at
+  # runtime. The source directories are created by the wrapper below, because
+  # bwrap refuses to bind a path that does not exist.
+  stateDir = ''"''${XDG_DATA_HOME:-$HOME/.local/share}/stm32cubemx"'';
+
+  fhs = buildFHSEnv {
   inherit (package) pname version meta;
   runScript = "${package.outPath}/bin/stm32cubemx";
+  extraBwrapArgs = [
+    ''--bind ${stateDir}/dot-stm32cubemx "$HOME/.stm32cubemx"''
+    ''--bind ${stateDir}/STM32Cube "$HOME/STM32Cube"''
+  ];
   extraInstallCommands = ''
     mkdir -p $out/share/{applications,icons}
     ln -sf ${package.outPath}/share/applications/* $out/share/applications/
@@ -141,4 +157,22 @@ buildFHSEnv {
       openssl
       udev
     ];
+  };
+in
+# Thin wrapper that creates the state directories before bwrap tries to bind
+# them, then hands over to the sandboxed CubeMX. symlinkJoin keeps the desktop
+# entry and icons the FHS env installs.
+symlinkJoin {
+  inherit (package) pname version meta;
+  name = "${package.pname}-${package.version}";
+  paths = [ fhs ];
+  nativeBuildInputs = [ makeWrapper ];
+  # Single-quoted so the build shell leaves $HOME alone; it must expand when
+  # the wrapper runs, not while nix is building it (where HOME is
+  # /homeless-shelter).
+  postBuild = ''
+    rm -f $out/bin/stm32cubemx
+    makeWrapper ${fhs}/bin/stm32cubemx $out/bin/stm32cubemx \
+      --run 'state="''${XDG_DATA_HOME:-$HOME/.local/share}/stm32cubemx"; mkdir -p "$state/dot-stm32cubemx" "$state/STM32Cube"'
+  '';
 }
