@@ -70,6 +70,11 @@ volatile uint32_t last_reset_time = 0;
 volatile uint32_t last_wind_msg_tick = 0;
 volatile uint8_t consecutive_i2c_errors = 0;
 
+// Tracks whether the "R" command was successfully ACK'd by each sensor
+volatile bool rtd_cmd_ok = false;
+volatile bool ec_cmd_ok = false;
+volatile bool ph_cmd_ok = false;
+
 static void MX_USART1_UART_Init(void);
 /* USER CODE END PV */
 
@@ -89,7 +94,7 @@ static void MX_IWDG_Init(void);
 int read_rtd();
 int read_ec();
 int read_ph();
-void SendSensorCommand(const char *cmd, uint16_t address);
+bool SendSensorCommand(const char *cmd, uint16_t address);
 void ReadSensorResponse(char *buffer, uint8_t len, uint16_t address);
 float simple_atof(char *str);
 #ifdef __GNUC__
@@ -841,12 +846,14 @@ int read_rtd() {
 	char response[32] = {0};
 
 	if (max600_clock == 1) {
-	    SendSensorCommand("R", EZO_RTD_I2C_ADDR);
+	    rtd_cmd_ok = SendSensorCommand("R", EZO_RTD_I2C_ADDR);
 	}
 
 	if (max600_clock == 600) {
+	    if (!rtd_cmd_ok) return -1;  // Command was NACK'd, sensor likely unplugged
 	    ReadSensorResponse(response, sizeof(response), EZO_RTD_I2C_ADDR);
-	    float response_f = simple_atof((char *) response) + 273.15;
+	    if (response[0] != 1) return -1;  // EZO status byte: 1 = success
+	    float response_f = simple_atof((char *) &response[1]) + 273.15;
 	    return response_f * 1000;
 	}
 
@@ -861,21 +868,20 @@ int read_ec() { //0.07 -> 500,000; resolution decreases as conductivity increase
 	char response[32] = {0};
 
 	if (max600_clock == 1) {
-	    SendSensorCommand("R", EZO_EC_I2C_ADDR);
-
+	    ec_cmd_ok = SendSensorCommand("R", EZO_EC_I2C_ADDR);
 	}
 
 	if (max600_clock == 600) {
-	    ReadSensorResponse(response, sizeof(response), EZO_EC_I2C_ADDR);
-
-	    float response_f = simple_atof(response);
 	    max600_clock = 0;
-	    return response_f;
+	    if (!ec_cmd_ok) return -1;  // Command was NACK'd, sensor likely unplugged
+	    ReadSensorResponse(response, sizeof(response), EZO_EC_I2C_ADDR);
+	    if (response[0] != 1) return -1;  // EZO status byte: 1 = success
 
+	    float response_f = simple_atof(&response[1]);
+	    return response_f;
 	}
 
 	return -1;
-
 
 }
 
@@ -886,31 +892,30 @@ int read_ph() { //0.001 -> 14.000, returns 1-> 14000
 	char response[32] = {0};
 
 	if (max800_clock == 1) {
-	    SendSensorCommand("R", EZO_pH_I2C_ADDR);
+	    ph_cmd_ok = SendSensorCommand("R", EZO_pH_I2C_ADDR);
 	}
 
 	if (max800_clock == 800) {
-	    ReadSensorResponse(response, sizeof(response), EZO_pH_I2C_ADDR);
-
-	    float response_f = simple_atof(response);
-
 	    max800_clock = 0;
-	    return response_f * 1000;
+	    if (!ph_cmd_ok) return -1;  // Command was NACK'd, sensor likely unplugged
+	    ReadSensorResponse(response, sizeof(response), EZO_pH_I2C_ADDR);
+	    if (response[0] != 1) return -1;  // EZO status byte: 1 = success
 
+	    float response_f = simple_atof(&response[1]);
+	    return response_f * 1000;
 	}
 
 	return -1;
 
 }
 
-void SendSensorCommand(const char *cmd, uint16_t address) {
+bool SendSensorCommand(const char *cmd, uint16_t address) {
     // 1. Try to transmit
     HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c2, address, (uint8_t *)cmd, strlen(cmd), 100);
 
     // 2. Check the result
     if (status != HAL_OK) {
         // FAILURE CASE
-        printf("I2C TX failed on addr 0x%X! Error: %ld\r\n", address, hi2c2.ErrorCode);
         consecutive_i2c_errors++; // Count the error
 
         // If we failed 5 times in a row, kick the hardware
@@ -918,11 +923,12 @@ void SendSensorCommand(const char *cmd, uint16_t address) {
             Recover_I2C_Bus();
             consecutive_i2c_errors = 0; // Reset counter after kicking
         }
+        return false;
     }
     else {
         // SUCCESS CASE
-        // If it worked, we reset the error counter because the bus is healthy
         consecutive_i2c_errors = 0;
+        return true;
     }
 }
 
