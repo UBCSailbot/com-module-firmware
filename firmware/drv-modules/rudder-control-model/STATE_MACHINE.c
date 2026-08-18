@@ -17,8 +17,18 @@ static float abs_float(float value)
     return value < 0.0f ? -value : value;
 }
 
+/*
+ * A zero timestamp means "no guard was ever set", so it must always read as
+ * expired. Without the special case the signed comparison below reports a
+ * zero guard as still pending once the tick counter passes 2^31 ms
+ * (24.9 days of uptime), which would freeze every state transition.
+ */
 static bool time_reached(uint32_t now_ms, uint32_t target_ms)
 {
+    if (target_ms == 0U) {
+        return true;
+    }
+
     return (int32_t)(now_ms - target_ms) >= 0;
 }
 

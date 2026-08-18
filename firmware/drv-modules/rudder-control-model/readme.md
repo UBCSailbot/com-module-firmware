@@ -29,7 +29,27 @@ We are considering how various updates at different times should be handled. Thi
 
 ## Unit Tests
 
-Host-side unit tests for state-machine transitions and PID controller behavior live in `tests/test_rudder_control.c`.
+The tests that run in CI live in `firmware/tests/drv-modules/rudder-control-model`
+and are built by `firmware/tests/Makefile`:
+
+- `rudder_straight_test.c` covers the **shipped** configuration. It does not
+  define `RUDDER_TEST_BUILD`, so `STRAIGHT_ONLY` and `TUNING_MODE` stay on and
+  `straightLine()` is exercised the way the firmware runs it. It pins the exact
+  per-cycle integral update, so a change to the integral maths fails CI.
+- `rudder_state_machine_test.c` defines `RUDDER_TEST_BUILD` to switch
+  `STRAIGHT_ONLY` off and covers the transition guards.
+
+Run them with `make -C firmware/tests test`.
+
+Note that `STRAIGHT_ONLY` and `TUNING_MODE` are wrapped in
+`#ifndef RUDDER_TEST_BUILD`. Any test that defines `RUDDER_TEST_BUILD` is
+therefore testing a build the boat never runs. Keep coverage of the shipped
+path in `rudder_straight_test.c`.
+
+The older ad-hoc tests in this folder (`test.c`, `testing/`) are not wired into
+CI.
+
+Legacy note: earlier host-side tests lived in `tests/test_rudder_control.c`.
 
 On Windows, run:
 
