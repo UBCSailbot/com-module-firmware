@@ -172,7 +172,7 @@ float getRudderAngle(float currentError) {
     		integral = cState->integralError;
     }
 //    printf("Time %f \r\n", dt);
-    printf("Integral %f \r\n",integral);
+    RUDDER_PRINT("Integral %f \r\n",integral);
     // Clamp integral to prevent windup
     const float integralMax = PID->integralMax; // from your PhysicalParams or a #define
     // if (integral > integralMax) {
@@ -197,7 +197,7 @@ float getRudderAngle(float currentError) {
         derivative = (cState->filteredError - cState->previousFilteredError) / dt * 1000;
     }   
     vals->derivativeValue = derivative; 
-    printf("Derivative: %f\r\n", derivative);
+    RUDDER_PRINT("Derivative: %f\r\n", derivative);
     // Calculating PID output
     float outputAngle = PID->Kp * currentError + PID->Ki * integral - PID->Kd * derivative;
     // Saving error
@@ -503,9 +503,10 @@ static float irons(float error) {
             if(currentHeadingRelWind < 180) {
                 // Desired heading is to starboard of wind direction, tack to starboard
                 controller.live.sailingState.desiredHeading = controller.live.windState.windDirection + controller.fixed.physicalParams.upwindIronsAngle + 5.0f; // Add small padding
+            } else {
+                // Desired heading is to port of wind direction, tack to port
+                controller.live.sailingState.desiredHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f; // Add small padding
             }
-            // Desired heading is to port of wind direction, tack to port
-            controller.live.sailingState.desiredHeading = controller.live.windState.windDirection - controller.fixed.physicalParams.upwindIronsAngle - 5.0f; // Add small padding
         }
     }
 
