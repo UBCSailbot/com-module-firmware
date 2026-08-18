@@ -21,6 +21,8 @@ make -C tests test
 
 ## What is covered
 
+- Rudder control model: the shipped `STRAIGHT_ONLY` path (`straightLine()` and
+  the PID integral update) and the state-machine transition guards
 - NMEA0183 parsing and validation in `drv-modules/nmea0183/NMEA0183.c`
 - Sample sentences derived from `drv-modules/nmea0183/nmea-sample.txt`
 - Ring buffer overflow behavior via the IRQ handler path
@@ -36,6 +38,10 @@ dependencies. These provide minimal types/macros for:
 
 If you add new module tests that require additional HAL symbols, extend the stubs
 locally rather than importing the full device headers.
+
+`HAL_GetTick` is a stub returning 0. Tests that need time to advance define
+`TEST_USE_FAKE_TICK` and link `common/fake_tick.c`, which provides a settable
+counter via `fake_tick_set` and `fake_tick_advance`.
 
 ## Adding new tests
 

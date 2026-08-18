@@ -28,6 +28,17 @@ uint32_t HAL_GetTick(void);
 #define TUNING_MODE
 #endif
 
+/*
+ * The controller prints the integral and derivative terms every cycle for
+ * dryland tuning. Host tests define RUDDER_QUIET to silence them; firmware
+ * builds are unaffected.
+ */
+#ifdef RUDDER_QUIET
+#define RUDDER_PRINT(...) ((void)0)
+#else
+#define RUDDER_PRINT(...) printf(__VA_ARGS__)
+#endif
+
 /* This struct gives coefficients for a PID controller
  * @param Kp - proportional gain (unitless)
  * @param Kd - derivative gain (seconds)

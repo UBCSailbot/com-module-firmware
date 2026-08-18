@@ -66,6 +66,13 @@ typedef uint32_t GPIO_PinState;
 
 #define __HAL_DMA_GET_COUNTER(hdma) ((hdma) ? (hdma)->counter : 0U)
 
+/*
+ * Tests that need time to advance define TEST_USE_FAKE_TICK and link
+ * common/fake_tick.c, which provides a settable counter instead.
+ */
+#ifdef TEST_USE_FAKE_TICK
+uint32_t HAL_GetTick(void);
+#else
 /**
  * @brief Stub HAL tick getter.
  *
@@ -75,6 +82,7 @@ typedef uint32_t GPIO_PinState;
 static inline uint32_t HAL_GetTick(void) {
     return 0U;
 }
+#endif
 
 /**
  * @brief Stub HAL UART DMA receive.
